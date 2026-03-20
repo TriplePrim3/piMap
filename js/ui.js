@@ -2,6 +2,22 @@ const UI = (() => {
   let searchTimeout = null;
   let currentConstant = 'pi';
 
+  // Famous patterns in π (position is the digit index after "3.")
+  const FAMOUS_PATTERNS = [
+    { name: 'Feynman Point', pattern: '999999', pos: 761, icon: '🎯', desc: 'Six consecutive 9s', section: 'Famous Sequences' },
+    { name: 'First 0123456789', pattern: '0123456789', pos: 17387594880, icon: '🔢', desc: 'All digits in order', section: 'Famous Sequences' },
+    { name: 'First 123456', pattern: '123456', pos: 2458884, icon: '📈', desc: 'Counting up 1–6', section: 'Consecutive Runs' },
+    { name: 'First 12345', pattern: '12345', pos: 49701, icon: '📈', desc: 'Counting up 1–5', section: 'Consecutive Runs' },
+    { name: 'First 1234', pattern: '1234', pos: 13806, icon: '📈', desc: 'Counting up 1–4', section: 'Consecutive Runs' },
+    { name: 'Seven 3s', pattern: '3333333', pos: 710099, icon: '🔁', desc: 'Seven consecutive 3s', section: 'Repeated Digits' },
+    { name: 'Six 7s', pattern: '777777', pos: 399578, icon: '🎰', desc: 'Six consecutive 7s', section: 'Repeated Digits' },
+    { name: 'First 11111', pattern: '11111', pos: 32787, icon: '🔁', desc: 'Five consecutive 1s', section: 'Repeated Digits' },
+    { name: 'First 00000', pattern: '00000', pos: 17533, icon: '⭕', desc: 'Five consecutive 0s', section: 'Repeated Digits' },
+    { name: '2718 (e)', pattern: '2718', pos: 11705, icon: 'e', desc: 'Euler\'s number in π', section: 'Constants in π' },
+    { name: '1414 (√2)', pattern: '1414', pos: 1635, icon: '√', desc: '√2 appears in π', section: 'Constants in π' },
+    { name: '1618 (φ)', pattern: '1618', pos: 6003, icon: 'φ', desc: 'Golden ratio in π', section: 'Constants in π' },
+  ];
+
   function init() {
     setupSearch();
     setupConstants();
@@ -10,6 +26,7 @@ const UI = (() => {
     setupLayouts();
     setupTheme();
     setupCanvasInteraction();
+    setupFamousPatterns();
 
     document.getElementById('apiResultClose').addEventListener('click', hideApiBanner);
 
@@ -26,7 +43,14 @@ const UI = (() => {
     input.addEventListener('mousedown', (e) => e.stopPropagation());
     input.addEventListener('click', (e) => e.stopPropagation());
 
+    // Filter input: only allow alphanumeric characters
     input.addEventListener('input', () => {
+      const cleaned = input.value.replace(/[^a-zA-Z0-9]/g, '');
+      if (cleaned !== input.value) {
+        const pos = input.selectionStart - (input.value.length - cleaned.length);
+        input.value = cleaned;
+        input.setSelectionRange(pos, pos);
+      }
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
         doSearch();
@@ -53,6 +77,7 @@ const UI = (() => {
         nav.classList.add('hidden');
         badge.classList.add('hidden');
         document.getElementById('searchConversion').classList.add('hidden');
+        document.getElementById('searchEncoding').classList.add('hidden');
         hideApiBanner();
         input.blur();
       }
@@ -60,6 +85,20 @@ const UI = (() => {
 
     document.getElementById('nextMatch').addEventListener('click', goToNext);
     document.getElementById('prevMatch').addEventListener('click', goToPrev);
+
+    // Encoding mode selector
+    document.querySelectorAll('input[name="searchEnc"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        Search.setTextEncoding(radio.value);
+        // Re-search with new encoding if there's a text query
+        const query = input.value.trim();
+        if (query && /[a-zA-Z]/.test(query)) {
+          doSearch();
+        }
+      });
+    });
+    // Prevent encoding pills from triggering canvas drag
+    document.getElementById('searchEncoding').addEventListener('mousedown', (e) => e.stopPropagation());
 
     // Global shortcut: Ctrl+F or / to focus search
     document.addEventListener('keydown', (e) => {
@@ -71,12 +110,42 @@ const UI = (() => {
     });
   }
 
+  function buildConversionHTML(query, converted) {
+    const mode = converted.mode;
+    const modeLabels = { alpha26: 'Alpha-26', compact: 'Compact', t9: 'T9 Keypad' };
+    const modeColors = { alpha26: '#7c6ff7', compact: '#4ecdc4', t9: '#ff6b9d' };
+    const color = modeColors[mode] || '#7c6ff7';
+
+    // Build per-character mapping display
+    const parts = [];
+    for (const ch of query) {
+      if (/[a-zA-Z]/.test(ch)) {
+        let encoded;
+        if (mode === 't9') encoded = Mappings.letterToT9(ch);
+        else if (mode === 'compact') encoded = Mappings.letterToCompact(ch);
+        else encoded = Mappings.letterToPair(ch);
+        if (encoded) {
+          parts.push(`<span style="color:${color}">${ch.toUpperCase()}</span><span class="conv-arrow">=</span><span style="color:var(--text)">${encoded}</span>`);
+        }
+      } else if (/\d/.test(ch)) {
+        parts.push(`<span style="color:var(--text)">${ch}</span>`);
+      }
+    }
+
+    return `<span class="conv-label">${modeLabels[mode] || mode} encoding</span>`
+      + `<span class="conv-mapping">${parts.join('  ')}</span>`
+      + `<span class="conv-arrow" style="margin-left:12px">→</span> `
+      + `<span style="color:${color};font-size:20px;font-weight:800">${converted.digitQuery}</span>`
+      + `<span style="color:var(--text-dim);font-size:12px;margin-left:8px">(${converted.digitQuery.length} digits)</span>`;
+  }
+
   function doSearch() {
     const input = document.getElementById('searchInput');
     const nav = document.getElementById('searchNav');
     const badge = document.getElementById('searchResults');
     const matchIdx = document.getElementById('matchIndex');
     const convEl = document.getElementById('searchConversion');
+    const encEl = document.getElementById('searchEncoding');
     const query = input.value.trim();
 
     hideApiBanner();
@@ -84,14 +153,24 @@ const UI = (() => {
     if (!query) {
       Search.clear();
       Renderer.setSearchHighlights(null, 0);
+      Minimap.clearMarkers();
       nav.classList.add('hidden');
       badge.classList.add('hidden');
       convEl.classList.add('hidden');
+      encEl.classList.add('hidden');
       return;
     }
 
     const digits = App.getDigits();
     if (!digits) return;
+
+    // Show encoding selector when query has letters
+    const hasLetters = /[a-zA-Z]/.test(query);
+    if (hasLetters) {
+      encEl.classList.remove('hidden');
+    } else {
+      encEl.classList.add('hidden');
+    }
 
     const { results, converted } = Search.find(digits, query);
     const digitPatternLen = converted.digitQuery.length;
@@ -100,10 +179,27 @@ const UI = (() => {
 
     // Show conversion info for text searches
     if (converted.mode !== 'digits') {
-      convEl.textContent = converted.display;
+      convEl.innerHTML = buildConversionHTML(query, converted);
       convEl.classList.remove('hidden');
     } else {
       convEl.classList.add('hidden');
+    }
+
+    // Run all 3 encodings for minimap when query has letters
+    if (hasLetters) {
+      const modes = ['alpha26', 'compact', 't9'];
+      const layers = [];
+      for (const mode of modes) {
+        const conv = Search.convertWithMode(query, mode);
+        if (conv.digitQuery) {
+          const hits = Search.findPattern(digits, conv.digitQuery);
+          layers.push({ mode, results: hits });
+        }
+      }
+      Minimap.setAllMarkerLayers(layers);
+    } else {
+      // Digit-only: single layer
+      Minimap.setAllMarkerLayers([{ mode: 'digits', results }]);
     }
 
     if (results.length > 0) {
@@ -111,11 +207,15 @@ const UI = (() => {
       badge.classList.remove('hidden');
       nav.classList.remove('hidden');
       matchIdx.textContent = `1/${results.length.toLocaleString()}`;
+      Minimap.setSearchMarkers(results, digitPatternLen, converted.mode);
+      Minimap.setCurrentMatch(0);
+      Minimap.setApiMarker(null);
       navigateToMatch(results[0], digitPatternLen);
     } else {
       badge.textContent = '0';
       badge.classList.remove('hidden');
       nav.classList.add('hidden');
+      if (!hasLetters) Minimap.clearMarkers();
 
       // No local results — try the Pi search API if this is a pi constant
       if (currentConstant === 'pi' && converted.digitQuery.length >= 4) {
@@ -129,14 +229,16 @@ const UI = (() => {
     const icon = document.getElementById('apiResultIcon');
     const title = document.getElementById('apiResultTitle');
     const detail = document.getElementById('apiResultDetail');
+    const ctxPanel = document.getElementById('apiContextPanel');
 
     const digitStr = converted.digitQuery;
     const word = query.replace(/[^a-zA-Z]/g, '').toUpperCase();
-    const pairAligned = converted.mode === 'alpha26';
+    const pairAligned = false;
 
     // Show loading state
     banner.classList.remove('hidden');
     banner.classList.add('loading');
+    ctxPanel.classList.add('hidden');
     icon.textContent = '';
     title.textContent = `Searching extended \u03C0 digits for "${word || digitStr}"...`;
     detail.textContent = 'Scanning digit chunks with KMP...';
@@ -157,7 +259,6 @@ const UI = (() => {
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`
           + `<span class="api-position">digit #${posFormatted}</span>`;
 
-        // Build context display with "..." truncation
         const before = first.before || '';
         const after = first.after || '';
         detail.innerHTML =
@@ -165,6 +266,11 @@ const UI = (() => {
           + `<span class="match-highlight">${digitStr}</span>`
           + `<span class="ellipsis">${after}...</span>`
           + ` <span style="opacity:0.5">(${result.elapsed}ms, ${totalFormatted} digits)</span>`;
+
+        // Show expanded context panel in the banner itself
+        showApiContextPanel(pos, digitStr.length, digitStr, label, result.totalDigits);
+
+        Minimap.setApiMarker(pos, label);
       } else {
         const totalFormatted = (result.totalDigits || 0).toLocaleString();
         icon.textContent = '\u{1F50D}';
@@ -183,10 +289,75 @@ const UI = (() => {
     }
   }
 
+  async function showApiContextPanel(globalPos, matchLen, digitStr, label, totalDigits) {
+    const ctxPanel = document.getElementById('apiContextPanel');
+    const strip = document.getElementById('apiContextStrip');
+    const localEl = document.getElementById('scaleLocal');
+    const pinEl = document.getElementById('scalePin');
+    const totalLabel = document.getElementById('scaleTotalLabel');
+
+    // Log-scale helper
+    function logScale(value, total) {
+      if (value <= 0) return 0;
+      return Math.log(1 + value) / Math.log(1 + total);
+    }
+    function compactNum(n) {
+      if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+      if (n >= 1e6) return (n / 1e6).toFixed(0) + 'M';
+      if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+      return String(n);
+    }
+
+    const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
+
+    // Scale bar
+    const localFrac = logScale(localDigits, totalDigits) * 100;
+    const matchFrac = logScale(globalPos, totalDigits) * 100;
+    localEl.style.width = Math.max(0.5, localFrac) + '%';
+    pinEl.style.left = matchFrac + '%';
+    totalLabel.textContent = compactNum(totalDigits);
+
+    // Fetch context digits
+    try {
+      const resp = await fetch(`/api/picontext?pos=${globalPos}&radius=15`);
+      if (!resp.ok) { ctxPanel.classList.add('hidden'); return; }
+      const data = await resp.json();
+
+      const allDigits = data.digits;
+      const mOff = data.matchOffset;
+      const before = Math.min(10, mOff);
+      const after = Math.min(10, allDigits.length - mOff - matchLen);
+      const start = mOff - before;
+      const contextDigits = allDigits.substring(start, mOff + matchLen + after);
+      const matchStart = before;
+      const colors = Renderer.getDigitColors ? Renderer.getDigitColors() : null;
+
+      let html = '<span class="ctx-ellipsis">...</span>';
+      for (let i = 0; i < contextDigits.length; i++) {
+        const d = contextDigits[i];
+        const isMatch = i >= matchStart && i < matchStart + matchLen;
+        const color = colors ? colors[Number(d)] : 'var(--text)';
+        if (isMatch) {
+          html += `<span class="ctx-digit match" style="color:${color}">${d}</span>`;
+        } else {
+          html += `<span class="ctx-digit">${d}</span>`;
+        }
+      }
+      html += '<span class="ctx-ellipsis">...</span>';
+
+      strip.innerHTML = html;
+      ctxPanel.classList.remove('hidden');
+    } catch (e) {
+      ctxPanel.classList.add('hidden');
+    }
+  }
+
   function hideApiBanner() {
     const banner = document.getElementById('apiResultBanner');
     banner.classList.add('hidden');
     banner.classList.remove('loading');
+    document.getElementById('apiContextPanel').classList.add('hidden');
+    Minimap.setApiMarker(null);
     PiApi.cancel();
   }
 
@@ -196,6 +367,7 @@ const UI = (() => {
       const patLen = Search.getLastConvertedQuery().length;
       navigateToMatch(pos, patLen);
       updateMatchCounter();
+      Minimap.setCurrentMatch(Search.getCurrentIndex());
     }
   }
 
@@ -205,6 +377,7 @@ const UI = (() => {
       const patLen = Search.getLastConvertedQuery().length;
       navigateToMatch(pos, patLen);
       updateMatchCounter();
+      Minimap.setCurrentMatch(Search.getCurrentIndex());
     }
   }
 
@@ -219,13 +392,9 @@ const UI = (() => {
     const cw = Layout.getCellW();
     const ch = Layout.getCellH();
 
-    const cellIdx = Renderer.rawToCell(rawDigitIndex);
-    const cellEndIdx = Renderer.rawToCell(rawDigitIndex + patternLength - 1);
-    const cellPatLen = cellEndIdx - cellIdx + 1;
-
-    const pos = Layout.getPosition(cellIdx);
+    const pos = Layout.getPosition(rawDigitIndex);
     const targetZoom = 4;
-    const halfLen = (cellPatLen * cw) / 2;
+    const halfLen = (patternLength * cw) / 2;
     const tx = pos.x + halfLen - (window.innerWidth / 2) / targetZoom;
     const ty = pos.y - (window.innerHeight / 2) / targetZoom + ch / 2;
 
@@ -241,6 +410,9 @@ const UI = (() => {
         document.querySelector('.const-btn.active').classList.remove('active');
         btn.classList.add('active');
         currentConstant = key;
+        // Show famous panel only for pi
+        const famousPanel = document.getElementById('famousPanel');
+        if (famousPanel) famousPanel.style.display = key === 'pi' ? '' : 'none';
         await App.switchConstant(key);
       });
     });
@@ -248,14 +420,22 @@ const UI = (() => {
 
   function setupPanel() {
     const toggle = document.getElementById('panelToggle');
-    const content = document.getElementById('panelContent');
+    const dropdown = document.getElementById('settingsDropdown');
 
-    toggle.addEventListener('click', () => {
-      content.classList.toggle('hidden');
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('hidden');
     });
 
-    // Prevent panel clicks from panning the canvas
-    content.addEventListener('mousedown', (e) => e.stopPropagation());
+    // Prevent dropdown clicks from panning the canvas
+    dropdown.addEventListener('mousedown', (e) => e.stopPropagation());
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!dropdown.classList.contains('hidden') && !dropdown.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
   }
 
   function setupMappings() {
@@ -272,7 +452,7 @@ const UI = (() => {
       radio.addEventListener('change', () => {
         Layout.setType(radio.value);
         if (radio.value === 'spiral') {
-          Camera.setZoom(0.3);
+          Camera.setZoom(1.5);
           Camera.centerOn(0, 0);
         } else if (radio.value === 'wave') {
           Camera.setZoom(1);
@@ -294,6 +474,7 @@ const UI = (() => {
           document.documentElement.removeAttribute('data-theme');
         }
         Renderer.buildAtlas();
+        Minimap.invalidate();
       });
     });
   }
@@ -396,6 +577,87 @@ const UI = (() => {
     document.getElementById('digitPosition').textContent = `Digit #${Math.max(0, centerIdx).toLocaleString()}`;
     document.getElementById('totalDigits').textContent = `of ${digits ? digits.length.toLocaleString() : '0'} digits`;
     document.getElementById('zoomLevel').textContent = `Zoom: ${zoom.toFixed(1)}x`;
+  }
+
+  function setupFamousPatterns() {
+    const panel = document.getElementById('famousPanel');
+    const list = document.getElementById('famousPatterns');
+    if (!list) return;
+
+    // Build list content
+    let html = '';
+    let lastSection = '';
+    for (const p of FAMOUS_PATTERNS) {
+      if (p.section !== lastSection) {
+        html += `<div class="famous-section">${p.section}</div>`;
+        lastSection = p.section;
+      }
+      const posLabel = p.pos >= 1e9 ? (p.pos / 1e9).toFixed(1) + 'B'
+        : p.pos >= 1e6 ? (p.pos / 1e6).toFixed(1) + 'M'
+        : p.pos >= 1e3 ? (p.pos / 1e3).toFixed(1) + 'K'
+        : String(p.pos);
+      html += `<div class="famous-item" data-pattern="${p.pattern}" data-pos="${p.pos}">
+        <span class="famous-icon">${p.icon}</span>
+        <div class="famous-info">
+          <div class="famous-name">${p.name}</div>
+          <div class="famous-desc">${p.desc}</div>
+        </div>
+        <span class="famous-pos">#${posLabel}</span>
+      </div>`;
+    }
+    list.innerHTML = html;
+
+    // Handle pattern click
+    list.addEventListener('click', (e) => {
+      const item = e.target.closest('.famous-item');
+      if (!item) return;
+
+      const pattern = item.dataset.pattern;
+      const pos = parseInt(item.dataset.pos, 10);
+
+      const digits = App.getDigits();
+      const effLen = Renderer.getEffectiveLength();
+
+      // If the position is within our loaded digits, navigate directly
+      if (pos + pattern.length <= effLen) {
+        const input = document.getElementById('searchInput');
+        input.value = pattern;
+        const results = Search.findPattern(digits, pattern);
+        if (results.length > 0) {
+          Renderer.setSearchHighlights(results, pattern.length);
+          Minimap.setAllMarkerLayers([{ mode: 'digits', results }]);
+          Minimap.setSearchMarkers(results, pattern.length, 'digits');
+
+          // Find the match closest to the famous position
+          let bestIdx = 0;
+          let bestDist = Math.abs(results[0] - pos);
+          for (let i = 1; i < results.length; i++) {
+            const d = Math.abs(results[i] - pos);
+            if (d < bestDist) { bestDist = d; bestIdx = i; }
+          }
+          Minimap.setCurrentMatch(bestIdx);
+
+          const nav = document.getElementById('searchNav');
+          const badge = document.getElementById('searchResults');
+          const matchIdx = document.getElementById('matchIndex');
+          badge.textContent = results.length.toLocaleString();
+          badge.classList.remove('hidden');
+          nav.classList.remove('hidden');
+          matchIdx.textContent = `${bestIdx + 1}/${results.length.toLocaleString()}`;
+
+          navigateToMatch(results[bestIdx], pattern.length);
+        }
+      } else {
+        // Position is beyond loaded digits — use API
+        const input = document.getElementById('searchInput');
+        input.value = pattern;
+        const converted = { digitQuery: pattern, mode: 'digits', display: pattern };
+        searchPiApi(pattern, converted);
+      }
+    });
+
+    // Prevent canvas drag
+    panel.addEventListener('mousedown', (e) => e.stopPropagation());
   }
 
   return { init, updateInfoBar };

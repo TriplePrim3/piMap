@@ -11,12 +11,14 @@ const App = (() => {
     // Load default constant
     await loadConstant('pi');
 
-    // Init UI
+    // Init UI & minimap
     UI.init();
+    Minimap.init();
 
     // Handle resize
     window.addEventListener('resize', () => {
       Renderer.resize();
+      Minimap.resize();
     });
 
     // Hide loading overlay
@@ -38,6 +40,7 @@ const App = (() => {
     Layout.setCols(cols);
 
     Renderer.setDigits(digits, key);
+    Minimap.invalidate();
 
     // Center camera on the first digit (with a small offset so it looks nice)
     resetCamera();
@@ -52,7 +55,7 @@ const App = (() => {
       Camera.setZoom(1);
       Camera.centerOn(0, 0);
     } else if (type === 'spiral') {
-      Camera.setZoom(0.3);
+      Camera.setZoom(1.5);
       Camera.centerOn(0, 0);
     } else {
       Camera.setZoom(1);
@@ -72,6 +75,8 @@ const App = (() => {
       document.getElementById('searchNav').classList.add('hidden');
       document.getElementById('searchResults').classList.add('hidden');
       document.getElementById('apiResultBanner').classList.add('hidden');
+      Renderer.setRemoteSegment(null);
+      Minimap.clearMarkers();
       return;
     }
     await loadConstant(key);
@@ -94,6 +99,8 @@ const App = (() => {
       Camera.clearDirty();
       UI.updateInfoBar();
     }
+    // Minimap always renders (lightweight, needs to track viewport smoothly)
+    Minimap.render();
 
     requestAnimationFrame(renderLoop);
   }

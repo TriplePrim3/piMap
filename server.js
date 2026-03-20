@@ -163,6 +163,36 @@ function searchChunks(pattern, pairAligned) {
   };
 }
 
+// ─── Context fetcher (get N digits around a position) ───
+
+function handlePiContext(posStr, radiusStr, res) {
+  const pos = parseInt(posStr);
+  const radius = parseInt(radiusStr) || 500;
+
+  if (!chunkMeta || isNaN(pos) || pos < 0) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid position or no data' }));
+    return;
+  }
+
+  const step = chunkMeta.chunkSize - chunkMeta.overlap;
+  const chunkIdx = Math.min(Math.floor(pos / step), chunkFiles.length - 1);
+  const cf = chunkFiles[chunkIdx];
+  const chunkData = cf.preloaded || fs.readFileSync(cf.path, 'utf8');
+  const chunkOffset = chunkIdx * step;
+
+  const localPos = pos - chunkOffset;
+  const localStart = Math.max(0, localPos - radius);
+  const localEnd = Math.min(chunkData.length, localPos + radius);
+
+  const digits = chunkData.slice(localStart, localEnd);
+  const globalStart = chunkOffset + localStart;
+  const matchOffset = pos - globalStart;
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ digits, start: globalStart, matchOffset, totalDigits }));
+}
+
 // ─── API handler ───
 
 function handlePiSearch(query, pairAligned, res) {
@@ -192,6 +222,11 @@ const server = http.createServer((req, res) => {
     const q = parsed.query.q;
     const pairAligned = parsed.query.aligned === '1';
     handlePiSearch(q, pairAligned, res);
+    return;
+  }
+
+  if (parsed.pathname === '/api/picontext') {
+    handlePiContext(parsed.query.pos, parsed.query.radius, res);
     return;
   }
 

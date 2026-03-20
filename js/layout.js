@@ -1,8 +1,8 @@
 const Layout = (() => {
-  let current = 'grid';
+  let current = 'spiral';
   let cols = 100;
-  const cellW = 36;  // wide enough for two digits
-  const cellH = 22;  // height of each cell
+  const cellW = 22;  // single digit width
+  const cellH = 26;  // height of each cell
 
   function setCols(c) {
     cols = c;
@@ -43,10 +43,10 @@ const Layout = (() => {
   }
 
   function getSpiralPosition(index) {
-    const spacing = cellW * 1.2;
+    const spacing = cellW * 1.5;
     const b = spacing / (2 * Math.PI);
-    const angle = Math.sqrt(index * 6.5);
-    const r = b * angle;
+    const angle = Math.sqrt(index * 5.5);
+    const r = b * angle + cellW * 0.6;
     return {
       x: r * Math.cos(angle),
       y: r * Math.sin(angle),
@@ -63,10 +63,10 @@ const Layout = (() => {
   function getIndexAtPosition(wx, wy) {
     if (current === 'spiral') {
       const r = Math.sqrt(wx * wx + wy * wy);
-      const spacing = cellW * 1.2;
+      const spacing = cellW * 1.5;
       const b = spacing / (2 * Math.PI);
-      const angle = r / b;
-      const index = Math.round((angle * angle) / 6.5);
+      const angle = Math.max(0, (r - cellW * 0.6)) / b;
+      const index = Math.round((angle * angle) / 5.5);
       return Math.max(0, index);
     }
     if (current === 'wave') {
@@ -105,10 +105,10 @@ const Layout = (() => {
       };
     }
     if (current === 'spiral') {
-      const spacing = cellW * 1.2;
+      const spacing = cellW * 1.5;
       const b = spacing / (2 * Math.PI);
-      const angle = Math.sqrt(cellCount * 6.5);
-      const r = b * angle + cellW * 5;
+      const angle = Math.sqrt(cellCount * 5.5);
+      const r = b * angle + cellW * 0.6 + cellW * 5;
       return { minX: -r, minY: -r, maxX: r, maxY: r };
     }
     if (current === 'wave') {

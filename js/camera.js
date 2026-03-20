@@ -69,21 +69,29 @@ const Camera = (() => {
     dirty = true;
   }
 
+  let extraBounds = null; // { minX, minY, maxX, maxY } — expanded area for remote segments
+
+  function setExtraBounds(b) { extraBounds = b; }
+
   function clampToBounds() {
     const digits = typeof App !== 'undefined' && App.getDigits ? App.getDigits() : null;
     if (!digits) return;
 
-    // Use effective cell count (accounts for paired mode)
     const effLen = typeof Renderer !== 'undefined' && Renderer.getEffectiveLength
       ? Renderer.getEffectiveLength()
       : digits.length;
     const bounds = Layout.getBounds(effLen);
     if (!bounds) return;
 
+    if (extraBounds) {
+      bounds.minX = Math.min(bounds.minX, extraBounds.minX);
+      bounds.minY = Math.min(bounds.minY, extraBounds.minY);
+      bounds.maxX = Math.max(bounds.maxX, extraBounds.maxX);
+      bounds.maxY = Math.max(bounds.maxY, extraBounds.maxY);
+    }
+
     const viewW = window.innerWidth / zoom;
     const viewH = window.innerHeight / zoom;
-
-    // Don't let the camera show too much empty space beyond the content
     const margin = Math.max(viewW, viewH) * 0.3;
 
     x = Math.max(bounds.minX - margin, Math.min(bounds.maxX - viewW + margin, x));
@@ -133,7 +141,7 @@ const Camera = (() => {
   return {
     getState, isDirty, clearDirty, markDirty,
     setPosition, setZoom, centerOn, pan, zoomAt,
-    animateTo, update, isAnimating, clampToBounds,
+    animateTo, update, isAnimating, clampToBounds, setExtraBounds,
     MIN_ZOOM, MAX_ZOOM,
   };
 })();
