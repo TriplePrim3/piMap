@@ -1,0 +1,6 @@
+# Large pi digit data files
+data/pi-chunks/
+data/pi-billion-raw.txt
+
+# Node
+node_modules/

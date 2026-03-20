@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>piMap — Explore the Digits of π</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>π</text></svg>">
+</head>
+<body>
+  <canvas id="digitCanvas"></canvas>
+
+  <!-- Top Bar -->
+  <header id="topBar">
+    <div class="logo">
+      <span class="logo-symbol">π</span>
+      <span class="logo-text">piMap</span>
+    </div>
+
+    <div class="constant-selector">
+      <button class="const-btn active" data-constant="pi">π</button>
+      <button class="const-btn" data-constant="e">e</button>
+      <button class="const-btn" data-constant="sqrt2">√2</button>
+      <button class="const-btn" data-constant="sqrt3">√3</button>
+    </div>
+
+    <div class="search-container">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search digits or text (e.g. 314, hello, your name)..." autocomplete="off" title="Type digits to search directly, or type letters — each letter converts to a 2-digit pair (A=01, B=02, …Z=26) and searches the digit stream">
+        <span id="searchResults" class="search-results-badge hidden"></span>
+      </div>
+      <div id="searchConversion" class="search-conversion hidden" title="Each letter maps to a 2-digit pair: A=01, B=02, … Z=26. This sequence is searched in the digit stream."></div>
+      <div class="search-nav hidden" id="searchNav">
+        <button id="prevMatch" class="nav-btn" title="Previous match">&#9650;</button>
+        <span id="matchIndex">0/0</span>
+        <button id="nextMatch" class="nav-btn" title="Next match">&#9660;</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Side Panel -->
+  <aside id="sidePanel">
+    <button id="panelToggle" class="panel-toggle" title="Settings">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+    </button>
+
+    <div class="panel-content hidden" id="panelContent">
+      <h3>Display</h3>
+      <div class="option-group">
+        <label class="radio-label" title="Raw digits of the constant">
+          <input type="radio" name="mapping" value="digits" checked> Numbers
+          <span class="tooltip-icon" data-tip="Shows the raw digits (0-9) of the constant">?</span>
+        </label>
+        <label class="radio-label" title="2-digit pairs → letters: 00=A, 01=B, … 25=Z (loops). Enables full name search!">
+          <input type="radio" name="mapping" value="alpha26"> Text (A-Z)
+          <span class="tooltip-icon" data-tip="Every 2 digits become a letter: 00=A, 01=B, … 25=Z, 26=A, … Search any name!">?</span>
+        </label>
+        <label class="radio-label" title="Each digit shown as a colored block">
+          <input type="radio" name="mapping" value="blocks"> Color Blocks
+          <span class="tooltip-icon" data-tip="Each digit (0-9) is shown as a uniquely colored square">?</span>
+        </label>
+        <label class="radio-label" title="Digits encoded as Braille patterns">
+          <input type="radio" name="mapping" value="braille"> Braille
+          <span class="tooltip-icon" data-tip="Each digit is encoded as a Braille character">?</span>
+        </label>
+      </div>
+
+      <h3>Layout</h3>
+      <div class="option-group">
+        <label class="radio-label" title="Standard left-to-right grid of digits">
+          <input type="radio" name="layout" value="grid" checked> Grid
+        </label>
+        <label class="radio-label" title="Digits spiral outward from the center">
+          <input type="radio" name="layout" value="spiral"> Spiral
+        </label>
+        <label class="radio-label" title="Horizontal strip with macOS dock-style magnification">
+          <input type="radio" name="layout" value="wave"> Wave Dock
+        </label>
+      </div>
+
+      <h3>Theme</h3>
+      <div class="option-group">
+        <label class="radio-label">
+          <input type="radio" name="theme" value="dark" checked> Dark
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="theme" value="light"> Light
+        </label>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Info Bar -->
+  <footer id="infoBar">
+    <span id="digitPosition">Digit #0</span>
+    <span id="totalDigits">of 1,000,000</span>
+    <span id="zoomLevel">Zoom: 1.0x</span>
+  </footer>
+
+  <!-- API Search Result Banner -->
+  <div id="apiResultBanner" class="api-banner hidden">
+    <div class="api-banner-content">
+      <span id="apiResultIcon" class="api-icon"></span>
+      <div class="api-text">
+        <div id="apiResultTitle" class="api-title"></div>
+        <div id="apiResultDetail" class="api-detail"></div>
+      </div>
+      <button id="apiResultClose" class="api-close">&times;</button>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="loader">
+      <span class="loader-symbol">π</span>
+      <p>Loading digits...</p>
+    </div>
+  </div>
+
+  <script src="js/constants.js?v=6"></script>
+  <script src="js/dataLoader.js?v=6"></script>
+  <script src="js/mappings.js?v=6"></script>
+  <script src="js/layout.js?v=6"></script>
+  <script src="js/camera.js?v=6"></script>
+  <script src="js/search.js?v=6"></script>
+  <script src="js/piApi.js?v=6"></script>
+  <script src="js/particles.js?v=6"></script>
+  <script src="js/renderer.js?v=6"></script>
+  <script src="js/ui.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
+</body>
+</html>
