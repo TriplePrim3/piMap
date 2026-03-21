@@ -234,11 +234,11 @@ const Renderer = (() => {
     const scaleGap = ch * 2;
     // Fixed width: enough for context strip (CONTEXT_RADIUS + match + CONTEXT_RADIUS)
     const contextLen = CONTEXT_RADIUS + seg.matchLen + CONTEXT_RADIUS;
-    const scaleBarW = Math.max(contextLen * cw * 1.5, 24 * cw);
+    const scaleBarW = Math.max(contextLen * cw * 1.8, 32 * cw);
     seg._scaleX = contentCX - scaleBarW / 2;
     seg._scaleY = bounds.maxY + scaleGap;
     seg._scaleW = scaleBarW;
-    seg._scaleH = ch * 1.2;
+    seg._scaleH = ch * 1.6;
 
     // Context strip sits just below the scale bar
     seg._stripY = seg._scaleY + seg._scaleH + ch * 3;
@@ -370,32 +370,33 @@ const Renderer = (() => {
     ctx.fill();
 
     // "Your map" label above local segment
-    const fontSize = Math.max(8, 10 * zoom);
+    const fontSize = Math.max(11, 13 * zoom);
     ctx.font = `bold ${fontSize}px system-ui`;
     ctx.fillStyle = isLight ? 'rgba(108,92,231,0.9)' : 'rgba(124,111,247,0.85)';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`Your map (${_compactNum(seg._localDigits)} digits)`, sx, sy - 4 * zoom);
+    ctx.fillText(`Your map (${_compactNum(seg._localDigits)} digits)`, sx, sy - 6 * zoom);
 
     // Tick marks (log-scaled)
-    ctx.fillStyle = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.1)';
-    const tickFont = Math.max(7, 8 * zoom);
-    ctx.font = `${tickFont}px system-ui`;
+    ctx.fillStyle = isLight ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.2)';
+    const tickFont = Math.max(10, 11 * zoom);
+    ctx.font = `600 ${tickFont}px system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    const tickY = sy + sH + 3 * zoom;
+    const tickY = sy + sH + 4 * zoom;
     const tickValues = [1e6, 10e6, 50e6, 100e6, 200e6, 500e6, 1e9];
     for (const tv of tickValues) {
       if (tv >= totalDig) break;
       const frac = _logScale(tv, totalDig);
       const tx = sx + frac * sW;
-      if (tx < sx + 20 * zoom || tx > sx + sW - 20 * zoom) continue;
+      if (tx < sx + 30 * zoom || tx > sx + sW - 30 * zoom) continue;
       // Tick line
       ctx.fillRect(tx - 0.5, sy, 1, sH);
       ctx.fillText(_compactNum(tv), tx, tickY);
     }
 
     // End labels
+    ctx.font = `bold ${tickFont}px system-ui`;
     ctx.textAlign = 'left';
     ctx.fillText('0', sx, tickY);
     ctx.textAlign = 'right';
@@ -423,13 +424,13 @@ const Renderer = (() => {
     ctx.stroke();
 
     // Match label above pin
-    const matchFont = Math.max(9, 11 * zoom);
+    const matchFont = Math.max(12, 14 * zoom);
     ctx.font = `bold ${matchFont}px system-ui`;
     ctx.fillStyle = '#ff6b9d';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillText(`digit #${seg.globalPos.toLocaleString()}`,
-      matchX, sy - 14 * zoom);
+      matchX, sy - 16 * zoom);
 
     // Dashed line from pin down to context strip
     const stripCX = (seg._stripX + (seg._stripLen * Layout.getCellW()) / 2 - camX) * zoom;
@@ -449,9 +450,10 @@ const Renderer = (() => {
   }
 
   function _compactNum(n) {
-    if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
-    if (n >= 1e6) return (n / 1e6).toFixed(0) + 'M';
-    if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+    if (n >= 1e12) { const v = n / 1e12; return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'T'; }
+    if (n >= 1e9)  { const v = n / 1e9;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'B'; }
+    if (n >= 1e6)  { const v = n / 1e6;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'M'; }
+    if (n >= 1e3)  { const v = n / 1e3;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'K'; }
     return String(n);
   }
 
@@ -526,7 +528,7 @@ const Renderer = (() => {
 
     // Word label centered above the match region
     const matchCX = baseX + (mStart + seg._stripMatchLen / 2) * cellPxW;
-    const labelFont = Math.max(10, 14 * zoom);
+    const labelFont = Math.max(13, 16 * zoom);
     ctx.font = `bold ${labelFont}px system-ui`;
     ctx.fillStyle = '#ff6b9d';
     ctx.textAlign = 'center';

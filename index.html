@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>piMap — Explore the Digits of π</title>
+  <title>Place in Pi — Find Your Place in π</title>
   <link rel="stylesheet" href="css/main.css">
   <link rel="stylesheet" href="css/animations.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>π</text></svg>">
@@ -14,8 +14,17 @@
   <!-- Top Bar -->
   <header id="topBar">
     <div class="logo">
+      <svg class="logo-p" viewBox="0 0 22 28" width="18" height="23" fill="none">
+        <circle cx="11" cy="9" r="7" stroke="url(#logoGrad)" stroke-width="2.5" fill="none"/>
+        <line x1="6.5" y1="15" x2="6.5" y2="27" stroke="url(#logoGrad)" stroke-width="2.5" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="logoGrad" x1="0" y1="0" x2="22" y2="28" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#7c6ff7"/>
+            <stop offset="100%" stop-color="#ff6b9d"/>
+          </linearGradient>
+        </defs>
+      </svg><span class="logo-text">lace in</span>
       <span class="logo-symbol">π</span>
-      <span class="logo-text">piMap</span>
     </div>
 
     <div class="constant-selector">
@@ -132,6 +141,7 @@
       <div class="api-scale-bar">
         <div class="scale-track">
           <div id="scaleLocal" class="scale-local"></div>
+          <div id="scaleTicks" class="scale-ticks"></div>
           <div id="scalePin" class="scale-pin"></div>
         </div>
         <div class="scale-labels">

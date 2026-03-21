@@ -296,26 +296,17 @@ const UI = (() => {
     const pinEl = document.getElementById('scalePin');
     const totalLabel = document.getElementById('scaleTotalLabel');
 
-    // Log-scale helper
-    function logScale(value, total) {
-      if (value <= 0) return 0;
-      return Math.log(1 + value) / Math.log(1 + total);
-    }
-    function compactNum(n) {
-      if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
-      if (n >= 1e6) return (n / 1e6).toFixed(0) + 'M';
-      if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
-      return String(n);
-    }
-
     const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
 
     // Scale bar
-    const localFrac = logScale(localDigits, totalDigits) * 100;
-    const matchFrac = logScale(globalPos, totalDigits) * 100;
+    const localFrac = _logScale(localDigits, totalDigits) * 100;
+    const matchFrac = _logScale(globalPos, totalDigits) * 100;
     localEl.style.width = Math.max(0.5, localFrac) + '%';
     pinEl.style.left = matchFrac + '%';
-    totalLabel.textContent = compactNum(totalDigits);
+    totalLabel.textContent = _compactNum(totalDigits);
+
+    // Render tick marks
+    _renderScaleTicks(totalDigits);
 
     // Fetch context digits
     try {
@@ -359,6 +350,96 @@ const UI = (() => {
     document.getElementById('apiContextPanel').classList.add('hidden');
     Minimap.setApiMarker(null);
     PiApi.cancel();
+  }
+
+  function _logScale(value, total) {
+    if (value <= 0) return 0;
+    return Math.log(1 + value) / Math.log(1 + total);
+  }
+
+  function _compactNum(n) {
+    if (n >= 1e12) { const v = n / 1e12; return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'T'; }
+    if (n >= 1e9)  { const v = n / 1e9;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'B'; }
+    if (n >= 1e6)  { const v = n / 1e6;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'M'; }
+    if (n >= 1e3)  { const v = n / 1e3;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'K'; }
+    return String(n);
+  }
+
+  // Render log-scale tick marks into the scale track
+  function _renderScaleTicks(totalDigits) {
+    const ticksEl = document.getElementById('scaleTicks');
+    if (!ticksEl) return;
+
+    // Generate tick values: 1K, 10K, 100K, 1M, 2M, 4M, 10M, 20M, 50M, 100M, 200M, 500M, 1B, 2B, 5B, 10B...
+    const ticks = [];
+    const bases = [1, 2, 5];
+    for (let exp = 3; exp <= 15; exp++) {
+      const mag = Math.pow(10, exp);
+      for (const b of bases) {
+        const v = b * mag;
+        if (v >= totalDigits) break;
+        // Skip ticks too close to 0 or to the end
+        const frac = _logScale(v, totalDigits);
+        if (frac > 0.03 && frac < 0.97) {
+          ticks.push(v);
+        }
+      }
+    }
+
+    // Filter out ticks that would overlap (need at least 8% gap)
+    const filtered = [];
+    let lastFrac = -1;
+    for (const v of ticks) {
+      const frac = _logScale(v, totalDigits);
+      if (lastFrac < 0 || frac - lastFrac > 0.08) {
+        filtered.push(v);
+        lastFrac = frac;
+      }
+    }
+
+    let html = '';
+    for (const v of filtered) {
+      const pct = _logScale(v, totalDigits) * 100;
+      html += `<div class="scale-tick" style="left:${pct}%"><span class="scale-tick-label">${_compactNum(v)}</span></div>`;
+    }
+    ticksEl.innerHTML = html;
+  }
+
+  function showFamousPositionBanner(name, pattern, pos) {
+    const banner = document.getElementById('apiResultBanner');
+    const icon = document.getElementById('apiResultIcon');
+    const title = document.getElementById('apiResultTitle');
+    const detail = document.getElementById('apiResultDetail');
+    const ctxPanel = document.getElementById('apiContextPanel');
+    const localEl = document.getElementById('scaleLocal');
+    const pinEl = document.getElementById('scalePin');
+    const totalLabel = document.getElementById('scaleTotalLabel');
+    const strip = document.getElementById('apiContextStrip');
+
+    const totalDigits = 1e12; // known extent of computed pi
+    const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
+
+    banner.classList.remove('hidden', 'loading');
+    icon.textContent = '\u{1F4CD}';
+    title.innerHTML = `<b>${name}</b> — "${pattern}" appears at`
+      + `<span class="api-position">digit #${pos.toLocaleString()}</span>`;
+    detail.textContent = `This position is far beyond your loaded ${_compactNum(localDigits)} digits.`;
+
+    // Scale bar
+    const localFrac = _logScale(localDigits, totalDigits) * 100;
+    const matchFrac = _logScale(pos, totalDigits) * 100;
+    localEl.style.width = Math.max(0.5, localFrac) + '%';
+    pinEl.style.left = matchFrac + '%';
+    totalLabel.textContent = _compactNum(totalDigits);
+
+    // Render tick marks
+    _renderScaleTicks(totalDigits);
+
+    // No context strip for static display
+    strip.innerHTML = '';
+    ctxPanel.classList.remove('hidden');
+
+    Minimap.setApiMarker(pos, name);
   }
 
   function goToNext() {
@@ -648,11 +729,11 @@ const UI = (() => {
           navigateToMatch(results[bestIdx], pattern.length);
         }
       } else {
-        // Position is beyond loaded digits — use API
+        // Position is beyond loaded digits — show on scale without searching
         const input = document.getElementById('searchInput');
         input.value = pattern;
-        const converted = { digitQuery: pattern, mode: 'digits', display: pattern };
-        searchPiApi(pattern, converted);
+        const name = item.querySelector('.famous-name')?.textContent || pattern;
+        showFamousPositionBanner(name, pattern, pos);
       }
     });
 
