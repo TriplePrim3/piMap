@@ -51,16 +51,16 @@
           <circle cx="11" cy="11" r="8"/>
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" id="searchInput" placeholder="Search digits, words, or #N to go to digit..." autocomplete="off" title="Type digits to search, letters to encode, or #100 to jump to the 100th digit">
+        <input type="text" id="searchInput" placeholder="Search digits, words, or #N to go to digit..." autocomplete="off" maxlength="16" title="Type digits to search, letters to encode, or #100 to jump to the 100th digit">
         <span id="searchResults" class="search-results-badge hidden"></span>
       </div>
       <div id="searchEncoding" class="search-encoding hidden">
         <label class="enc-pill" data-enc="alpha26"><input type="radio" name="searchEnc" value="alpha26" checked><span>Alpha-26</span><button class="enc-info" data-enc-info="alpha26">i</button></label>
         <label class="enc-pill" data-enc="compact"><input type="radio" name="searchEnc" value="compact"><span>Compact</span><button class="enc-info" data-enc-info="compact">i</button></label>
         <label class="enc-pill" data-enc="t9"><input type="radio" name="searchEnc" value="t9"><span>T9</span><button class="enc-info" data-enc-info="t9">i</button></label>
-        <label class="chunk-toggle" title="If not found whole, break into sequential pieces in π">
-          <input type="checkbox" id="chunkSearch" checked>
-          <span>Non-continuous</span>
+        <label class="chunk-toggle" title="Find word in multiple parts within π">
+          <input type="checkbox" id="chunkSearch">
+          <span>Multi-Part</span>
         </label>
       </div>
       <div class="search-nav hidden" id="searchNav">

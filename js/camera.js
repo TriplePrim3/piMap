@@ -11,7 +11,7 @@ const Camera = (() => {
   let startX = 0, startY = 0, startZoom = 1;
   let dirty = true;
 
-  const MIN_ZOOM = 0.15;
+  const MIN_ZOOM = 0.02;
   const MAX_ZOOM = 15;
 
   function getState() {

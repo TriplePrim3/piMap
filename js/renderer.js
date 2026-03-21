@@ -17,6 +17,7 @@ const Renderer = (() => {
   let printFlashIdx = -1;  // index of the digit currently "flashing" in
   let birthdayPos = -1;    // digit index where user's birthday was found
   let birthdayLen = 0;     // length of birthday digit string
+  let chunkConnectors = null; // [{ pos, len }] for chunked search results
 
   const FONT = '"Cascadia Code", "Fira Code", Consolas, monospace';
 
@@ -198,6 +199,11 @@ const Renderer = (() => {
     if (constKey === 'pi') {
       drawLastDigitRepel(camX, camY, zoom, w, h);
       advancePrintAnimation();
+    }
+
+    // Chunk connector lines
+    if (chunkConnectors && chunkConnectors.length > 1) {
+      drawChunkConnectors(camX, camY, zoom);
     }
 
     // Birthday cake marker
@@ -977,5 +983,160 @@ const Renderer = (() => {
     ctx.setLineDash([]);
   }
 
-  return { init, resize, setDigits, buildAtlas, setSearchHighlights, render, getEffectiveLength, rawToCell, setRemoteSegment, getRemoteSegmentWorldPos, getRemoteCardCenter, getDigitColors, getLastDigitScreenPos, expandDigits, isExpanding, setBirthdayMarker, clearBirthdayMarker };
+  // ─── Chunk connectors (gold lines between chunked search pieces) ───
+
+  function setChunkConnectors(chunks) {
+    // chunks = [{ pos, digitStr }]
+    if (!chunks || chunks.length < 2) { chunkConnectors = null; return; }
+    chunkConnectors = chunks.map(c => ({ pos: c.pos, len: c.digitStr.length }));
+    Camera.markDirty();
+  }
+
+  function clearChunkConnectors() {
+    chunkConnectors = null;
+    Camera.markDirty();
+  }
+
+  const VIBGYOR = [
+    '#9400D3', // Violet
+    '#4B0082', // Indigo
+    '#0000FF', // Blue
+    '#00AA00', // Green
+    '#FFD700', // Yellow
+    '#FF8C00', // Orange
+    '#FF0000', // Red
+  ];
+
+  function _vibgyorColor(i, total) {
+    const idx = total <= 1 ? 0 : Math.round(i * (VIBGYOR.length - 1) / (total - 1));
+    return VIBGYOR[Math.min(idx, VIBGYOR.length - 1)];
+  }
+
+  function _hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  function drawChunkConnectors(camX, camY, zoom) {
+    const cw = Layout.getCellW();
+    const ch = Layout.getCellH();
+    const isSpiral = Layout.getType() === 'spiral';
+    const n = chunkConnectors.length;
+
+    ctx.save();
+
+    // Collect chunk center screen positions with their VIBGYOR color
+    const chunkPts = [];
+    for (let i = 0; i < n; i++) {
+      const chunk = chunkConnectors[i];
+      const midIdx = chunk.pos + Math.floor(chunk.len / 2);
+      const pos = Layout.getPosition(midIdx);
+      chunkPts.push({
+        sx: (pos.x - camX) * zoom + cw * zoom / 2,
+        sy: (pos.y - camY) * zoom + ch * zoom / 2,
+        color: _vibgyorColor(i, n),
+      });
+    }
+
+    // Spiral center point
+    let center = null;
+    if (isSpiral) {
+      center = { sx: (0 - camX) * zoom, sy: (0 - camY) * zoom };
+    }
+
+    // Draw filled triangles from center to each consecutive pair of chunks
+    if (center) {
+      for (let i = 0; i < chunkPts.length; i++) {
+        const a = chunkPts[i];
+        const b = chunkPts[(i + 1) % chunkPts.length];
+        ctx.fillStyle = _hexToRgba(a.color, 0.12);
+        ctx.beginPath();
+        ctx.moveTo(center.sx, center.sy);
+        ctx.lineTo(a.sx, a.sy);
+        ctx.lineTo(b.sx, b.sy);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Draw lines from center to each chunk in its color
+      for (const p of chunkPts) {
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(center.sx, center.sy);
+        ctx.lineTo(p.sx, p.sy);
+        ctx.stroke();
+      }
+    } else {
+      // Non-spiral: just connect chunks with colored segments
+      for (let i = 0; i < chunkPts.length - 1; i++) {
+        const a = chunkPts[i];
+        const b = chunkPts[i + 1];
+        ctx.strokeStyle = a.color;
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        ctx.moveTo(a.sx, a.sy);
+        ctx.lineTo(b.sx, b.sy);
+        ctx.stroke();
+      }
+    }
+
+    // Draw highlight boxes around each chunk's digits in its VIBGYOR color
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < n; i++) {
+      const chunk = chunkConnectors[i];
+      const color = _vibgyorColor(i, n);
+      for (let d = 0; d < chunk.len; d++) {
+        const pos = Layout.getPosition(chunk.pos + d);
+        const sx = (pos.x - camX) * zoom;
+        const sy = (pos.y - camY) * zoom;
+        const pw = cw * zoom;
+        const ph = ch * zoom;
+
+        ctx.fillStyle = _hexToRgba(color, 0.3);
+        ctx.fillRect(sx, sy, pw, ph);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx, sy, pw, ph);
+      }
+
+      // Label each chunk
+      const labelPos = Layout.getPosition(chunk.pos);
+      const lx = (labelPos.x - camX) * zoom;
+      const ly = (labelPos.y - camY) * zoom - 8;
+      ctx.fillStyle = color;
+      ctx.font = `bold ${Math.max(10, 14 * zoom / 4)}px system-ui`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`Part ${i + 1}`, lx, ly);
+    }
+
+    // Draw vertex dots
+    if (center) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(center.sx, center.sy, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    for (const p of chunkPts) {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  return { init, resize, setDigits, buildAtlas, setSearchHighlights, render, getEffectiveLength, rawToCell, setRemoteSegment, getRemoteSegmentWorldPos, getRemoteCardCenter, getDigitColors, getLastDigitScreenPos, expandDigits, isExpanding, setBirthdayMarker, clearBirthdayMarker, setChunkConnectors, clearChunkConnectors };
 })();

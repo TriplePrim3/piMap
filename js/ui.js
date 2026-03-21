@@ -1,6 +1,8 @@
 const UI = (() => {
   let searchTimeout = null;
   let currentConstant = 'pi';
+  const spiralLinesEnabled = true;
+  const ENC_COLORS = { t9: '#ff6b9d', compact: '#4ecdc4', alpha26: '#7c6ff7' };
 
   // Famous patterns in π (position is the digit index after "3.")
   const FAMOUS_PATTERNS = [
@@ -388,7 +390,7 @@ const UI = (() => {
 
     // Filter input: only allow alphanumeric characters
     input.addEventListener('input', () => {
-      const cleaned = input.value.replace(/[^a-zA-Z0-9#]/g, '');
+      const cleaned = input.value.replace(/[^a-zA-Z0-9# ]/g, '');
       if (cleaned !== input.value) {
         const pos = input.selectionStart - (input.value.length - cleaned.length);
         input.value = cleaned;
@@ -418,6 +420,7 @@ const UI = (() => {
         Search.clear();
         Renderer.setSearchHighlights(null, 0);
         Renderer.clearBirthdayMarker();
+        Minimap.clearSpiralLines();
         nav.classList.add('hidden');
         badge.classList.add('hidden');
         document.getElementById('searchConversion').classList.add('hidden');
@@ -511,6 +514,34 @@ const UI = (() => {
       + `<span style="color:var(--text-dim);font-size:12px;margin-left:8px">(${converted.digitQuery.length} digits)</span>`;
   }
 
+  function updateSpiralLines(query) {
+    if (!query || !/[a-zA-Z]/.test(query)) {
+      Minimap.clearSpiralLines();
+      return;
+    }
+    const digits = App.getDigits();
+    if (!digits) return;
+
+    const modes = ['t9', 'compact', 'alpha26'];
+    const modeLabels = { alpha26: 'Alpha-26', compact: 'Compact', t9: 'T9' };
+    const lines = [];
+
+    for (const mode of modes) {
+      const conv = Search.convertWithMode(query, mode);
+      if (!conv.digitQuery) continue;
+      const hits = Search.findPattern(digits, conv.digitQuery);
+      if (hits.length > 0) {
+        lines.push({
+          idx: hits[0],
+          color: ENC_COLORS[mode],
+          label: modeLabels[mode],
+        });
+      }
+    }
+
+    Minimap.setSpiralLines(lines.length > 0 ? lines : null);
+  }
+
   function doSearch() {
     const input = document.getElementById('searchInput');
     const nav = document.getElementById('searchNav');
@@ -518,14 +549,18 @@ const UI = (() => {
     const matchIdx = document.getElementById('matchIndex');
     const convEl = document.getElementById('searchConversion');
     const encEl = document.getElementById('searchEncoding');
-    const query = input.value.trim();
+    const query = input.value.replace(/\s+/g, '').trim();
 
     hideApiBanner();
+    Renderer.clearChunkConnectors();
+    Minimap.clearChunkLines();
 
     if (!query) {
       Search.clear();
       Renderer.setSearchHighlights(null, 0);
+      Renderer.clearChunkConnectors();
       Minimap.clearMarkers();
+      Minimap.clearChunkLines();
       nav.classList.add('hidden');
       badge.classList.add('hidden');
       convEl.classList.add('hidden');
@@ -615,17 +650,32 @@ const UI = (() => {
       Minimap.setCurrentMatch(0);
       Minimap.setApiMarker(null);
       navigateToMatch(results[0], digitPatternLen);
+      const pos = results[0];
+      const count = results.length;
       if (converted.mode === 'digits') {
-        const pos = results[0];
-        const count = results.length;
         mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}`, 5000);
+      } else {
+        const encLabel = converted.mode === 't9' ? 'T9' : converted.mode === 'compact' ? 'Compact' : 'Alpha-26';
+        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${query}</b>" as ${encLabel} (<b>${converted.digitQuery}</b>) appears <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First at ${_posWords(pos)}. ${_posReaction(pos)}`, 5000);
       }
     } else {
       badge.classList.add('hidden');
       nav.classList.add('hidden');
       if (!hasLetters) Minimap.clearMarkers();
 
-      // No local results — for text queries, try all encodings via API
+      // No local results — for text queries, check multi-part first, then API
+      const chunkEnabled = document.getElementById('chunkSearch')?.checked;
+      if (hasLetters && chunkEnabled) {
+        // Multi-part: chunk the current encoding locally
+        const digits = App.getDigits();
+        if (digits) {
+          const chunks = Search.findChunked(digits, converted.digitQuery);
+          if (chunks.length > 1) {
+            showChunkedResults(query, converted, chunks);
+            return;
+          }
+        }
+      }
       if (hasLetters && currentConstant === 'pi') {
         searchAllEncodings(query);
       } else if (currentConstant === 'pi' && converted.digitQuery.length >= 4) {
@@ -638,6 +688,13 @@ const UI = (() => {
         }
         mascotSay(`<div class="bubble-title">Nope!</div>${notFoundMsg}`, 6000);
       }
+    }
+
+    // Update spiral lines if enabled
+    if (spiralLinesEnabled && hasLetters) {
+      updateSpiralLines(query);
+    } else if (!hasLetters) {
+      Minimap.clearSpiralLines();
     }
   }
 
@@ -666,8 +723,13 @@ const UI = (() => {
     Renderer.setSearchHighlights(allPositions, chunks[0].digitStr.length);
     Minimap.setAllMarkerLayers([{ mode: converted.mode, results: allPositions }]);
 
-    // Navigate to first chunk
-    navigateToMatch(chunks[0].pos, chunks[0].digitStr.length);
+    // Set chunk connector lines on main canvas and minimap
+    Renderer.setChunkConnectors(chunks);
+    Minimap.clearSpiralLines();
+    Minimap.setChunkLines(chunks);
+
+    // Zoom out to fit ALL chunks on screen
+    navigateToFitChunks(chunks);
 
     // Build mascot message showing the breakdown
     const word = query.replace(/[^a-zA-Z]/g, '').toUpperCase();
@@ -693,7 +755,7 @@ const UI = (() => {
     matchIdx.textContent = `1/${chunks.length}`;
 
     mascotSay(
-      `<div class="bubble-title">Found in ${chunks.length} pieces!</div>`
+      `<div class="bubble-title">Found in ${chunks.length} parts!</div>`
       + `"<b>${word}</b>" is too long to find in one go, but I found it in parts:<br>`
       + chunkHtml,
       0
@@ -782,42 +844,9 @@ const UI = (() => {
     detail.textContent = 'Trying T9, Compact, and Alpha-26...';
     mascotSay(`<div class="bubble-title">Hang on...</div>Searching for "<b>${word}</b>" across all encodings...`, 0);
 
-    const MAX_WORD_LEN = 6;
     const found = [];
     const notFound = []; // encodings beyond the API corpus
     let apiTotalDigits = 1e12;
-
-    // If the word is longer than 6 letters, skip API and go straight to chunked
-    if (word.length > MAX_WORD_LEN) {
-      banner.classList.remove('loading');
-      banner.classList.add('hidden');
-
-      const chunkEnabled = document.getElementById('chunkSearch')?.checked;
-      const digits = App.getDigits();
-
-      if (chunkEnabled && digits) {
-        const converted = Search.convertQuery(query);
-        const chunks = Search.findChunked(digits, converted.digitQuery);
-        if (chunks.length > 1) {
-          mascotSay(
-            `<div class="bubble-title">That's a long one!</div>`
-            + `"<b>${word}</b>" is ${word.length} letters — very unlikely to find it whole in the first million digits.`
-            + `<br>But I found it in <b>${chunks.length} pieces</b>!`,
-            10000
-          );
-          showChunkedResults(query, converted, chunks);
-          return;
-        }
-      }
-
-      mascotSay(
-        `<div class="bubble-title">That's a long one!</div>`
-        + `"<b>${word}</b>" is ${word.length} letters — very unlikely to find it whole in the first million digits.`
-        + `<br><i style="opacity:0.6">Enable "Non-continuous" next to the search bar to find it in pieces!</i>`,
-        10000
-      );
-      return;
-    }
 
     for (const mode of modes) {
       const conv = Search.convertWithMode(query, mode);
@@ -902,50 +931,74 @@ const UI = (() => {
         // Everything is beyond the corpus
       }
 
-      // If found beyond local digits and chunking enabled, also offer chunked alternative
-      const chunkEnabled = document.getElementById('chunkSearch')?.checked;
+      // Offer multi-part as a clickable option
       const digits = App.getDigits();
-      const beyondLocal = best && digits && best.pos >= digits.length;
-
-      if (chunkEnabled && beyondLocal && best.pos <= 1e9 && digits) {
+      if (digits) {
         const converted = Search.convertQuery(query);
         const chunks = Search.findChunked(digits, converted.digitQuery);
         if (chunks.length > 1) {
-          mascotHtml += `<br><i style="opacity:0.7">Also found in ${chunks.length} pieces locally!</i>`;
-          mascotSay(mascotHtml, 12000);
-          showApiContextPanelMulti(found, notFound, word);
-          if (best) Minimap.setApiMarker(best.pos, word);
-          showChunkedResults(query, converted, chunks);
-          return;
+          mascotHtml += `<br><br>I can also find it in <b>${chunks.length} parts</b> locally!`
+            + `<br><button class="mascot-action-btn" id="tryMultiPart">Try Multi-Part</button>`;
         }
       }
 
-      mascotSay(mascotHtml, 12000);
+      mascotSay(mascotHtml, 0);
       showApiContextPanelMulti(found, notFound, word);
       if (best) Minimap.setApiMarker(best.pos, word);
-    } else {
-      // Nothing found in any encoding — try chunking if enabled
-      const chunkEnabled = document.getElementById('chunkSearch')?.checked;
-      const digits = App.getDigits();
 
-      if (chunkEnabled && digits) {
-        const converted = Search.convertQuery(query);
-        const chunks = Search.findChunked(digits, converted.digitQuery);
-        if (chunks.length > 1) {
-          banner.classList.add('hidden');
-          showChunkedResults(query, converted, chunks);
-          return;
+      // Wire up the multi-part button if present
+      setTimeout(() => {
+        const btn = document.getElementById('tryMultiPart');
+        if (btn) {
+          btn.addEventListener('click', () => {
+            const chunkBox = document.getElementById('chunkSearch');
+            if (chunkBox) chunkBox.checked = true;
+            const converted = Search.convertQuery(query);
+            const digs = App.getDigits();
+            if (digs) {
+              const chunks = Search.findChunked(digs, converted.digitQuery);
+              if (chunks.length > 1) showChunkedResults(query, converted, chunks);
+            }
+          });
         }
-      }
-
+      }, 50);
+    } else {
+      // Nothing found in any encoding — offer multi-part
       icon.textContent = '\u{1F50D}';
       title.textContent = `"${word}" not found in any encoding`;
       detail.textContent = 'Tried T9, Compact, and Alpha-26 across all available digits.';
       let msg = `"<b>${word}</b>" is playing hard to get! Couldn't find it in any encoding.`;
-      if (!chunkEnabled) {
-        msg += `<br><i style="opacity:0.7">Try enabling "Non-continuous matching" in Settings to find it in pieces!</i>`;
+
+      const digits = App.getDigits();
+      if (digits) {
+        const converted = Search.convertQuery(query);
+        const chunks = Search.findChunked(digits, converted.digitQuery);
+        if (chunks.length > 1) {
+          msg += `<br><br>But I can find it in <b>${chunks.length} parts</b>!`
+            + `<br><button class="mascot-action-btn" id="tryMultiPart2">Try Multi-Part</button>`;
+        }
       }
-      mascotSay(`<div class="bubble-title">Hmm...</div>${msg}`, 8000);
+
+      mascotSay(`<div class="bubble-title">Hmm...</div>${msg}`, 0);
+
+      setTimeout(() => {
+        const btn = document.getElementById('tryMultiPart2');
+        if (btn) {
+          btn.addEventListener('click', () => {
+            const chunkBox = document.getElementById('chunkSearch');
+            if (chunkBox) chunkBox.checked = true;
+            const converted = Search.convertQuery(query);
+            const digs = App.getDigits();
+            if (digs) {
+              const chunks = Search.findChunked(digs, converted.digitQuery);
+              if (chunks.length > 1) {
+                banner.classList.add('hidden');
+                showChunkedResults(query, converted, chunks);
+              }
+            }
+          });
+        }
+      }, 50);
     }
   }
 
@@ -1056,8 +1109,6 @@ const UI = (() => {
     // Fetch context digits
     _fetchContextStrip(globalPos, matchLen, strip, ctxPanel);
   }
-
-  const ENC_COLORS = { t9: '#ff6b9d', compact: '#4ecdc4', alpha26: '#7c6ff7' };
 
   function showApiContextPanelMulti(found, notFound, word) {
     const ctxPanel = document.getElementById('apiContextPanel');
@@ -1363,6 +1414,59 @@ const UI = (() => {
     const idx = Search.getCurrentIndex();
     document.getElementById('matchIndex').textContent =
       `${(idx + 1).toLocaleString()}/${results.length.toLocaleString()}`;
+  }
+
+  function navigateToFitChunks(chunks) {
+    const cw = Layout.getCellW();
+    const ch = Layout.getCellH();
+
+    // Compute bounding box of all chunk positions in world coords
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    // Include spiral center (0,0) in bbox for polygon visualization
+    if (Layout.getType() === 'spiral') {
+      minX = Math.min(minX, 0);
+      minY = Math.min(minY, 0);
+      maxX = Math.max(maxX, 0);
+      maxY = Math.max(maxY, 0);
+    }
+
+    for (const c of chunks) {
+      for (let d = 0; d <= c.digitStr.length; d++) {
+        const pos = Layout.getPosition(c.pos + d);
+        minX = Math.min(minX, pos.x);
+        minY = Math.min(minY, pos.y);
+        maxX = Math.max(maxX, pos.x + cw);
+        maxY = Math.max(maxY, pos.y + ch);
+      }
+    }
+
+    // Add padding
+    const padW = cw * 8;
+    const padH = ch * 8;
+    minX -= padW;
+    minY -= padH;
+    maxX += padW;
+    maxY += padH;
+
+    const bboxW = maxX - minX;
+    const bboxH = maxY - minY;
+
+    // Calculate zoom to fit bbox on screen
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+    const zoomX = screenW / bboxW;
+    const zoomY = screenH / bboxH;
+    const targetZoom = Math.min(zoomX, zoomY, 4); // cap at 4x
+
+    // Center camera on bbox center
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const tx = cx - screenW / 2 / targetZoom;
+    const ty = cy - screenH / 2 / targetZoom;
+
+    Camera.animateTo(tx, ty, targetZoom, 800);
+    trackNavigation();
   }
 
   function navigateToMatch(rawDigitIndex, patternLength) {

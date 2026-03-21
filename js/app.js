@@ -104,14 +104,14 @@ const App = (() => {
     Camera.update();
     Particles.update(dt);
 
-    const alwaysRender = Layout.getType() === 'wave' || (App.getCurrentConstant() === 'pi');
-    if (Camera.isDirty() || Camera.isAnimating() || Particles.hasParticles() || alwaysRender) {
+    const needsRender = Camera.isDirty() || Camera.isAnimating() || Particles.hasParticles()
+      || Layout.getType() === 'wave' || Renderer.isExpanding();
+    if (needsRender) {
       Renderer.render();
       Camera.clearDirty();
       UI.updateInfoBar();
+      Minimap.render();
     }
-    // Minimap always renders (lightweight, needs to track viewport smoothly)
-    Minimap.render();
 
     requestAnimationFrame(renderLoop);
   }

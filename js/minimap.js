@@ -12,6 +12,8 @@ const Minimap = (() => {
   let activeMarkers = [];    // markers for the active mode (for current match highlight)
   let apiMarkers = [];
   let currentMatchIdx = -1;
+  let spiralLines = null; // [{ idx, color, label }]
+  let chunkLines = null;  // [{ pos, len }] for chunked search connectors
 
   // Encoding-specific marker colors
   const ENC_COLORS = {
@@ -156,6 +158,140 @@ const Minimap = (() => {
         ctx.fillText(`${label} (${count})`, 17, ly + 5);
         ly += 12;
       }
+    }
+
+    // Draw spiral connection lines from center to first match of each encoding
+    if (spiralLines && spiralLines.length > 0 && Layout.getType() === 'spiral') {
+      // Spiral center is at world (0, 0)
+      const cx = 0 * scale + offX;
+      const cy = 0 * scale + offY;
+
+      for (const line of spiralLines) {
+        const pos = Layout.getPosition(line.idx);
+        const sx = pos.x * scale + offX;
+        const sy = pos.y * scale + offY;
+
+        // Gold dashed line
+        ctx.save();
+        ctx.strokeStyle = '#d4a017';
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.7;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(sx, sy);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Endpoint dot in encoding color
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = line.color;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Small label
+        ctx.fillStyle = '#d4a017';
+        ctx.font = 'bold 7px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(line.label, sx, sy - 5);
+        ctx.restore();
+      }
+    }
+
+    // Draw chunk connector polygon with VIBGYOR colors
+    if (chunkLines && chunkLines.length > 1) {
+      const isSpiral = Layout.getType() === 'spiral';
+      const n = chunkLines.length;
+
+      const VIBGYOR = ['#9400D3','#4B0082','#0000FF','#00AA00','#FFD700','#FF8C00','#FF0000'];
+      function vibColor(i) {
+        const idx = n <= 1 ? 0 : Math.round(i * (VIBGYOR.length - 1) / (n - 1));
+        return VIBGYOR[Math.min(idx, VIBGYOR.length - 1)];
+      }
+      function hexRgba(hex, a) {
+        const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+        return `rgba(${r},${g},${b},${a})`;
+      }
+
+      const chunkPts = [];
+      for (let i = 0; i < n; i++) {
+        const midIdx = chunkLines[i].pos + Math.floor(chunkLines[i].len / 2);
+        const pos = Layout.getPosition(midIdx);
+        chunkPts.push({ sx: pos.x * scale + offX, sy: pos.y * scale + offY, color: vibColor(i) });
+      }
+
+      let center = null;
+      if (isSpiral) {
+        center = { sx: offX, sy: offY };
+      }
+
+      ctx.save();
+
+      // Filled triangles from center to each chunk pair
+      if (center) {
+        for (let i = 0; i < chunkPts.length; i++) {
+          const a = chunkPts[i];
+          const b = chunkPts[(i + 1) % chunkPts.length];
+          ctx.fillStyle = hexRgba(a.color, 0.15);
+          ctx.beginPath();
+          ctx.moveTo(center.sx, center.sy);
+          ctx.lineTo(a.sx, a.sy);
+          ctx.lineTo(b.sx, b.sy);
+          ctx.closePath();
+          ctx.fill();
+        }
+        // Lines from center to each chunk
+        for (const p of chunkPts) {
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.85;
+          ctx.beginPath();
+          ctx.moveTo(center.sx, center.sy);
+          ctx.lineTo(p.sx, p.sy);
+          ctx.stroke();
+        }
+      } else {
+        for (let i = 0; i < chunkPts.length - 1; i++) {
+          ctx.strokeStyle = chunkPts[i].color;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.85;
+          ctx.beginPath();
+          ctx.moveTo(chunkPts[i].sx, chunkPts[i].sy);
+          ctx.lineTo(chunkPts[i+1].sx, chunkPts[i+1].sy);
+          ctx.stroke();
+        }
+      }
+
+      // Vertex dots + labels
+      ctx.globalAlpha = 1;
+      if (center) {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(center.sx, center.sy, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      for (let i = 0; i < chunkPts.length; i++) {
+        const p = chunkPts[i];
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = p.color;
+        ctx.font = 'bold 8px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`P${i + 1}`, p.sx, p.sy - 6);
+      }
+      ctx.restore();
     }
 
     // Draw remote result badge (text only, no empty space)
@@ -372,8 +508,15 @@ const Minimap = (() => {
   function setCurrentMatch(idx) { currentMatchIdx = idx; }
   function invalidate() {}
 
+  function setSpiralLines(lines) { spiralLines = lines; }
+  function clearSpiralLines() { spiralLines = null; }
+  function setChunkLines(chunks) { chunkLines = chunks ? chunks.map(c => ({ pos: c.pos, len: c.digitStr.length })) : null; }
+  function clearChunkLines() { chunkLines = null; }
+
   return {
     init, resize, render, invalidate,
     setSearchMarkers, setAllMarkerLayers, setApiMarker, setCurrentMatch, clearMarkers,
+    setSpiralLines, clearSpiralLines,
+    setChunkLines, clearChunkLines,
   };
 })();
