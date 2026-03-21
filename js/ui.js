@@ -452,6 +452,17 @@ const UI = (() => {
       compact: '<div class="bubble-title">Compact</div>A-J use 1 digit, K-Z use 2.<br><b>A=0, B=1, ... J=9, K=10, ... Z=25</b><br>So "HI" becomes <b>78</b>.<br>Shorter sequences, easier to find in π!',
       t9: '<div class="bubble-title">T9 Keypad</div>Like old phone texting!<br><b>ABC=2, DEF=3, GHI=4, JKL=5, MNO=6, PQRS=7, TUV=8, WXYZ=9</b><br>So "HI" becomes <b>44</b>.<br>Shortest sequences, but different letters map to the same digit.',
     };
+    // Non-continuous toggle — re-trigger search on change
+    const chunkBox = document.getElementById('chunkSearch');
+    if (chunkBox) {
+      chunkBox.addEventListener('change', () => {
+        const query = input.value.trim();
+        if (query && /[a-zA-Z]/.test(query)) {
+          doSearch();
+        }
+      });
+    }
+
     document.querySelectorAll('.enc-info').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -604,27 +615,337 @@ const UI = (() => {
       Minimap.setCurrentMatch(0);
       Minimap.setApiMarker(null);
       navigateToMatch(results[0], digitPatternLen);
-      // Announce result via mascot (only for digit-only queries; text queries already shown above)
       if (converted.mode === 'digits') {
-        mascotSay(`<div class="bubble-title">Found!</div>"<b>${converted.digitQuery}</b>" appears <b>${results.length.toLocaleString()}</b> time${results.length > 1 ? 's' : ''} in your loaded digits.`, 5000);
+        const pos = results[0];
+        const count = results.length;
+        mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}`, 5000);
       }
     } else {
-      badge.textContent = '0';
-      badge.classList.remove('hidden');
+      badge.classList.add('hidden');
       nav.classList.add('hidden');
       if (!hasLetters) Minimap.clearMarkers();
 
-      // No local results — try the Pi search API if this is a pi constant
-      if (currentConstant === 'pi' && converted.digitQuery.length >= 4) {
+      // No local results — for text queries, try all encodings via API
+      if (hasLetters && currentConstant === 'pi') {
+        searchAllEncodings(query);
+      } else if (currentConstant === 'pi' && converted.digitQuery.length >= 4) {
         searchPiApi(query, converted);
       } else {
-        let notFoundMsg = `"<b>${converted.digitQuery}</b>" doesn't appear in your loaded digits.`;
+        let notFoundMsg = `"<b>${converted.digitQuery}</b>" isn't in the first million digits!`;
         if (converted.mode !== 'digits') {
           const altEnc = converted.mode === 't9' ? 'Compact' : 'T9';
-          notFoundMsg += `<br><i style="opacity:0.7">Try switching to <b>${altEnc}</b> encoding, it might have better luck!</i>`;
+          notFoundMsg += `<br><i style="opacity:0.7">Try <b>${altEnc}</b> encoding for a shorter sequence!</i>`;
         }
-        mascotSay(`<div class="bubble-title">Not found</div>${notFoundMsg}`, 6000);
+        mascotSay(`<div class="bubble-title">Nope!</div>${notFoundMsg}`, 6000);
       }
+    }
+  }
+
+  let chunkedPositions = []; // stored for chunk navigation
+  let currentChunkIdx = 0;
+
+  function showChunkedResults(query, converted, chunks) {
+    chunkedPositions = chunks;
+    currentChunkIdx = 0;
+
+    // Highlight all chunk positions
+    const allPositions = [];
+    const allLengths = [];
+    for (const c of chunks) {
+      allPositions.push(c.pos);
+      allLengths.push(c.digitStr.length);
+    }
+    // Highlight using the first chunk's positions combined
+    const highlightSet = [];
+    for (const c of chunks) {
+      for (let i = 0; i < c.digitStr.length; i++) {
+        highlightSet.push(c.pos + i);
+      }
+    }
+    // Use the longest chunk length for highlight display
+    Renderer.setSearchHighlights(allPositions, chunks[0].digitStr.length);
+    Minimap.setAllMarkerLayers([{ mode: converted.mode, results: allPositions }]);
+
+    // Navigate to first chunk
+    navigateToMatch(chunks[0].pos, chunks[0].digitStr.length);
+
+    // Build mascot message showing the breakdown
+    const word = query.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    let chunkHtml = '';
+    // Map digit offsets back to letters
+    const letterMap = _mapLettersToDigits(word, converted);
+
+    for (let i = 0; i < chunks.length; i++) {
+      const c = chunks[i];
+      const letters = _getLettersForChunk(letterMap, c.offset, c.offset + c.digitStr.length);
+      const letterLabel = letters ? ` <span style="opacity:0.6">(${letters})</span>` : '';
+      chunkHtml += `<div style="margin:2px 0;cursor:pointer" data-chunk="${i}">`
+        + `<span style="color:var(--accent);font-weight:700">${c.digitStr}</span>${letterLabel}`
+        + ` → digit <b>#${c.pos.toLocaleString()}</b></div>`;
+    }
+
+    const badge = document.getElementById('searchResults');
+    const nav = document.getElementById('searchNav');
+    const matchIdx = document.getElementById('matchIndex');
+    badge.textContent = `${chunks.length} parts`;
+    badge.classList.remove('hidden');
+    nav.classList.remove('hidden');
+    matchIdx.textContent = `1/${chunks.length}`;
+
+    mascotSay(
+      `<div class="bubble-title">Found in ${chunks.length} pieces!</div>`
+      + `"<b>${word}</b>" is too long to find in one go, but I found it in parts:<br>`
+      + chunkHtml,
+      0
+    );
+
+    // Make chunk lines clickable
+    setTimeout(() => {
+      const bubble = document.getElementById('mascotBubble');
+      bubble.querySelectorAll('[data-chunk]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const idx = parseInt(el.dataset.chunk);
+          currentChunkIdx = idx;
+          navigateToMatch(chunks[idx].pos, chunks[idx].digitStr.length);
+          matchIdx.textContent = `${idx + 1}/${chunks.length}`;
+        });
+      });
+    }, 50);
+
+    // Override next/prev for chunk navigation
+    const nextBtn = document.getElementById('nextMatch');
+    const prevBtn = document.getElementById('prevMatch');
+    const nextHandler = () => {
+      currentChunkIdx = (currentChunkIdx + 1) % chunks.length;
+      navigateToMatch(chunks[currentChunkIdx].pos, chunks[currentChunkIdx].digitStr.length);
+      matchIdx.textContent = `${currentChunkIdx + 1}/${chunks.length}`;
+    };
+    const prevHandler = () => {
+      currentChunkIdx = (currentChunkIdx - 1 + chunks.length) % chunks.length;
+      navigateToMatch(chunks[currentChunkIdx].pos, chunks[currentChunkIdx].digitStr.length);
+      matchIdx.textContent = `${currentChunkIdx + 1}/${chunks.length}`;
+    };
+    // Replace handlers temporarily by cloning
+    const newNext = nextBtn.cloneNode(true);
+    const newPrev = prevBtn.cloneNode(true);
+    nextBtn.parentNode.replaceChild(newNext, nextBtn);
+    prevBtn.parentNode.replaceChild(newPrev, prevBtn);
+    newNext.addEventListener('click', nextHandler);
+    newPrev.addEventListener('click', prevHandler);
+  }
+
+  // Map each letter to its digit offset range in the encoded string
+  function _mapLettersToDigits(word, converted) {
+    const map = []; // [{letter, start, end}]
+    let offset = 0;
+    for (const ch of word) {
+      let encoded;
+      if (converted.mode === 't9') encoded = Mappings.letterToT9(ch);
+      else if (converted.mode === 'compact') encoded = Mappings.letterToCompact(ch);
+      else encoded = Mappings.letterToPair(ch);
+      if (encoded) {
+        map.push({ letter: ch, start: offset, end: offset + encoded.length });
+        offset += encoded.length;
+      }
+    }
+    return map;
+  }
+
+  // Get the letters that correspond to a digit range
+  function _getLettersForChunk(letterMap, digitStart, digitEnd) {
+    const letters = [];
+    for (const m of letterMap) {
+      if (m.start >= digitStart && m.end <= digitEnd) {
+        letters.push(m.letter);
+      } else if (m.start < digitEnd && m.end > digitStart) {
+        letters.push(m.letter.toLowerCase()); // partial overlap
+      }
+    }
+    return letters.length > 0 ? letters.join('') : '';
+  }
+
+  async function searchAllEncodings(query) {
+    const word = query.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const modes = ['t9', 'compact', 'alpha26']; // shortest digit strings first
+    const banner = document.getElementById('apiResultBanner');
+    const icon = document.getElementById('apiResultIcon');
+    const title = document.getElementById('apiResultTitle');
+    const detail = document.getElementById('apiResultDetail');
+    const ctxPanel = document.getElementById('apiContextPanel');
+    const modeLabels = { alpha26: 'Alpha-26', compact: 'Compact', t9: 'T9' };
+
+    banner.classList.remove('hidden');
+    banner.classList.add('loading');
+    ctxPanel.classList.add('hidden');
+    icon.textContent = '';
+    title.textContent = `Searching all encodings for "${word}" in π...`;
+    detail.textContent = 'Trying T9, Compact, and Alpha-26...';
+    mascotSay(`<div class="bubble-title">Hang on...</div>Searching for "<b>${word}</b>" across all encodings...`, 0);
+
+    const MAX_WORD_LEN = 6;
+    const found = [];
+    const notFound = []; // encodings beyond the API corpus
+    let apiTotalDigits = 1e12;
+
+    // If the word is longer than 6 letters, skip API and go straight to chunked
+    if (word.length > MAX_WORD_LEN) {
+      banner.classList.remove('loading');
+      banner.classList.add('hidden');
+
+      const chunkEnabled = document.getElementById('chunkSearch')?.checked;
+      const digits = App.getDigits();
+
+      if (chunkEnabled && digits) {
+        const converted = Search.convertQuery(query);
+        const chunks = Search.findChunked(digits, converted.digitQuery);
+        if (chunks.length > 1) {
+          mascotSay(
+            `<div class="bubble-title">That's a long one!</div>`
+            + `"<b>${word}</b>" is ${word.length} letters — very unlikely to find it whole in the first million digits.`
+            + `<br>But I found it in <b>${chunks.length} pieces</b>!`,
+            10000
+          );
+          showChunkedResults(query, converted, chunks);
+          return;
+        }
+      }
+
+      mascotSay(
+        `<div class="bubble-title">That's a long one!</div>`
+        + `"<b>${word}</b>" is ${word.length} letters — very unlikely to find it whole in the first million digits.`
+        + `<br><i style="opacity:0.6">Enable "Non-continuous" next to the search bar to find it in pieces!</i>`,
+        10000
+      );
+      return;
+    }
+
+    for (const mode of modes) {
+      const conv = Search.convertWithMode(query, mode);
+      if (!conv.digitQuery || conv.digitQuery.length < 1) continue;
+
+      try {
+        const result = await PiApi.search(conv.digitQuery, false);
+        apiTotalDigits = result.totalDigits || apiTotalDigits;
+        if (result.found && result.results.length > 0) {
+          const pos = result.results[0].position;
+          found.push({
+            mode,
+            label: modeLabels[mode],
+            digitStr: conv.digitQuery,
+            pos,
+            before: result.results[0].before || '',
+            after: result.results[0].after || '',
+            totalDigits: result.totalDigits,
+            elapsed: result.elapsed,
+          });
+        } else {
+          notFound.push({
+            mode,
+            label: modeLabels[mode],
+            digitStr: conv.digitQuery,
+            totalDigits: result.totalDigits,
+          });
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') { banner.classList.add('hidden'); return; }
+      }
+    }
+
+    banner.classList.remove('loading');
+
+    if (found.length > 0 || notFound.length > 0) {
+      // Sort found by position (earliest first)
+      found.sort((a, b) => a.pos - b.pos);
+      const best = found.length > 0 ? found[0] : null;
+
+      if (best) {
+        icon.textContent = '\u{1F3AF}';
+        title.innerHTML = `Found "<b>${word}</b>" in π`
+          + `<span class="api-position">digit #${best.pos.toLocaleString()}</span>`;
+      } else {
+        icon.textContent = '\u{1F50D}';
+        title.innerHTML = `"<b>${word}</b>" is beyond ${_compactNum(apiTotalDigits)} digits in all encodings`;
+      }
+
+      // Show all encoding results (found + not found) with matching colors
+      let detailHtml = '';
+      for (const f of found) {
+        const color = ENC_COLORS[f.mode] || '#ccc';
+        const isBest = f === best;
+        detailHtml += `<div style="margin:2px 0;${isBest ? 'font-weight:700' : 'opacity:0.7'}">`
+          + `<span style="color:${color}">&#9679;</span> ${f.label}: ${_posWords(f.pos)}`
+          + ` <span style="opacity:0.5">(digit #${f.pos.toLocaleString()})</span>`
+          + `${isBest ? ' ✓' : ''}</div>`;
+      }
+      for (const nf of notFound) {
+        const color = ENC_COLORS[nf.mode] || '#ccc';
+        detailHtml += `<div style="margin:2px 0;opacity:0.5">`
+          + `<span style="color:${color}">&#9679;</span> ${nf.label}: beyond ${_compactNum(nf.totalDigits)} digits</div>`;
+      }
+      detail.innerHTML = detailHtml;
+
+      // Mascot announces — human-friendly
+      const bestReaction = best ? _posReaction(best.pos) : '';
+      let mascotHtml = `<div class="bubble-title">${best ? `Found "${word}"!` : `"${word}" is way out there!`}</div>`;
+      if (best) mascotHtml += `${bestReaction}<br><br>`;
+      for (const f of found) {
+        mascotHtml += `<span style="color:${ENC_COLORS[f.mode]}"><b>${f.label}</b></span>: ${_posWords(f.pos)}<br>`;
+      }
+      for (const nf of notFound) {
+        mascotHtml += `<span style="color:${ENC_COLORS[nf.mode]}"><b>${nf.label}</b></span>: <i>beyond ${_compactNum(nf.totalDigits)} digits!</i><br>`;
+      }
+      // Achievements
+      if (notFound.length > 0) unlock('far_out');
+      if (best && best.pos > 1e9) unlock('far_out');
+      if (best && best.pos > 1e6) unlock('thats_deep');
+      if (notFound.length > 0 && found.length === 0) {
+        // Everything is beyond the corpus
+      }
+
+      // If found beyond local digits and chunking enabled, also offer chunked alternative
+      const chunkEnabled = document.getElementById('chunkSearch')?.checked;
+      const digits = App.getDigits();
+      const beyondLocal = best && digits && best.pos >= digits.length;
+
+      if (chunkEnabled && beyondLocal && best.pos <= 1e9 && digits) {
+        const converted = Search.convertQuery(query);
+        const chunks = Search.findChunked(digits, converted.digitQuery);
+        if (chunks.length > 1) {
+          mascotHtml += `<br><i style="opacity:0.7">Also found in ${chunks.length} pieces locally!</i>`;
+          mascotSay(mascotHtml, 12000);
+          showApiContextPanelMulti(found, notFound, word);
+          if (best) Minimap.setApiMarker(best.pos, word);
+          showChunkedResults(query, converted, chunks);
+          return;
+        }
+      }
+
+      mascotSay(mascotHtml, 12000);
+      showApiContextPanelMulti(found, notFound, word);
+      if (best) Minimap.setApiMarker(best.pos, word);
+    } else {
+      // Nothing found in any encoding — try chunking if enabled
+      const chunkEnabled = document.getElementById('chunkSearch')?.checked;
+      const digits = App.getDigits();
+
+      if (chunkEnabled && digits) {
+        const converted = Search.convertQuery(query);
+        const chunks = Search.findChunked(digits, converted.digitQuery);
+        if (chunks.length > 1) {
+          banner.classList.add('hidden');
+          showChunkedResults(query, converted, chunks);
+          return;
+        }
+      }
+
+      icon.textContent = '\u{1F50D}';
+      title.textContent = `"${word}" not found in any encoding`;
+      detail.textContent = 'Tried T9, Compact, and Alpha-26 across all available digits.';
+      let msg = `"<b>${word}</b>" is playing hard to get! Couldn't find it in any encoding.`;
+      if (!chunkEnabled) {
+        msg += `<br><i style="opacity:0.7">Try enabling "Non-continuous matching" in Settings to find it in pieces!</i>`;
+      }
+      mascotSay(`<div class="bubble-title">Hmm...</div>${msg}`, 8000);
     }
   }
 
@@ -646,7 +967,7 @@ const UI = (() => {
     icon.textContent = '';
     title.textContent = `Searching extended \u03C0 digits for "${word || digitStr}"...`;
     detail.textContent = 'Scanning digit chunks with KMP...';
-    mascotSay(`<div class="bubble-title">Searching...</div>Looking for "<b>${word || digitStr}</b>" deep in π...`, 0);
+    mascotSay(`<div class="bubble-title">Hang on...</div>Digging deeper for "<b>${word || digitStr}</b>"...`, 0);
 
     try {
       const result = await PiApi.search(digitStr, pairAligned);
@@ -663,7 +984,7 @@ const UI = (() => {
         const label = word || digitStr;
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`
           + `<span class="api-position">digit #${posFormatted}</span>`;
-        mascotSay(`<div class="bubble-title">Found it! 🎯</div>"<b>${label}</b>" appears at digit <b>#${posFormatted}</b> in π!`, 8000);
+        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${label}</b>" is ${_posWords(pos)}! ${_posReaction(pos)}`, 8000);
         if (pos > 1e9) unlock('far_out');
         if (pos > 1e6) unlock('thats_deep');
 
@@ -684,13 +1005,13 @@ const UI = (() => {
         icon.textContent = '\u{1F50D}';
         title.textContent = `"${word || digitStr}" not found in ${totalFormatted} digits of \u03C0`;
         detail.textContent = `Sequence "${digitStr}" doesn't appear in the available digits. Download more with: node scripts/download-pi.js`;
-        let apiNotFoundMsg = `"<b>${word || digitStr}</b>" wasn't found in ${totalFormatted} digits of π. Maybe it's hiding deeper!`;
+        let apiNotFoundMsg = `"<b>${word || digitStr}</b>" is hiding beyond ${totalFormatted} digits! That's seriously far out.`;
         if (word) {
           const curEnc = converted.mode;
           const altEnc = curEnc === 't9' ? 'Compact' : curEnc === 'compact' ? 'T9' : 'Compact or T9';
-          apiNotFoundMsg += `<br><i style="opacity:0.7">Try <b>${altEnc}</b> encoding, shorter digit sequences are easier to find!</i>`;
+          apiNotFoundMsg += `<br><i style="opacity:0.7">Try <b>${altEnc}</b> encoding for a shorter sequence!</i>`;
         }
-        mascotSay(`<div class="bubble-title">No luck 🔍</div>${apiNotFoundMsg}`, 8000);
+        mascotSay(`<div class="bubble-title">Whoa!</div>${apiNotFoundMsg}`, 8000);
         const total = result.totalDigits || 0;
         if (total > 1e9) unlock('far_out');
         if (total > 1e6) unlock('thats_deep');
@@ -715,6 +1036,11 @@ const UI = (() => {
     const pinEl = document.getElementById('scalePin');
     const totalLabel = document.getElementById('scaleTotalLabel');
 
+    // Clean up multi-pins, restore single pin
+    const track = pinEl.parentElement;
+    track.querySelectorAll('.scale-pin-multi').forEach(el => el.remove());
+    pinEl.style.display = '';
+
     const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
 
     // Scale bar
@@ -728,41 +1054,163 @@ const UI = (() => {
     _renderScaleTicks(totalDigits);
 
     // Fetch context digits
+    _fetchContextStrip(globalPos, matchLen, strip, ctxPanel);
+  }
+
+  const ENC_COLORS = { t9: '#ff6b9d', compact: '#4ecdc4', alpha26: '#7c6ff7' };
+
+  function showApiContextPanelMulti(found, notFound, word) {
+    const ctxPanel = document.getElementById('apiContextPanel');
+    const localEl = document.getElementById('scaleLocal');
+    const pinEl = document.getElementById('scalePin');
+    const totalLabel = document.getElementById('scaleTotalLabel');
+    const strip = document.getElementById('apiContextStrip');
+
+    const totalDigits = (found.length > 0 ? found[0].totalDigits : notFound[0]?.totalDigits) || 1e12;
+    const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
+
+    // Scale bar — local range
+    const localFrac = _logScale(localDigits, totalDigits) * 100;
+    localEl.style.width = Math.max(0.5, localFrac) + '%';
+    totalLabel.textContent = _compactNum(totalDigits);
+
+    // Hide the default single pin
+    pinEl.style.display = 'none';
+
+    // Remove any previous multi-pins
+    const track = pinEl.parentElement;
+    track.querySelectorAll('.scale-pin-multi').forEach(el => el.remove());
+
+    // Add a pin for each found encoding result
+    for (const f of found) {
+      const pct = _logScale(f.pos, totalDigits) * 100;
+      const color = ENC_COLORS[f.mode] || '#ff6b9d';
+      _addScalePin(track, pct, color, f.label, _compactNum(f.pos));
+    }
+
+    // Add pins for not-found encodings — pinned at the far right edge
+    for (const nf of notFound) {
+      const color = ENC_COLORS[nf.mode] || '#e84393';
+      _addScalePin(track, 97, color, nf.label, '>' + _compactNum(nf.totalDigits));
+    }
+
+    // Render tick marks + log scale indicator
+    _renderScaleTicks(totalDigits);
+    // Add log scale label if not already present
+    if (!track.querySelector('.log-scale-label')) {
+      const logLabel = document.createElement('div');
+      logLabel.className = 'log-scale-label';
+      logLabel.style.cssText = `position:absolute;top:50%;right:4px;transform:translateY(-50%);`
+        + `font-size:8px;letter-spacing:0.5px;opacity:0.35;font-family:var(--font-mono);color:var(--text);text-transform:uppercase;`;
+      logLabel.textContent = 'log scale';
+      track.appendChild(logLabel);
+    }
+
+    // Show context strips for all found encodings
+    if (found.length > 0) {
+      strip.innerHTML = '';
+      ctxPanel.classList.remove('hidden');
+      for (const f of found) {
+        _appendContextStrip(f.pos, f.digitStr.length, f.label, ENC_COLORS[f.mode], strip);
+      }
+    } else {
+      strip.innerHTML = '<span class="ctx-ellipsis" style="opacity:0.5">All encodings are beyond the searchable corpus</span>';
+      ctxPanel.classList.remove('hidden');
+    }
+  }
+
+  function _addScalePin(track, pct, color, label, posLabel) {
+    const pin = document.createElement('div');
+    pin.className = 'scale-pin-multi';
+    pin.style.cssText = `position:absolute;top:-4px;left:${pct}%;width:3px;height:26px;`
+      + `background:${color};border-radius:2px;box-shadow:0 0 8px ${color}80;z-index:2;`;
+    const dot = document.createElement('div');
+    dot.style.cssText = `position:absolute;top:-4px;left:50%;transform:translateX(-50%);`
+      + `width:10px;height:10px;background:${color};border-radius:50%;box-shadow:0 0 6px ${color}80;`;
+    pin.appendChild(dot);
+    // Position number above the pin
+    if (posLabel) {
+      const posEl = document.createElement('div');
+      posEl.style.cssText = `position:absolute;top:-22px;left:50%;transform:translateX(-50%);`
+        + `font-size:10px;font-weight:700;white-space:nowrap;color:${color};font-family:var(--font-mono);`;
+      posEl.textContent = posLabel;
+      pin.appendChild(posEl);
+    }
+    // Encoding name below the pin
+    const lbl = document.createElement('div');
+    lbl.className = 'scale-pin-label';
+    lbl.style.cssText = `position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);`
+      + `font-size:9px;font-weight:700;white-space:nowrap;color:${color};font-family:var(--font-mono);`;
+    lbl.textContent = label;
+    pin.appendChild(lbl);
+    track.appendChild(pin);
+  }
+
+  async function _fetchContextStrip(globalPos, matchLen, strip, ctxPanel) {
     try {
       const resp = await fetch(`/api/picontext?pos=${globalPos}&radius=15`);
       if (!resp.ok) { ctxPanel.classList.add('hidden'); return; }
       const data = await resp.json();
-
-      const allDigits = data.digits;
-      const mOff = data.matchOffset;
-      const before = Math.min(10, mOff);
-      const after = Math.min(10, allDigits.length - mOff - matchLen);
-      const start = mOff - before;
-      const contextDigits = allDigits.substring(start, mOff + matchLen + after);
-      const matchStart = before;
-      const colors = Renderer.getDigitColors ? Renderer.getDigitColors() : null;
-
-      let html = '<span class="ctx-ellipsis">...</span>';
-      for (let i = 0; i < contextDigits.length; i++) {
-        const d = contextDigits[i];
-        const isMatch = i >= matchStart && i < matchStart + matchLen;
-        const color = colors ? colors[Number(d)] : 'var(--text)';
-        if (isMatch) {
-          html += `<span class="ctx-digit match" style="color:${color}">${d}</span>`;
-        } else {
-          html += `<span class="ctx-digit">${d}</span>`;
-        }
-      }
-      html += '<span class="ctx-ellipsis">...</span>';
-
-      strip.innerHTML = html;
+      strip.innerHTML = _buildContextHtml(data, matchLen);
       ctxPanel.classList.remove('hidden');
     } catch (e) {
       ctxPanel.classList.add('hidden');
     }
   }
 
+  async function _appendContextStrip(globalPos, matchLen, label, color, container) {
+    try {
+      const resp = await fetch(`/api/picontext?pos=${globalPos}&radius=15`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;margin:4px 0;';
+      const tag = document.createElement('span');
+      tag.style.cssText = `color:${color};font-size:11px;font-weight:700;font-family:var(--font-mono);min-width:60px;text-align:right;`;
+      tag.textContent = label;
+      const digits = document.createElement('span');
+      digits.className = 'api-context-strip';
+      digits.style.cssText = 'flex:1;margin:0;padding:4px 0;';
+      digits.innerHTML = _buildContextHtml(data, matchLen, color);
+      row.appendChild(tag);
+      row.appendChild(digits);
+      container.appendChild(row);
+    } catch (e) { /* skip */ }
+  }
+
+  function _buildContextHtml(data, matchLen, highlightColor) {
+    const allDigits = data.digits;
+    const mOff = data.matchOffset;
+    const before = Math.min(10, mOff);
+    const after = Math.min(10, allDigits.length - mOff - matchLen);
+    const start = mOff - before;
+    const contextDigits = allDigits.substring(start, mOff + matchLen + after);
+    const matchStart = before;
+    const colors = Renderer.getDigitColors ? Renderer.getDigitColors() : null;
+    const matchColor = highlightColor || 'var(--accent)';
+
+    let html = '<span class="ctx-ellipsis">...</span>';
+    for (let i = 0; i < contextDigits.length; i++) {
+      const d = contextDigits[i];
+      const isMatch = i >= matchStart && i < matchStart + matchLen;
+      const color = colors ? colors[Number(d)] : 'var(--text)';
+      if (isMatch) {
+        html += `<span class="ctx-digit match" style="color:${matchColor};text-shadow:0 0 6px ${matchColor}80">${d}</span>`;
+      } else {
+        html += `<span class="ctx-digit">${d}</span>`;
+      }
+    }
+    html += '<span class="ctx-ellipsis">...</span>';
+    return html;
+  }
+
   function hideApiBanner() {
+    // Clean up multi-pins
+    const track = document.querySelector('.scale-track');
+    if (track) track.querySelectorAll('.scale-pin-multi').forEach(el => el.remove());
+    const pinEl = document.getElementById('scalePin');
+    if (pinEl) pinEl.style.display = '';
     const banner = document.getElementById('apiResultBanner');
     banner.classList.add('hidden');
     banner.classList.remove('loading');
@@ -774,6 +1222,27 @@ const UI = (() => {
   function _logScale(value, total) {
     if (value <= 0) return 0;
     return Math.log(1 + value) / Math.log(1 + total);
+  }
+
+  // Human-friendly position description
+  function _posWords(pos) {
+    if (pos < 1000) return `only ${pos} digits in`;
+    if (pos < 1e4) return `about ${(pos / 1000).toFixed(1)}K digits deep`;
+    if (pos < 1e6) return `${Math.round(pos / 1000).toLocaleString()}K digits deep`;
+    if (pos < 1e7) return `${(pos / 1e6).toFixed(1)} million digits deep`;
+    if (pos < 1e9) return `${Math.round(pos / 1e6).toLocaleString()} million digits deep`;
+    return `${(pos / 1e9).toFixed(1)} billion digits deep`;
+  }
+
+  function _posReaction(pos) {
+    if (pos < 1000) return 'Right here in the neighborhood!';
+    if (pos < 1e4) return 'Not too far!';
+    if (pos < 1e5) return 'A bit of a journey!';
+    if (pos < 1e6) return 'That took some digging!';
+    if (pos < 1e7) return 'Woah, way out there!';
+    if (pos < 1e8) return 'Buried deep in the digits!';
+    if (pos < 1e9) return 'That\'s incredibly far in!';
+    return 'Mind-blowingly deep!!';
   }
 
   function _compactNum(n) {
@@ -838,6 +1307,11 @@ const UI = (() => {
     const totalDigits = 1e12; // known extent of computed pi
     const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
 
+    // Clean up multi-pins from encoding search
+    const track = pinEl.parentElement;
+    track.querySelectorAll('.scale-pin-multi').forEach(el => el.remove());
+    pinEl.style.display = '';
+
     banner.classList.remove('hidden', 'loading');
     icon.textContent = '\u{1F4CD}';
     title.innerHTML = `<b>${name}</b> — "${pattern}" appears at`
@@ -894,14 +1368,24 @@ const UI = (() => {
   function navigateToMatch(rawDigitIndex, patternLength) {
     const cw = Layout.getCellW();
     const ch = Layout.getCellH();
+    const layoutType = Layout.getType();
 
-    const pos = Layout.getPosition(rawDigitIndex);
-    const targetZoom = 4;
-    const halfLen = (patternLength * cw) / 2;
-    const tx = pos.x + halfLen - (window.innerWidth / 2) / targetZoom;
-    const ty = pos.y - (window.innerHeight / 2) / targetZoom + ch / 2;
+    // Center on the middle of the matched pattern
+    const midIdx = rawDigitIndex + Math.floor(patternLength / 2);
+    const midPos = Layout.getPosition(midIdx);
 
-    Camera.animateTo(tx, ty, targetZoom, 800);
+    if (layoutType === 'wave') {
+      // For wave, just center horizontally on the middle digit
+      const targetZoom = 1;
+      const tx = midPos.x - (window.innerWidth / 2) / targetZoom;
+      const ty = midPos.y - (window.innerHeight / 2) / targetZoom;
+      Camera.animateTo(tx, ty, targetZoom, 800);
+    } else {
+      const targetZoom = 4;
+      const tx = midPos.x - (window.innerWidth / 2) / targetZoom;
+      const ty = midPos.y - (window.innerHeight / 2) / targetZoom;
+      Camera.animateTo(tx, ty, targetZoom, 800);
+    }
     trackNavigation();
   }
 

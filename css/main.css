@@ -335,6 +335,33 @@ html, body {
   color: var(--text);
 }
 
+.chunk-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.chunk-toggle input {
+  accent-color: var(--accent);
+  margin: 0;
+  cursor: pointer;
+}
+
+.chunk-toggle input:checked + span {
+  color: var(--text);
+}
+
+[data-theme="light"] .chunk-toggle {
+  border-left-color: rgba(0,0,0,0.1);
+}
+
 .enc-info {
   position: absolute;
   top: -6px;
@@ -853,7 +880,8 @@ html, body {
 
 .api-scale-bar {
   margin-bottom: 14px;
-  padding-bottom: 18px;
+  padding-top: 22px;
+  padding-bottom: 28px;
 }
 
 .scale-track {

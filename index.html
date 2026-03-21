@@ -58,6 +58,10 @@
         <label class="enc-pill" data-enc="alpha26"><input type="radio" name="searchEnc" value="alpha26" checked><span>Alpha-26</span><button class="enc-info" data-enc-info="alpha26">i</button></label>
         <label class="enc-pill" data-enc="compact"><input type="radio" name="searchEnc" value="compact"><span>Compact</span><button class="enc-info" data-enc-info="compact">i</button></label>
         <label class="enc-pill" data-enc="t9"><input type="radio" name="searchEnc" value="t9"><span>T9</span><button class="enc-info" data-enc-info="t9">i</button></label>
+        <label class="chunk-toggle" title="If not found whole, break into sequential pieces in π">
+          <input type="checkbox" id="chunkSearch" checked>
+          <span>Non-continuous</span>
+        </label>
       </div>
       <div class="search-nav hidden" id="searchNav">
         <button id="prevMatch" class="nav-btn" title="Previous match">&#9650;</button>
@@ -96,8 +100,8 @@
       <label class="radio-label" title="Digits spiral outward from the center">
         <input type="radio" name="layout" value="spiral" checked> Spiral
       </label>
-      <label class="radio-label" title="Horizontal strip with macOS dock-style magnification">
-        <input type="radio" name="layout" value="wave"> Wave Dock
+      <label class="radio-label" title="Horizontal strip with magnification">
+        <input type="radio" name="layout" value="wave"> Line
       </label>
     </div>
 
@@ -110,6 +114,7 @@
         <input type="radio" name="theme" value="light"> Light
       </label>
     </div>
+
   </div>
 
   <!-- Minimap (bird's eye scale bar) -->

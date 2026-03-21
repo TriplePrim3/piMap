@@ -2,10 +2,21 @@ const Sounds = (() => {
   let ctx = null;
   let muted = false;
 
+  let userGesture = false;
+
   function getCtx() {
+    if (!userGesture) return null;
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
+  }
+
+  function unlockAudio() {
+    if (userGesture) return;
+    userGesture = true;
+    // Create and resume context on first gesture
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
   }
 
   function isMuted() { return muted; }
@@ -16,6 +27,7 @@ const Sounds = (() => {
   function playTone(freq, duration, type = 'sine', vol = 0.15, detune = 0) {
     if (muted) return;
     const ac = getCtx();
+    if (!ac) return;
     const osc = ac.createOscillator();
     const gain = ac.createGain();
     osc.type = type;
@@ -54,6 +66,7 @@ const Sounds = (() => {
   function digitTick(digit) {
     if (muted) return;
     const ac = getCtx();
+    if (!ac) return;
     // Short noise burst filtered to a click
     const freq = 1200 + (digit || 0) * 80;
     const osc = ac.createOscillator();
@@ -76,9 +89,15 @@ const Sounds = (() => {
     setTimeout(() => playTone(300, 0.15, 'triangle', 0.06), 150);
   }
 
-  // Init — restore mute state
+  // Init — restore mute state, listen for first user gesture
   function init() {
     muted = localStorage.getItem('pimap_muted') === '1';
+    const events = ['click', 'keydown', 'touchstart'];
+    const handler = () => {
+      unlockAudio();
+      events.forEach(e => document.removeEventListener(e, handler, true));
+    };
+    events.forEach(e => document.addEventListener(e, handler, { once: false, capture: true }));
   }
 
   return { init, isMuted, setMuted, achievement, mascotSpeak, digitTick, cakeClick };

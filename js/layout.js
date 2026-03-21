@@ -93,7 +93,9 @@ const Layout = (() => {
       return -1;
     }
     if (current === 'wave') {
-      return Math.max(0, Math.round((wx - PADDING) / cellW));
+      // Simple linear mapping — the renderer handles magnification visually
+      const idx = Math.round(wx / cellW);
+      return Math.max(0, idx);
     }
     const col = Math.floor((wx - PADDING) / cellW);
     const row = Math.floor((wy - PADDING) / cellH);

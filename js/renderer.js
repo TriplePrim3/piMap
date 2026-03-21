@@ -876,8 +876,8 @@ const Renderer = (() => {
     const startCell = Math.max(0, centerCellIdx - maxCount);
     const endCell = Math.min(effectiveLen - 1, centerCellIdx + maxCount);
 
-    const hoverRadius = 180;
-    const hoverMaxScale = 2.8;
+    const hoverRadius = 250;
+    const hoverMaxScale = 4.0;
     const centerRadius = w * 0.35;
     const centerMaxScale = 2.5;
     const baseW = cw * zoom;
