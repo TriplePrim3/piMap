@@ -189,8 +189,62 @@ const Search = (() => {
     lastSearchWord = '';
   }
 
+  // Find the first match at or after minPos
+  function findPatternAfter(digits, pattern, minPos) {
+    const hits = findPattern(digits, pattern);
+    for (const h of hits) {
+      if (h >= minPos) return h;
+    }
+    return -1;
+  }
+
+  // Greedy chunked search: break digitStr into largest sequential chunks in pi
+  function findChunked(digits, digitStr) {
+    const chunks = [];
+    let offset = 0;
+    let minPos = 0; // each chunk must appear after the previous one
+
+    while (offset < digitStr.length) {
+      let bestLen = 0;
+      let bestPos = -1;
+      const remaining = digitStr.length - offset;
+
+      // Binary search for the longest prefix that exists in pi after minPos
+      let lo = 1, hi = remaining;
+      while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        const sub = digitStr.substring(offset, offset + mid);
+        const pos = findPatternAfter(digits, sub, minPos);
+        if (pos >= 0) {
+          bestLen = mid;
+          bestPos = pos;
+          lo = mid + 1; // try longer
+        } else {
+          hi = mid - 1; // try shorter
+        }
+      }
+
+      if (bestLen === 0) {
+        // Single digit always exists
+        const pos = findPatternAfter(digits, digitStr[offset], minPos);
+        bestLen = 1;
+        bestPos = pos >= 0 ? pos : 0;
+      }
+
+      chunks.push({
+        digitStr: digitStr.substring(offset, offset + bestLen),
+        pos: bestPos,
+        offset: offset,
+      });
+      minPos = bestPos + bestLen; // next chunk must come after this one
+      offset += bestLen;
+    }
+
+    return chunks;
+  }
+
   return {
-    find, findPattern, convertWithMode,
+    find, findPattern, convertWithMode, findChunked,
     getResults, getLastConvertedQuery, getLastSearchWord,
     getCurrentIndex, getCurrentMatch,
     next, prev, clear, convertQuery,
