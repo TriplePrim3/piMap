@@ -192,10 +192,63 @@ const Minimap = (() => {
 
     ctx.restore(); // matches the save() before clip
 
+    // Cake pointer at last digit (drawn OUTSIDE clip so emoji isn't clipped at edges)
+    drawCakePointer(scale, offX, offY, effLen);
+
     // Store transform for click handling
     canvas._mapScale = scale;
     canvas._mapOffX = offX;
     canvas._mapOffY = offY;
+  }
+
+  function drawCakePointer(scale, offX, offY, effLen) {
+    if (effLen <= 0) return;
+    const lastPos = Layout.getPosition(effLen - 1);
+    let cx = lastPos.x * scale + offX;
+    let cy = lastPos.y * scale + offY;
+
+    const pad = 14;
+    const inside = cx >= pad && cx <= MAP_W - pad && cy >= pad && cy <= MAP_H - pad;
+
+    ctx.save();
+    ctx.globalAlpha = 1;
+
+    if (inside) {
+      // Cake sits right on the dot
+      ctx.font = '14px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('\uD83C\uDF70', cx, cy);
+    } else {
+      // Clamp to edge and draw an arrow pointing outward
+      const edgeX = Math.max(pad, Math.min(MAP_W - pad, cx));
+      const edgeY = Math.max(pad, Math.min(MAP_H - pad, cy));
+
+      // Arrow direction
+      const dx = cx - edgeX;
+      const dy = cy - edgeY;
+      const angle = Math.atan2(dy, dx);
+
+      ctx.translate(edgeX, edgeY);
+      ctx.rotate(angle);
+
+      // Small arrow
+      ctx.fillStyle = '#ff6b9d';
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(0, -4);
+      ctx.lineTo(0, 4);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.rotate(-angle);
+      // Cake emoji next to arrow
+      ctx.font = '12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('\uD83C\uDF70', 0, -12);
+    }
+    ctx.restore();
   }
 
   function drawViewport(scale, offX, offY, isLight) {

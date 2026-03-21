@@ -193,6 +193,45 @@ function handlePiContext(posStr, radiusStr, res) {
   res.end(JSON.stringify({ digits, start: globalStart, matchOffset, totalDigits }));
 }
 
+// ─── Digit fetcher (get N digits from offset) ───
+
+function handlePiDigits(offsetStr, countStr, res) {
+  const offset = parseInt(offsetStr) || 0;
+  const count = Math.min(parseInt(countStr) || 10000, 100000);
+
+  if (!chunkMeta || offset < 0) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Invalid offset or no data' }));
+    return;
+  }
+
+  if (offset >= totalDigits) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ digits: '', offset, totalDigits }));
+    return;
+  }
+
+  const step = chunkMeta.chunkSize - chunkMeta.overlap;
+  let result = '';
+  let pos = offset;
+  const end = Math.min(offset + count, totalDigits);
+
+  while (pos < end) {
+    const chunkIdx = Math.min(Math.floor(pos / step), chunkFiles.length - 1);
+    const cf = chunkFiles[chunkIdx];
+    const chunkData = cf.preloaded || fs.readFileSync(cf.path, 'utf8');
+    const chunkOffset = chunkIdx * step;
+    const localPos = pos - chunkOffset;
+    const available = Math.min(chunkData.length - localPos, end - pos);
+    result += chunkData.slice(localPos, localPos + available);
+    pos += available;
+    if (available <= 0) break;
+  }
+
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ digits: result, offset, totalDigits }));
+}
+
 // ─── API handler ───
 
 function handlePiSearch(query, pairAligned, res) {
@@ -227,6 +266,11 @@ const server = http.createServer((req, res) => {
 
   if (parsed.pathname === '/api/picontext') {
     handlePiContext(parsed.query.pos, parsed.query.radius, res);
+    return;
+  }
+
+  if (parsed.pathname === '/api/pidigits') {
+    handlePiDigits(parsed.query.offset, parsed.query.count, res);
     return;
   }
 

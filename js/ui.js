@@ -4,19 +4,358 @@ const UI = (() => {
 
   // Famous patterns in π (position is the digit index after "3.")
   const FAMOUS_PATTERNS = [
-    { name: 'Feynman Point', pattern: '999999', pos: 761, icon: '🎯', desc: 'Six consecutive 9s', section: 'Famous Sequences' },
-    { name: 'First 0123456789', pattern: '0123456789', pos: 17387594880, icon: '🔢', desc: 'All digits in order', section: 'Famous Sequences' },
-    { name: 'First 123456', pattern: '123456', pos: 2458884, icon: '📈', desc: 'Counting up 1–6', section: 'Consecutive Runs' },
-    { name: 'First 12345', pattern: '12345', pos: 49701, icon: '📈', desc: 'Counting up 1–5', section: 'Consecutive Runs' },
-    { name: 'First 1234', pattern: '1234', pos: 13806, icon: '📈', desc: 'Counting up 1–4', section: 'Consecutive Runs' },
-    { name: 'Seven 3s', pattern: '3333333', pos: 710099, icon: '🔁', desc: 'Seven consecutive 3s', section: 'Repeated Digits' },
-    { name: 'Six 7s', pattern: '777777', pos: 399578, icon: '🎰', desc: 'Six consecutive 7s', section: 'Repeated Digits' },
-    { name: 'First 11111', pattern: '11111', pos: 32787, icon: '🔁', desc: 'Five consecutive 1s', section: 'Repeated Digits' },
-    { name: 'First 00000', pattern: '00000', pos: 17533, icon: '⭕', desc: 'Five consecutive 0s', section: 'Repeated Digits' },
-    { name: '2718 (e)', pattern: '2718', pos: 11705, icon: 'e', desc: 'Euler\'s number in π', section: 'Constants in π' },
-    { name: '1414 (√2)', pattern: '1414', pos: 1635, icon: '√', desc: '√2 appears in π', section: 'Constants in π' },
-    { name: '1618 (φ)', pattern: '1618', pos: 6003, icon: 'φ', desc: 'Golden ratio in π', section: 'Constants in π' },
+    { name: 'Feynman Point', pattern: '999999', pos: 761, icon: '🎯', desc: 'Six consecutive 9s', section: 'Famous Sequences',
+      facts: [
+        'Richard Feynman once joked he wanted to memorize π up to this point, then say "nine nine nine nine nine nine and so on," implying π is rational. It\'s at position 762!',
+        'Six 9s in a row at position 762. Feynman was a physicist, a bongo player, and apparently a π troll.',
+        'The Feynman Point is like π rickrolling mathematicians since 1988.',
+      ] },
+    { name: 'First 0123456789', pattern: '0123456789', pos: 17387594880, icon: '🔢', desc: 'All digits in order', section: 'Famous Sequences',
+      facts: [
+        'The first time all ten digits appear in order (0123456789) in π is at the 17.4 billionth digit. That\'s deep!',
+        'π had to think about it for 17.4 billion digits before counting to 9. Relatable.',
+        '0123456789 in π? It took 17.4 billion digits. π really said "I\'ll do it in my own time."',
+      ] },
+    { name: 'First 123456', pattern: '123456', pos: 2458884, icon: '📈', desc: 'Counting up 1–6', section: 'Consecutive Runs',
+      facts: [
+        'Finding 123456 in π took over 2.4 million digits. Adding just one more digit (1234567) pushes it to 9.5 million!',
+        'π counted to 6 at position 2.4M. For a number that goes on forever, it sure took its time.',
+      ] },
+    { name: 'First 12345', pattern: '12345', pos: 49701, icon: '📈', desc: 'Counting up 1–5', section: 'Consecutive Runs',
+      facts: [
+        'The counting sequence 12345 first shows up at position 49,702. Earlier than you might expect for a 5-digit string!',
+        '12345 at position 49,702. π\'s password game is as weak as yours.',
+      ] },
+    { name: 'First 1234', pattern: '1234', pos: 13806, icon: '📈', desc: 'Counting up 1–4', section: 'Consecutive Runs',
+      facts: [
+        'You\'d expect a random 4-digit pattern around position 10,000. 1234 is a little late to the party at 13,807.',
+        '1234 shows up at 13,807. Even π uses basic passwords sometimes.',
+      ] },
+    { name: 'Seven 3s', pattern: '3333333', pos: 710099, icon: '🔁', desc: 'Seven consecutive 3s', section: 'Repeated Digits',
+      facts: [
+        'Seven 3s in a row! The digit 3 is the first digit of π after the decimal, so maybe π is just playing favorites.',
+        'Seven 3s at position 710,100. π really said "3 is my main character."',
+      ] },
+    { name: 'Six 7s', pattern: '777777', pos: 399578, icon: '🎰', desc: 'Six consecutive 7s', section: 'Repeated Digits',
+      facts: [
+        'Six 7s in a row? That\'s lowkey 6/7 no cap. π was serving before it was cool. Position 399,579.',
+        'Six 7s — a jackpot in π! If π were a slot machine, this would be the big win at position 399,579.',
+        '777777 at position 399,579. Vegas wishes it had these odds.',
+      ] },
+    { name: 'First 11111', pattern: '11111', pos: 32787, icon: '🔁', desc: 'Five consecutive 1s', section: 'Repeated Digits',
+      facts: [
+        'Five 1s in a row appear relatively early. Fun fact: the probability of five consecutive same digits at any point is 1 in 100,000.',
+        '11111 at position 32,788. π was just making sure the 1 key works.',
+      ] },
+    { name: 'First 00000', pattern: '00000', pos: 17533, icon: '⭕', desc: 'Five consecutive 0s', section: 'Repeated Digits',
+      facts: [
+        'Five zeros in a row at position 17,534. The nothingness within infinity. Oddly poetic for a math constant.',
+        '00000 at position 17,534. π took a five-digit nap.',
+      ] },
+    { name: '2718 (e)', pattern: '2718', pos: 11705, icon: 'e', desc: 'Euler\'s number in π', section: 'Constants in π',
+      facts: [
+        'π contains the start of e (2.718...) at position 11,706. Two of math\'s most famous constants, forever intertwined.',
+        'e hiding inside π at position 11,706. These two constants are basically besties.',
+      ] },
+    { name: '1414 (√2)', pattern: '1414', pos: 1635, icon: '√', desc: '√2 appears in π', section: 'Constants in π',
+      facts: [
+        '√2 (1.414...) appears in π very early at position 1,636. The first irrational number most people learn, hiding inside another.',
+        '√2 at position 1,636. Irrationals supporting irrationals. You love to see it.',
+      ] },
+    { name: '1618 (φ)', pattern: '1618', pos: 6003, icon: 'φ', desc: 'Golden ratio in π', section: 'Constants in π',
+      facts: [
+        'The golden ratio φ (1.618...) shows up at position 6,004. Nature\'s favorite number, tucked inside the circle constant.',
+        'φ inside π at position 6,004. The golden ratio and the circle constant in one place? Math is beautiful.',
+      ] },
   ];
+
+  let mascotTimer = null;
+  let cakeClickCount = 0;
+
+  const CAKE_QUIPS = [
+    "There's definitely cake... it's just at the end of π. Keep going! 🍰",
+    "Oh there it goes again! The cake is always one step ahead...",
+    "You almost had it! But π had other plans.",
+    "The cake isn't a lie — it's just... infinitely far away.",
+    "π keeps adding digits just to keep the cake out of reach.",
+    "At this rate, the cake will be stale by the time you get there.",
+    "Fun fact: the cake has been running since Archimedes first tried.",
+    "Maybe the real cake was the digits we computed along the way?",
+    "Still chasing cake? π respects the hustle.",
+    "Legend says if you reach the last digit of π, the cake is chocolate.",
+  ];
+
+  const MASCOT_TIPS = [
+    'Try searching for your birthday!',
+    'Type <b>#100</b> to jump to the 100th digit.',
+    'Every finite sequence appears in π... probably.',
+    'The Feynman Point has six 9s in a row at position 762!',
+    'π has been computed to 105 trillion digits.',
+    'Click the last digit to expand π further.',
+    'Try searching a word — it gets encoded into digits!',
+    'π is irrational. It never repeats, never ends.',
+  ];
+
+  function mascotSay(html, duration) {
+    const bubble = document.getElementById('mascotBubble');
+    bubble.innerHTML = html;
+    bubble.classList.remove('hidden');
+    Sounds.mascotSpeak();
+    clearTimeout(mascotTimer);
+    if (duration) {
+      mascotTimer = setTimeout(() => bubble.classList.add('hidden'), duration);
+    }
+  }
+
+  function mascotHide() {
+    document.getElementById('mascotBubble').classList.add('hidden');
+    clearTimeout(mascotTimer);
+  }
+
+  function setupMascot() {
+    const body = document.getElementById('mascotBody');
+    const pupilL = document.getElementById('mascotPupilL');
+    const pupilR = document.getElementById('mascotPupilR');
+
+    body.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bubble = document.getElementById('mascotBubble');
+      if (!bubble.classList.contains('hidden')) {
+        mascotHide();
+        return;
+      }
+      const tip = MASCOT_TIPS[Math.floor(Math.random() * MASCOT_TIPS.length)];
+      mascotSay(`<div class="bubble-title">Did you know?</div>${tip}`, 6000);
+    });
+
+    // Eyes follow mouse
+    const eyeLCenter = { x: 17, y: 16 };
+    const eyeRCenter = { x: 35, y: 16 };
+    const maxMove = 2.5;
+
+    window.addEventListener('mousemove', (e) => {
+      const rect = body.getBoundingClientRect();
+      const bodyCX = rect.left + rect.width / 2;
+      const bodyCY = rect.top + rect.height / 2;
+      const dx = e.clientX - bodyCX;
+      const dy = e.clientY - bodyCY;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const clamp = Math.min(1, dist / 150);
+      const offX = (dx / dist) * maxMove * clamp;
+      const offY = (dy / dist) * maxMove * clamp;
+      pupilL.setAttribute('cx', eyeLCenter.x + offX);
+      pupilL.setAttribute('cy', eyeLCenter.y + offY);
+      pupilR.setAttribute('cx', eyeRCenter.x + offX);
+      pupilR.setAttribute('cy', eyeRCenter.y + offY);
+    });
+
+    // Initial greeting
+    setTimeout(() => {
+      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching your name, it's hiding somewhere in here.<br>Explore some famous findings in the panel on the right.<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
+    }, 1500);
+  }
+
+  // ─── Birthday ───
+
+  function askBirthday() {
+    mascotSay(
+      `<div class="bubble-title">🎂 When's your birthday?</div>`
+      + `Let me find it in π and leave you a cake there!`
+      + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">Find it!</button></div>`,
+      0
+    );
+    // Need to defer listener attachment to next tick (DOM not yet updated)
+    setTimeout(() => {
+      const picker = document.getElementById('bdayPicker');
+      const btn = document.getElementById('bdayGo');
+      if (!picker || !btn) return;
+      btn.addEventListener('click', () => {
+        const val = picker.value;
+        if (!val) return;
+        handleBirthday(val);
+      });
+      picker.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const val = picker.value;
+          if (val) handleBirthday(val);
+        }
+      });
+    }, 50);
+  }
+
+  function handleBirthday(dateStr) {
+    // dateStr is YYYY-MM-DD from the date picker
+    const [y, m, d] = dateStr.split('-');
+    const digits = App.getDigits();
+    if (!digits) return;
+
+    // Try formats from longest to shortest
+    const formats = [
+      { str: d + m + y.slice(2), label: `${d}/${m}/${y.slice(2)}` },
+      { str: d + m, label: `${d}/${m}` },
+    ];
+
+    let found = null;
+    for (const fmt of formats) {
+      const results = Search.findPattern(digits, fmt.str);
+      if (results.length > 0) {
+        found = { pos: results[0], str: fmt.str, label: fmt.label };
+        break;
+      }
+    }
+
+    const input = document.getElementById('searchInput');
+
+    if (found) {
+      input.value = found.str;
+      doSearch();
+      Renderer.setBirthdayMarker(found.pos, found.str.length);
+      mascotSay(
+        `<div class="bubble-title">🎂 Happy birthday!</div>`
+        + `Found <b>${found.label}</b> in π!<br>`
+        + `I left a cake there for you!`,
+        8000
+      );
+      unlock('birthday');
+    } else {
+      // Neither format found — still search the shorter one
+      const shortStr = d + m;
+      input.value = shortStr;
+      doSearch();
+      mascotSay(
+        `<div class="bubble-title">🎂 Rare birthday!</div>`
+        + `<b>${d}/${m}/${y.slice(2)}</b> doesn't appear in the first million digits of π.<br>`
+        + `Your birthday is rarer than the Feynman Point!`,
+        8000
+      );
+      unlock('birthday');
+    }
+  }
+
+  // ─── Achievements ───
+
+  const ACHIEVEMENTS = [
+    { id: 'cake_lie', icon: '🍰', name: 'The Cake Is a Lie', desc: 'Clicked the cake at the end of π' },
+    { id: 'birthday', icon: '🎂', name: 'The Cake Is Alive', desc: 'Found your birthday cake in π' },
+    { id: 'name_search', icon: '🧘', name: 'Self Discovery', desc: 'Searched a name in π' },
+    { id: 'feynman', icon: '🎯', name: 'Feynman Fan', desc: 'Visited the Feynman Point' },
+    { id: 'explorer', icon: '🧭', name: 'Explorer', desc: 'Navigated to 10 different positions' },
+    { id: 'encoding', icon: '🔣', name: 'Code Breaker', desc: 'Tried all 3 text encodings' },
+    { id: 'expander', icon: '🚀', name: 'Infinity & Beyond', desc: 'Expanded π beyond 1 million digits' },
+    { id: 'zoom_master', icon: '🔬', name: 'Zoom Master', desc: 'Zoomed in past 8x magnification' },
+    { id: 'thats_deep', icon: '🌊', name: "That's Deep", desc: 'Found something beyond 1 million digits' },
+    { id: 'far_out', icon: '🛸', name: 'Far Out, Man', desc: 'Searched beyond a billion digits into π' },
+    { id: 'both_sides', icon: '🌗', name: 'Both Sides of π', desc: 'Toggled between light and dark mode' },
+  ];
+
+  let unlockedSet = new Set(JSON.parse(localStorage.getItem('pimap_achievements') || '[]'));
+  let navCount = parseInt(localStorage.getItem('pimap_navcount') || '0');
+  let encodingsUsed = new Set(JSON.parse(localStorage.getItem('pimap_encodings') || '[]'));
+
+  function unlock(id) {
+    if (unlockedSet.has(id)) return;
+    unlockedSet.add(id);
+    localStorage.setItem('pimap_achievements', JSON.stringify([...unlockedSet]));
+    updateAchievementsCount();
+
+    // Toast notification + sound
+    Sounds.achievement();
+    const ach = ACHIEVEMENTS.find(a => a.id === id);
+    if (!ach) return;
+    const toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.innerHTML = `<span class="toast-icon">${ach.icon}</span><div><div style="font-size:11px;opacity:0.6;text-transform:uppercase;letter-spacing:1px">Achievement Unlocked!</div>${ach.name}</div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  function trackNavigation() {
+    navCount++;
+    localStorage.setItem('pimap_navcount', String(navCount));
+    if (navCount >= 10) unlock('explorer');
+  }
+
+  function trackEncoding(mode) {
+    encodingsUsed.add(mode);
+    localStorage.setItem('pimap_encodings', JSON.stringify([...encodingsUsed]));
+    if (encodingsUsed.size >= 3) unlock('encoding');
+  }
+
+  function setupAchievements() {
+    const btn = document.getElementById('achievementsBtn');
+    const panel = document.getElementById('achievementsPanel');
+    const close = document.getElementById('achievementsClose');
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) renderAchievements();
+    });
+    close.addEventListener('click', () => panel.classList.add('hidden'));
+    panel.addEventListener('mousedown', (e) => e.stopPropagation());
+
+    document.addEventListener('click', (e) => {
+      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+        panel.classList.add('hidden');
+      }
+    });
+
+    updateAchievementsCount();
+  }
+
+  function updateAchievementsCount() {
+    const countEl = document.getElementById('achievementsCount');
+    if (countEl) countEl.textContent = `${unlockedSet.size}/${ACHIEVEMENTS.length}`;
+  }
+
+  function renderAchievements() {
+    const list = document.getElementById('achievementsList');
+    let html = '';
+    const locked = ACHIEVEMENTS.filter(a => !unlockedSet.has(a.id));
+    const unlocked = ACHIEVEMENTS.filter(a => unlockedSet.has(a.id));
+    for (const ach of unlocked) {
+      html += `<div class="achievement-item unlocked">
+        <span class="ach-icon">${ach.icon}</span>
+        <div class="ach-info">
+          <div class="ach-name">${ach.name}</div>
+          <div class="ach-desc">${ach.desc}</div>
+        </div>
+        <span class="ach-check">✓</span>
+      </div>`;
+    }
+    if (locked.length > 0) {
+      for (let i = 0; i < locked.length; i++) {
+        html += `<div class="achievement-item locked">
+          <span class="ach-icon">❓</span>
+          <div class="ach-info">
+            <div class="ach-name">???</div>
+            <div class="ach-desc">Keep exploring to unlock</div>
+          </div>
+        </div>`;
+      }
+    }
+    list.innerHTML = html;
+  }
+
+  function setupMuteButton() {
+    const btn = document.getElementById('muteBtn');
+    const waves = document.getElementById('muteSoundWaves');
+    function updateIcon() {
+      if (Sounds.isMuted()) {
+        btn.classList.add('muted');
+        waves.style.display = 'none';
+      } else {
+        btn.classList.remove('muted');
+        waves.style.display = '';
+      }
+    }
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      Sounds.setMuted(!Sounds.isMuted());
+      updateIcon();
+    });
+    updateIcon();
+  }
 
   function init() {
     setupSearch();
@@ -27,6 +366,10 @@ const UI = (() => {
     setupTheme();
     setupCanvasInteraction();
     setupFamousPatterns();
+    setupMascot();
+    setupAchievements();
+    Sounds.init();
+    setupMuteButton();
 
     document.getElementById('apiResultClose').addEventListener('click', hideApiBanner);
 
@@ -45,7 +388,7 @@ const UI = (() => {
 
     // Filter input: only allow alphanumeric characters
     input.addEventListener('input', () => {
-      const cleaned = input.value.replace(/[^a-zA-Z0-9]/g, '');
+      const cleaned = input.value.replace(/[^a-zA-Z0-9#]/g, '');
       if (cleaned !== input.value) {
         const pos = input.selectionStart - (input.value.length - cleaned.length);
         input.value = cleaned;
@@ -74,11 +417,13 @@ const UI = (() => {
         input.value = '';
         Search.clear();
         Renderer.setSearchHighlights(null, 0);
+        Renderer.clearBirthdayMarker();
         nav.classList.add('hidden');
         badge.classList.add('hidden');
         document.getElementById('searchConversion').classList.add('hidden');
         document.getElementById('searchEncoding').classList.add('hidden');
         hideApiBanner();
+        mascotHide();
         input.blur();
       }
     });
@@ -90,6 +435,7 @@ const UI = (() => {
     document.querySelectorAll('input[name="searchEnc"]').forEach(radio => {
       radio.addEventListener('change', () => {
         Search.setTextEncoding(radio.value);
+        trackEncoding(radio.value);
         // Re-search with new encoding if there's a text query
         const query = input.value.trim();
         if (query && /[a-zA-Z]/.test(query)) {
@@ -99,6 +445,21 @@ const UI = (() => {
     });
     // Prevent encoding pills from triggering canvas drag
     document.getElementById('searchEncoding').addEventListener('mousedown', (e) => e.stopPropagation());
+
+    // Encoding info buttons
+    const encExplain = {
+      alpha26: '<div class="bubble-title">Alpha-26</div>Each letter becomes 2 digits.<br><b>A=00, B=01, C=02, ... Z=25</b><br>So "HI" becomes <b>0708</b>.<br>Longer sequences, but every letter is the same width.',
+      compact: '<div class="bubble-title">Compact</div>A-J use 1 digit, K-Z use 2.<br><b>A=0, B=1, ... J=9, K=10, ... Z=25</b><br>So "HI" becomes <b>78</b>.<br>Shorter sequences, easier to find in π!',
+      t9: '<div class="bubble-title">T9 Keypad</div>Like old phone texting!<br><b>ABC=2, DEF=3, GHI=4, JKL=5, MNO=6, PQRS=7, TUV=8, WXYZ=9</b><br>So "HI" becomes <b>44</b>.<br>Shortest sequences, but different letters map to the same digit.',
+    };
+    document.querySelectorAll('.enc-info').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const mode = btn.dataset.encInfo;
+        if (encExplain[mode]) mascotSay(encExplain[mode], 10000);
+      });
+    });
 
     // Global shortcut: Ctrl+F or / to focus search
     document.addEventListener('keydown', (e) => {
@@ -158,6 +519,36 @@ const UI = (() => {
       badge.classList.add('hidden');
       convEl.classList.add('hidden');
       encEl.classList.add('hidden');
+      mascotHide();
+      return;
+    }
+
+    // Go-to-digit: #N navigates to the Nth digit
+    const goToMatch = query.match(/^#(\d+)$/);
+    if (goToMatch) {
+      const idx = parseInt(goToMatch[1], 10);
+      const digits = App.getDigits();
+      const effLen = Renderer.getEffectiveLength();
+      if (digits && idx >= 0 && idx < effLen) {
+        Search.clear();
+        Renderer.setSearchHighlights([idx], 1);
+        Minimap.clearMarkers();
+        Minimap.setAllMarkerLayers([{ mode: 'digits', results: [idx] }]);
+        Minimap.setSearchMarkers([idx], 1, 'digits');
+        Minimap.setCurrentMatch(0);
+        nav.classList.add('hidden');
+        badge.classList.add('hidden');
+        encEl.classList.add('hidden');
+        convEl.classList.add('hidden');
+        mascotSay(`<div class="bubble-title">Go to digit</div>Digit <b>#${idx.toLocaleString()}</b> = <b style="color:var(--accent)">${digits[idx]}</b>`, 5000);
+        navigateToMatch(idx, 1);
+      } else if (idx >= effLen) {
+        nav.classList.add('hidden');
+        badge.classList.add('hidden');
+        encEl.classList.add('hidden');
+        convEl.classList.add('hidden');
+        mascotSay(`<div class="bubble-title">Go to digit</div>Digit <b>#${idx.toLocaleString()}</b> is beyond my loaded digits (${_compactNum(effLen)}). Try expanding!`, 6000);
+      }
       return;
     }
 
@@ -168,6 +559,7 @@ const UI = (() => {
     const hasLetters = /[a-zA-Z]/.test(query);
     if (hasLetters) {
       encEl.classList.remove('hidden');
+      if (/^[a-zA-Z]{2,}$/.test(query)) unlock('name_search');
     } else {
       encEl.classList.add('hidden');
     }
@@ -177,8 +569,9 @@ const UI = (() => {
 
     Renderer.setSearchHighlights(results, digitPatternLen);
 
-    // Show conversion info for text searches
+    // Show conversion info for text searches in its own banner
     if (converted.mode !== 'digits') {
+      trackEncoding(converted.mode);
       convEl.innerHTML = buildConversionHTML(query, converted);
       convEl.classList.remove('hidden');
     } else {
@@ -211,6 +604,10 @@ const UI = (() => {
       Minimap.setCurrentMatch(0);
       Minimap.setApiMarker(null);
       navigateToMatch(results[0], digitPatternLen);
+      // Announce result via mascot (only for digit-only queries; text queries already shown above)
+      if (converted.mode === 'digits') {
+        mascotSay(`<div class="bubble-title">Found!</div>"<b>${converted.digitQuery}</b>" appears <b>${results.length.toLocaleString()}</b> time${results.length > 1 ? 's' : ''} in your loaded digits.`, 5000);
+      }
     } else {
       badge.textContent = '0';
       badge.classList.remove('hidden');
@@ -220,6 +617,13 @@ const UI = (() => {
       // No local results — try the Pi search API if this is a pi constant
       if (currentConstant === 'pi' && converted.digitQuery.length >= 4) {
         searchPiApi(query, converted);
+      } else {
+        let notFoundMsg = `"<b>${converted.digitQuery}</b>" doesn't appear in your loaded digits.`;
+        if (converted.mode !== 'digits') {
+          const altEnc = converted.mode === 't9' ? 'Compact' : 'T9';
+          notFoundMsg += `<br><i style="opacity:0.7">Try switching to <b>${altEnc}</b> encoding, it might have better luck!</i>`;
+        }
+        mascotSay(`<div class="bubble-title">Not found</div>${notFoundMsg}`, 6000);
       }
     }
   }
@@ -242,6 +646,7 @@ const UI = (() => {
     icon.textContent = '';
     title.textContent = `Searching extended \u03C0 digits for "${word || digitStr}"...`;
     detail.textContent = 'Scanning digit chunks with KMP...';
+    mascotSay(`<div class="bubble-title">Searching...</div>Looking for "<b>${word || digitStr}</b>" deep in π...`, 0);
 
     try {
       const result = await PiApi.search(digitStr, pairAligned);
@@ -258,6 +663,9 @@ const UI = (() => {
         const label = word || digitStr;
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`
           + `<span class="api-position">digit #${posFormatted}</span>`;
+        mascotSay(`<div class="bubble-title">Found it! 🎯</div>"<b>${label}</b>" appears at digit <b>#${posFormatted}</b> in π!`, 8000);
+        if (pos > 1e9) unlock('far_out');
+        if (pos > 1e6) unlock('thats_deep');
 
         const before = first.before || '';
         const after = first.after || '';
@@ -276,6 +684,16 @@ const UI = (() => {
         icon.textContent = '\u{1F50D}';
         title.textContent = `"${word || digitStr}" not found in ${totalFormatted} digits of \u03C0`;
         detail.textContent = `Sequence "${digitStr}" doesn't appear in the available digits. Download more with: node scripts/download-pi.js`;
+        let apiNotFoundMsg = `"<b>${word || digitStr}</b>" wasn't found in ${totalFormatted} digits of π. Maybe it's hiding deeper!`;
+        if (word) {
+          const curEnc = converted.mode;
+          const altEnc = curEnc === 't9' ? 'Compact' : curEnc === 'compact' ? 'T9' : 'Compact or T9';
+          apiNotFoundMsg += `<br><i style="opacity:0.7">Try <b>${altEnc}</b> encoding, shorter digit sequences are easier to find!</i>`;
+        }
+        mascotSay(`<div class="bubble-title">No luck 🔍</div>${apiNotFoundMsg}`, 8000);
+        const total = result.totalDigits || 0;
+        if (total > 1e9) unlock('far_out');
+        if (total > 1e6) unlock('thats_deep');
       }
     } catch (err) {
       banner.classList.remove('loading');
@@ -286,6 +704,7 @@ const UI = (() => {
       icon.textContent = '\u{26A0}\u{FE0F}';
       title.textContent = 'Search server not running';
       detail.textContent = 'Start it with: node server.js';
+      mascotSay(`<div class="bubble-title">Oops! ⚠️</div>The search server isn't running. Start it with <b>node server.js</b>`, 8000);
     }
   }
 
@@ -424,6 +843,9 @@ const UI = (() => {
     title.innerHTML = `<b>${name}</b> — "${pattern}" appears at`
       + `<span class="api-position">digit #${pos.toLocaleString()}</span>`;
     detail.textContent = `This position is far beyond your loaded ${_compactNum(localDigits)} digits.`;
+    mascotSay(`<div class="bubble-title">${name}</div>"${pattern}" is at digit <b>#${pos.toLocaleString()}</b> — way beyond your loaded ${_compactNum(localDigits)} digits! Check the scale bar below.`, 8000);
+    if (pos > 1e9) unlock('far_out');
+    if (pos > 1e6) unlock('thats_deep');
 
     // Scale bar
     const localFrac = _logScale(localDigits, totalDigits) * 100;
@@ -480,6 +902,7 @@ const UI = (() => {
     const ty = pos.y - (window.innerHeight / 2) / targetZoom + ch / 2;
 
     Camera.animateTo(tx, ty, targetZoom, 800);
+    trackNavigation();
   }
 
   function setupConstants() {
@@ -556,6 +979,7 @@ const UI = (() => {
         }
         Renderer.buildAtlas();
         Minimap.invalidate();
+        unlock('both_sides');
       });
     });
   }
@@ -564,6 +988,7 @@ const UI = (() => {
     const canvas = document.getElementById('digitCanvas');
     let dragging = false;
     let lastX = 0, lastY = 0;
+    let mouseDownX = 0, mouseDownY = 0;
 
     canvas.addEventListener('mousedown', (e) => {
       // Only start drag if not clicking on UI elements
@@ -571,21 +996,113 @@ const UI = (() => {
       dragging = true;
       lastX = e.clientX;
       lastY = e.clientY;
+      mouseDownX = e.clientX;
+      mouseDownY = e.clientY;
       canvas.style.cursor = 'grabbing';
     });
 
+    const tooltip = document.getElementById('digitTooltip');
+
     window.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      const dx = e.clientX - lastX;
-      const dy = e.clientY - lastY;
-      Camera.pan(dx, dy);
-      lastX = e.clientX;
-      lastY = e.clientY;
+      if (dragging) {
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        Camera.pan(dx, dy);
+        lastX = e.clientX;
+        lastY = e.clientY;
+        tooltip.classList.add('hidden');
+        return;
+      }
+
+      // Hover tooltip
+      if (e.target !== canvas) {
+        tooltip.classList.add('hidden');
+        return;
+      }
+      const { x: camX, y: camY, zoom } = Camera.getState();
+      const wx = camX + e.clientX / zoom;
+      const wy = camY + e.clientY / zoom;
+      let idx = Layout.getIndexAtPosition(wx, wy);
+      const digits = App.getDigits();
+      const effLen = Renderer.getEffectiveLength();
+
+      // Check if hovering near the repelled last digit
+      const last = Renderer.getLastDigitScreenPos();
+      let isLastDigit = false;
+      if (last && App.getCurrentConstant() === 'pi' && !Renderer.isExpanding()) {
+        const lcx = last.x + last.w / 2;
+        const lcy = last.y + last.h / 2;
+        const ldist = Math.sqrt((e.clientX - lcx) ** 2 + (e.clientY - lcy) ** 2);
+        if (ldist < Math.max(last.w, last.h) * 1.2) {
+          idx = last.idx;
+          isLastDigit = true;
+        }
+      }
+
+      if (idx >= 0 && idx < effLen && digits) {
+        const d = digits[idx];
+        const colors = Renderer.getDigitColors();
+        const color = colors ? colors[Number(d)] : 'var(--accent)';
+        let html = `<span class="tt-digit" style="color:${color}">${d}</span><span class="tt-pos">digit #${idx.toLocaleString()}</span>`;
+        if (isLastDigit) {
+          html += `<div class="tt-note">\uD83C\uDF70 The cake is at the end of \u03C0</div>`;
+        }
+        tooltip.innerHTML = html;
+        tooltip.classList.remove('hidden');
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+      } else {
+        tooltip.classList.add('hidden');
+      }
     });
 
-    window.addEventListener('mouseup', () => {
+    window.addEventListener('mouseup', (e) => {
+      const wasDrag = dragging && (Math.abs(e.clientX - mouseDownX) > 5 || Math.abs(e.clientY - mouseDownY) > 5);
       dragging = false;
       canvas.style.cursor = 'grab';
+
+      // Click (not drag) — check if clicking on the last digit
+      if (!wasDrag && e.target === canvas && App.getCurrentConstant() === 'pi') {
+        const last = Renderer.getLastDigitScreenPos();
+        if (last && !Renderer.isExpanding()) {
+          const margin = Math.max(last.w, last.h) * 0.8;
+          if (e.clientX >= last.x - margin && e.clientX <= last.x + last.w + margin &&
+              e.clientY >= last.y - margin && e.clientY <= last.y + last.h + margin) {
+            Renderer.expandDigits(5000);
+            Sounds.cakeClick();
+            unlock('cake_lie');
+            if (Renderer.getEffectiveLength() > 1e6) unlock('expander');
+            cakeClickCount++;
+            if (cakeClickCount === 1) {
+              // First click — the realization
+              mascotSay(
+                `<div class="bubble-title">🍰 The Cake</div>`
+                + `Oh that's right... π has no end.<br>Does that mean the cake is a lie?<br>`
+                + `<i style="opacity:0.6">There's got to be another way to get it.</i>`,
+                0
+              );
+            } else if (cakeClickCount === 2) {
+              // Second click — offer birthday
+              mascotSay(
+                `<div class="bubble-title">🍰 Wait...</div>`
+                + `What if the cake comes to you?<br>Tell me your birthday and I'll find it a place in π!`
+                + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">🎂 Find my birthday!</button></div>`,
+                0
+              );
+              setTimeout(() => {
+                const picker = document.getElementById('bdayPicker');
+                const btn = document.getElementById('bdayGo');
+                if (!picker || !btn) return;
+                btn.addEventListener('click', () => { if (picker.value) handleBirthday(picker.value); });
+                picker.addEventListener('keydown', (e) => { if (e.key === 'Enter' && picker.value) handleBirthday(picker.value); });
+              }, 50);
+            } else {
+              const quip = CAKE_QUIPS[cakeClickCount % CAKE_QUIPS.length];
+              mascotSay(`<div class="bubble-title">🍰 The Cake</div>${quip}`, 6000);
+            }
+          }
+        }
+      }
     });
 
     canvas.addEventListener('wheel', (e) => {
@@ -593,6 +1110,7 @@ const UI = (() => {
       const factor = e.deltaY > 0 ? 0.9 : 1.1;
       Camera.zoomAt(factor, e.clientX, e.clientY);
       updateInfoBar();
+      if (Camera.getState().zoom > 8) unlock('zoom_master');
     }, { passive: false });
 
     canvas.style.cursor = 'grab';
@@ -695,6 +1213,15 @@ const UI = (() => {
 
       const pattern = item.dataset.pattern;
       const pos = parseInt(item.dataset.pos, 10);
+
+      // Show fun fact via mascot
+      const famousEntry = FAMOUS_PATTERNS.find(p => p.pattern === pattern && p.pos === pos);
+      if (famousEntry && famousEntry.facts) {
+        const fact = famousEntry.facts[Math.floor(Math.random() * famousEntry.facts.length)];
+        mascotSay(`<div class="bubble-title">${famousEntry.name}</div>${fact}`, 10000);
+      }
+      if (pattern === '999999') unlock('feynman');
+      trackNavigation();
 
       const digits = App.getDigits();
       const effLen = Renderer.getEffectiveLength();

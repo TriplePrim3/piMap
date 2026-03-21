@@ -82,8 +82,19 @@ const App = (() => {
     await loadConstant(key);
   }
 
+  function appendDigits(extra) {
+    digits += extra;
+    Renderer.setDigits(digits, currentConstant);
+    Camera.markDirty();
+    Minimap.invalidate();
+  }
+
   function getDigits() {
     return digits;
+  }
+
+  function getCurrentConstant() {
+    return currentConstant;
   }
 
   function renderLoop(now) {
@@ -93,7 +104,7 @@ const App = (() => {
     Camera.update();
     Particles.update(dt);
 
-    const alwaysRender = Layout.getType() === 'wave';
+    const alwaysRender = Layout.getType() === 'wave' || (App.getCurrentConstant() === 'pi');
     if (Camera.isDirty() || Camera.isAnimating() || Particles.hasParticles() || alwaysRender) {
       Renderer.render();
       Camera.clearDirty();
@@ -108,5 +119,5 @@ const App = (() => {
   // Start the app
   document.addEventListener('DOMContentLoaded', init);
 
-  return { getDigits, switchConstant, resetCamera };
+  return { getDigits, appendDigits, getCurrentConstant, switchConstant, resetCamera };
 })();

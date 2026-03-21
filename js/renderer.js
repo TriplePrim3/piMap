@@ -9,6 +9,14 @@ const Renderer = (() => {
   let mouseScreenY = -1000;
   let atlasReady = false;
   let remoteSegment = null; // { digits, matchOffset, matchLen, label, globalPos, totalDigits }
+  let expanding = false;
+  let printQueue = '';      // digits waiting to be revealed
+  let printVisible = 0;    // how many from printQueue are visible so far
+  let printBaseIdx = 0;    // digit index where printing starts
+  let printTimer = 0;      // accumulator for print speed
+  let printFlashIdx = -1;  // index of the digit currently "flashing" in
+  let birthdayPos = -1;    // digit index where user's birthday was found
+  let birthdayLen = 0;     // length of birthday digit string
 
   const FONT = '"Cascadia Code", "Fira Code", Consolas, monospace';
 
@@ -186,8 +194,253 @@ const Renderer = (() => {
       renderRemoteSegment(camX, camY, zoom, w, h);
     }
 
+    // Last digit mouse-avoidance + printing animation
+    if (constKey === 'pi') {
+      drawLastDigitRepel(camX, camY, zoom, w, h);
+      advancePrintAnimation();
+    }
+
+    // Birthday cake marker
+    if (birthdayPos >= 0) {
+      drawBirthdayCake(camX, camY, zoom);
+    }
+
     Particles.render(ctx, camX, camY, zoom);
   }
+
+  function drawBirthdayCake(camX, camY, zoom) {
+    const cw = Layout.getCellW();
+    const ch = Layout.getCellH();
+    const cellPxW = cw * zoom;
+    const cellPxH = ch * zoom;
+
+    ctx.save();
+
+    // Draw glow ring around each birthday digit
+    ctx.strokeStyle = 'rgba(255, 107, 157, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    const pad = 3;
+
+    let sumX = 0, sumY = 0, count = 0;
+    for (let i = 0; i < birthdayLen; i++) {
+      const pos = Layout.getPosition(birthdayPos + i);
+      const sx = (pos.x - camX) * zoom;
+      const sy = (pos.y - camY) * zoom;
+
+      // Skip if off screen
+      if (sx < -100 || sx > canvas.width + 100 || sy < -100 || sy > canvas.height + 100) continue;
+
+      ctx.strokeRect(sx - pad, sy - pad, cellPxW + pad * 2, cellPxH + pad * 2);
+      sumX += sx + cellPxW / 2;
+      sumY += sy;
+      count++;
+    }
+    ctx.setLineDash([]);
+
+    // Draw cake emoji above the center of the highlighted digits
+    if (count > 0) {
+      const cx = sumX / count;
+      const cy = sumY / count;
+      const cakeSize = Math.max(14, cellPxH * 0.8);
+      ctx.font = `${cakeSize}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('\uD83C\uDF82', cx, cy - pad - 2);
+    }
+
+    ctx.restore();
+  }
+
+  function setBirthdayMarker(pos, len) {
+    birthdayPos = pos;
+    birthdayLen = len;
+    Camera.markDirty();
+  }
+
+  function clearBirthdayMarker() {
+    birthdayPos = -1;
+    birthdayLen = 0;
+    Camera.markDirty();
+  }
+
+  // ─── Last digit: smooth mouse avoidance ───
+
+  let repelX = 0, repelY = 0; // smoothed repulsion offset
+
+  function drawLastDigitRepel(camX, camY, zoom, w, h) {
+    if (isPrinting()) return;
+    const effLen = getEffectiveLength();
+    if (effLen <= 0) return;
+    const lastIdx = effLen - 1;
+    const cw = Layout.getCellW();
+    const ch = Layout.getCellH();
+    const pos = Layout.getPosition(lastIdx);
+    const cellPxW = cw * zoom;
+    const cellPxH = ch * zoom;
+
+    const sx = (pos.x - camX) * zoom;
+    const sy = (pos.y - camY) * zoom;
+
+    // Off screen? skip
+    if (sx < -cellPxW * 3 || sx > w + cellPxW * 3 ||
+        sy < -cellPxH * 3 || sy > h + cellPxH * 3) return;
+
+    // Compute target repulsion
+    const cx = sx + cellPxW / 2;
+    const cy = sy + cellPxH / 2;
+    const dx = cx - mouseScreenX;
+    const dy = cy - mouseScreenY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const repulseRadius = Math.max(100, cellPxH * 5);
+    let targetX = 0, targetY = 0;
+    if (dist < repulseRadius && dist > 0.1) {
+      const strength = 1 - dist / repulseRadius;
+      const push = strength * strength * 18;
+      targetX = (dx / dist) * push;
+      targetY = (dy / dist) * push;
+    }
+
+    // Smooth interpolation (ease toward target)
+    const lerp = 0.08;
+    repelX += (targetX - repelX) * lerp;
+    repelY += (targetY - repelY) * lerp;
+
+    ctx.save();
+    ctx.translate(sx + cellPxW / 2 + repelX, sy + cellPxH / 2 + repelY);
+
+    // Soft glow that pulses gently
+    const t = performance.now() / 1000;
+    const glowAlpha = 0.12 + Math.sin(t * 1.5) * 0.06;
+    ctx.fillStyle = `rgba(124, 111, 247, ${glowAlpha})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, cellPxH * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // The digit
+    const colors = getDigitColors();
+    const d = Number(digits[lastIdx]);
+    if (cellPxH >= 8) {
+      const fontSize = Math.max(6, cellPxH * 0.72);
+      ctx.font = `bold ${fontSize}px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = colors[d];
+      ctx.fillText(String(d), 0, 0);
+    }
+
+    // Tiny cake emoji trailing behind (opposite of repulsion direction)
+    if (cellPxH >= 12) {
+      const cakeSize = Math.max(8, cellPxH * 0.4);
+      ctx.font = `${cakeSize}px system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = 0.6 + Math.sin(t * 2) * 0.2;
+      ctx.fillText('\uD83C\uDF70', -repelX * 0.3, -repelY * 0.3 + cellPxH * 0.7);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+
+    // Keep rendering while repulsion is active or pulsing
+    const moving = Math.abs(repelX) > 0.1 || Math.abs(repelY) > 0.1;
+    if (dist < repulseRadius || moving) Camera.markDirty();
+  }
+
+  // ─── Printing animation ───
+
+  function isPrinting() {
+    return printQueue.length > 0 && printVisible < printQueue.length;
+  }
+
+  function advancePrintAnimation() {
+    if (!isPrinting()) return;
+
+    // Gentle speed: ~3 digits per frame at start, slowly ramps up
+    const speed = Math.min(20, 3 + printVisible * 0.002);
+    printVisible = Math.min(printQueue.length, printVisible + speed);
+
+    // Commit revealed digits
+    const revealedTotal = Math.floor(printVisible);
+    const committed = digits.length - printBaseIdx;
+    if (revealedTotal > committed) {
+      const newChunk = printQueue.substring(committed, revealedTotal);
+      App.appendDigits(newChunk);
+      // Play tick sound for the newest digit (throttled to every 3rd)
+      if (revealedTotal % 3 === 0) {
+        const lastDigit = Number(newChunk[newChunk.length - 1]) || 0;
+        Sounds.digitTick(lastDigit);
+      }
+    }
+
+    // Flash the newest few digits
+    printFlashIdx = printBaseIdx + revealedTotal - 1;
+
+    // Done?
+    if (printVisible >= printQueue.length) {
+      printQueue = '';
+      printVisible = 0;
+      printFlashIdx = -1;
+    }
+
+    Camera.markDirty();
+  }
+
+  function drawPrintFlash(cellIdx, sx, sy, cellPxW, cellPxH) {
+    // Glow on the last ~5 printed digits
+    if (printFlashIdx < 0 || cellIdx > printFlashIdx || cellIdx < printFlashIdx - 5) return false;
+    const age = printFlashIdx - cellIdx; // 0 = newest, 5 = oldest
+    const alpha = 0.4 * (1 - age / 6);
+    ctx.save();
+    ctx.fillStyle = `rgba(124, 111, 247, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(sx + cellPxW / 2, sy + cellPxH / 2, cellPxH * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return true;
+  }
+
+  function getLastDigitScreenPos() {
+    const effLen = getEffectiveLength();
+    if (effLen <= 0) return null;
+    const lastIdx = effLen - 1;
+    const { x: camX, y: camY, zoom } = Camera.getState();
+    const pos = Layout.getPosition(lastIdx);
+    const cw = Layout.getCellW();
+    const ch = Layout.getCellH();
+    return {
+      x: (pos.x - camX) * zoom + repelX,
+      y: (pos.y - camY) * zoom + repelY,
+      w: cw * zoom,
+      h: ch * zoom,
+      idx: lastIdx,
+    };
+  }
+
+  async function expandDigits(batchSize) {
+    if (expanding || isPrinting() || constKey !== 'pi') return;
+    expanding = true;
+    const count = batchSize || 5000;
+    const offset = digits.length;
+    try {
+      const resp = await fetch(`/api/pidigits?offset=${offset}&count=${count}`);
+      if (!resp.ok) { expanding = false; return; }
+      const data = await resp.json();
+      if (data.digits && data.digits.length > 0) {
+        // Queue for print animation
+        printBaseIdx = digits.length;
+        printQueue = data.digits;
+        printVisible = 0;
+        printFlashIdx = -1;
+        Camera.markDirty();
+      }
+    } catch (e) {
+      // Server not running — silently fail
+    }
+    expanding = false;
+  }
+
+  function isExpanding() { return expanding || isPrinting(); }
 
   // ─── Remote segment rendering (scale HUD + context card) ───
 
@@ -550,15 +803,19 @@ const Renderer = (() => {
     const cellPxH = ch * zoom;
     const cellPxW = cw * zoom;
     const renderText = cellPxH >= 8;
+    const skipLast = constKey === 'pi' && !isPrinting();
 
     for (let row = startRow; row <= endRow; row++) {
       for (let col = startCol; col <= endCol; col++) {
         const cellIdx = row * cols + col;
         if (cellIdx >= effectiveLen) return;
+        if (skipLast && cellIdx === effectiveLen - 1) continue;
 
         const pos = Layout.getPosition(cellIdx);
         const sx = (pos.x - camX) * zoom;
         const sy = (pos.y - camY) * zoom;
+
+        drawPrintFlash(cellIdx, sx, sy, cellPxW, cellPxH);
 
         if (isCellCurrentMatch(cellIdx) || isCellHighlighted(cellIdx)) {
           drawHighlight(sx, sy, cellPxW, cellPxH, isCellCurrentMatch(cellIdx));
@@ -580,7 +837,9 @@ const Renderer = (() => {
     const cellPxH = ch * zoom;
     const renderText = cellPxH >= 8;
     const effectiveLen = getEffectiveLength();
+    const skipLast = constKey === 'pi' && !isPrinting();
     for (let cellIdx = 0; cellIdx < effectiveLen; cellIdx++) {
+      if (skipLast && cellIdx === effectiveLen - 1) continue;
       const pos = Layout.getPosition(cellIdx);
       const sx = (pos.x - camX) * zoom;
       const sy = (pos.y - camY) * zoom;
@@ -589,6 +848,8 @@ const Renderer = (() => {
           sy < -cellPxH || sy > h + cellPxH) {
         continue;
       }
+
+      drawPrintFlash(cellIdx, sx, sy, cellPxW, cellPxH);
 
       if (isCellCurrentMatch(cellIdx) || isCellHighlighted(cellIdx)) {
         drawHighlight(sx, sy, cellPxW, cellPxH, isCellCurrentMatch(cellIdx));
@@ -716,5 +977,5 @@ const Renderer = (() => {
     ctx.setLineDash([]);
   }
 
-  return { init, resize, setDigits, buildAtlas, setSearchHighlights, render, getEffectiveLength, rawToCell, setRemoteSegment, getRemoteSegmentWorldPos, getRemoteCardCenter, getDigitColors };
+  return { init, resize, setDigits, buildAtlas, setSearchHighlights, render, getEffectiveLength, rawToCell, setRemoteSegment, getRemoteSegmentWorldPos, getRemoteCardCenter, getDigitColors, getLastDigitScreenPos, expandDigits, isExpanding, setBirthdayMarker, clearBirthdayMarker };
 })();

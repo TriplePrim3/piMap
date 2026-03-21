@@ -65,9 +65,32 @@ const Layout = (() => {
       const r = Math.sqrt(wx * wx + wy * wy);
       const spacing = cellW * 1.5;
       const b = spacing / (2 * Math.PI);
-      const angle = Math.max(0, (r - cellW * 0.6)) / b;
-      const index = Math.round((angle * angle) / 5.5);
-      return Math.max(0, index);
+      // Get angle from position
+      let theta = Math.atan2(wy, wx);
+      if (theta < 0) theta += 2 * Math.PI;
+      // Approximate spiral angle from radius
+      const spiralAngle = Math.max(0, (r - cellW * 0.6)) / b;
+      // Find which full revolution we're on
+      const rev = Math.floor((spiralAngle - theta) / (2 * Math.PI));
+      // Test candidate angles on adjacent revolutions
+      let bestIdx = -1;
+      let bestDist = Infinity;
+      for (let d = -1; d <= 2; d++) {
+        const candidateAngle = theta + (rev + d) * 2 * Math.PI;
+        if (candidateAngle < 0) continue;
+        const idx = Math.round((candidateAngle * candidateAngle) / 5.5);
+        if (idx < 0) continue;
+        const pos = getSpiralPosition(idx);
+        const dist = (pos.x - wx) * (pos.x - wx) + (pos.y - wy) * (pos.y - wy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestIdx = idx;
+        }
+      }
+      // Only return if close enough to the cell
+      const threshold = cellW * 0.8;
+      if (bestDist < threshold * threshold) return bestIdx;
+      return -1;
     }
     if (current === 'wave') {
       return Math.max(0, Math.round((wx - PADDING) / cellW));
