@@ -299,7 +299,7 @@ function handlePiContext(posStr, radiusStr, res) {
   const matchOffset = pos - globalStart;
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ digits, start: globalStart, matchOffset, totalDigits: reportedDigits }));
+  res.end(JSON.stringify({ digits, start: globalStart, matchOffset, totalDigits }));
 }
 
 // ─── Digit fetcher ───
@@ -316,7 +316,7 @@ function handlePiDigits(offsetStr, countStr, res) {
 
   if (offset >= totalDigits) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ digits: '', offset, totalDigits: reportedDigits }));
+    res.end(JSON.stringify({ digits: '', offset, totalDigits }));
     return;
   }
 
@@ -338,7 +338,7 @@ function handlePiDigits(offsetStr, countStr, res) {
   }
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ digits: result, offset, totalDigits: reportedDigits }));
+  res.end(JSON.stringify({ digits: result, offset, totalDigits }));
 }
 
 // ─── API handler ───

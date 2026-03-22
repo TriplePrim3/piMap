@@ -198,25 +198,51 @@ const Search = (() => {
     return -1;
   }
 
+  // Build array of valid split offsets for a given word + encoding mode
+  // e.g. "MAN" in alpha26 → [0, 2, 4, 6] (every 2 digits)
+  function _letterBreaks(word, mode) {
+    const breaks = [0];
+    let pos = 0;
+    for (const ch of word) {
+      if (!/[a-zA-Z]/i.test(ch)) continue;
+      let len;
+      if (mode === 't9') len = 1;
+      else if (mode === 'compact') len = (ch.toUpperCase().charCodeAt(0) - 65) < 10 ? 1 : 2;
+      else len = 2; // alpha26
+      pos += len;
+      breaks.push(pos);
+    }
+    return breaks;
+  }
+
   // Greedy chunked search: break digitStr into largest sequential chunks in pi
-  function findChunked(digits, digitStr) {
+  // breaks = valid split offsets (letter boundaries) — if null, any offset is valid
+  function findChunked(digits, digitStr, breaks) {
     const chunks = [];
-    let offset = 0;
+    let offsetIdx = 0; // index into breaks array
     let minPos = 0; // each chunk must appear after the previous one
 
-    while (offset < digitStr.length) {
-      let bestLen = 0;
-      let bestPos = -1;
-      const remaining = digitStr.length - offset;
+    // If no breaks provided, allow any offset (backwards compat)
+    if (!breaks || breaks.length < 2) {
+      breaks = [];
+      for (let i = 0; i <= digitStr.length; i++) breaks.push(i);
+    }
 
-      // Binary search for the longest prefix that exists in pi after minPos
-      let lo = 1, hi = remaining;
+    while (offsetIdx < breaks.length - 1) {
+      const offset = breaks[offsetIdx];
+      let bestEndIdx = -1;
+      let bestPos = -1;
+
+      // Binary search for the longest prefix starting at offset
+      // that ends on a letter boundary and exists in pi after minPos
+      let lo = offsetIdx + 1, hi = breaks.length - 1;
       while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
-        const sub = digitStr.substring(offset, offset + mid);
+        const endOffset = breaks[mid];
+        const sub = digitStr.substring(offset, endOffset);
         const pos = findPatternAfter(digits, sub, minPos);
         if (pos >= 0) {
-          bestLen = mid;
+          bestEndIdx = mid;
           bestPos = pos;
           lo = mid + 1; // try longer
         } else {
@@ -224,27 +250,30 @@ const Search = (() => {
         }
       }
 
-      if (bestLen === 0) {
-        // Single digit always exists
-        const pos = findPatternAfter(digits, digitStr[offset], minPos);
-        bestLen = 1;
+      if (bestEndIdx < 0) {
+        // Minimum: one letter
+        const endOffset = breaks[offsetIdx + 1];
+        const sub = digitStr.substring(offset, endOffset);
+        const pos = findPatternAfter(digits, sub, minPos);
+        bestEndIdx = offsetIdx + 1;
         bestPos = pos >= 0 ? pos : 0;
       }
 
+      const endOffset = breaks[bestEndIdx];
       chunks.push({
-        digitStr: digitStr.substring(offset, offset + bestLen),
+        digitStr: digitStr.substring(offset, endOffset),
         pos: bestPos,
         offset: offset,
       });
-      minPos = bestPos + bestLen; // next chunk must come after this one
-      offset += bestLen;
+      minPos = bestPos + (endOffset - offset); // next chunk must come after this one
+      offsetIdx = bestEndIdx;
     }
 
     return chunks;
   }
 
   return {
-    find, findPattern, convertWithMode, findChunked,
+    find, findPattern, convertWithMode, findChunked, letterBreaks: _letterBreaks,
     getResults, getLastConvertedQuery, getLastSearchWord,
     getCurrentIndex, getCurrentMatch,
     next, prev, clear, convertQuery,

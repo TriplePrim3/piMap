@@ -1,5 +1,7 @@
 const UI = (() => {
   let searchTimeout = null;
+  let apiSearchTimeout = null;
+  let lastApiQuery = '';
   let currentConstant = 'pi';
   const spiralLinesEnabled = true;
   const ENC_COLORS = { t9: '#ff6b9d', compact: '#4ecdc4', alpha26: '#7c6ff7' };
@@ -418,21 +420,6 @@ const UI = (() => {
     if (encodingsUsed.size >= 3) unlock('encoding');
   }
 
-  const ENC_LABELS = { t9: 'T9', compact: 'Compact', alpha26: 'Alpha-26' };
-  function updateEncodingIndicator(mode) {
-    const el = document.getElementById('encodingIndicator');
-    const text = document.getElementById('encodingIndicatorText');
-    if (!el || !text) return;
-    if (!mode) {
-      el.classList.add('hidden');
-      return;
-    }
-    const color = ENC_COLORS[mode] || '#ccc';
-    text.innerHTML = `<span class="enc-dot" style="background:${color}"></span> ${ENC_LABELS[mode] || mode}`;
-    el.style.color = color;
-    el.classList.remove('hidden');
-    el.classList.add('active');
-  }
 
   function setupAchievements() {
     const btn = document.getElementById('achievementsBtn');
@@ -927,6 +914,7 @@ const UI = (() => {
     const displayWord = input.value.trim();
     const query = displayWord.replace(/\s+/g, '');
 
+    clearTimeout(apiSearchTimeout);
     hideApiBanner();
     Renderer.clearChunkConnectors();
     Minimap.clearChunkLines();
@@ -941,7 +929,6 @@ const UI = (() => {
       badge.classList.add('hidden');
       convEl.classList.add('hidden');
       encEl.classList.add('hidden');
-      updateEncodingIndicator(null);
       mascotHide();
       return;
     }
@@ -995,11 +982,9 @@ const UI = (() => {
     // Show conversion info for text searches in its own banner
     if (converted.mode !== 'digits') {
       trackEncoding(converted.mode);
-      updateEncodingIndicator(converted.mode);
       convEl.innerHTML = buildConversionHTML(query, converted);
       convEl.classList.remove('hidden');
     } else {
-      updateEncodingIndicator(null);
       convEl.classList.add('hidden');
     }
 
@@ -1057,17 +1042,30 @@ const UI = (() => {
         // Multi-part: chunk the current encoding locally
         const digits = App.getDigits();
         if (digits) {
-          const chunks = Search.findChunked(digits, converted.digitQuery);
+          const breaks = Search.letterBreaks(query, converted.mode);
+          const chunks = Search.findChunked(digits, converted.digitQuery, breaks);
           if (chunks.length > 1) {
             showChunkedResults(query, converted, chunks, displayWord);
             return;
           }
         }
       }
+      // Defer API searches — wait for user to stop typing (800ms) to avoid
+      // firing on every keystroke and the banner flickering/disappearing
+      clearTimeout(apiSearchTimeout);
+      const capturedQuery = query;
+      const capturedDisplayWord = displayWord;
+      const capturedConverted = { ...converted };
       if (hasLetters && currentConstant === 'pi') {
-        searchAllEncodings(query, displayWord);
+        apiSearchTimeout = setTimeout(() => {
+          if (document.getElementById('searchInput').value.replace(/\s+/g, '') !== capturedQuery) return;
+          searchAllEncodings(capturedQuery, capturedDisplayWord);
+        }, 800);
       } else if (currentConstant === 'pi' && converted.digitQuery.length >= 4) {
-        searchPiApi(query, converted);
+        apiSearchTimeout = setTimeout(() => {
+          if (document.getElementById('searchInput').value.replace(/\s+/g, '') !== capturedQuery) return;
+          searchPiApi(capturedQuery, capturedConverted);
+        }, 800);
       } else {
         let notFoundMsg = `"<b>${converted.digitQuery}</b>" isn't in the first million digits!`;
         if (converted.mode !== 'digits') {
@@ -1325,16 +1323,26 @@ const UI = (() => {
       if (notFound.length > 0) unlock('far_out');
       if (best && best.pos > 1e9) unlock('far_out');
       if (best && best.pos > 1e6) unlock('thats_deep');
-      if (notFound.length > 0 && found.length === 0) {
-        // Everything is beyond the corpus
-      }
-
-      // Offer multi-part as a clickable option
+      // If nothing found in any encoding, auto-trigger multi-part search
       const digits = App.getDigits();
       let _apiChunks = null;
-      if (digits) {
+      if (digits && found.length === 0) {
         const converted = Search.convertQuery(query);
-        _apiChunks = Search.findChunked(digits, converted.digitQuery);
+        const breaks = Search.letterBreaks(query, converted.mode);
+        _apiChunks = Search.findChunked(digits, converted.digitQuery, breaks);
+        if (_apiChunks.length > 1) {
+          // Auto-switch to multi-part view
+          hideApiBanner();
+          showChunkedResults(query, converted, _apiChunks, _displayWord);
+          return;
+        }
+      }
+
+      // Offer multi-part as a clickable option when we found some but not all
+      if (digits && found.length > 0 && !_apiChunks) {
+        const converted = Search.convertQuery(query);
+        const breaks = Search.letterBreaks(query, converted.mode);
+        _apiChunks = Search.findChunked(digits, converted.digitQuery, breaks);
         if (_apiChunks.length > 1) {
           mascotHtml += `<br><br>I can also find it in <b>${_apiChunks.length} parts</b> locally!`
             + `<br><button class="mascot-action-btn" id="tryMultiPart">Try Multi-Part</button>`;
@@ -1368,7 +1376,8 @@ const UI = (() => {
             const converted = Search.convertQuery(query);
             const digs = App.getDigits();
             if (digs) {
-              const chunks = Search.findChunked(digs, converted.digitQuery);
+              const breaks = Search.letterBreaks(query, converted.mode);
+              const chunks = Search.findChunked(digs, converted.digitQuery, breaks);
               if (chunks.length > 1) showChunkedResults(query, converted, chunks, _displayWord);
             }
           });
@@ -1384,7 +1393,8 @@ const UI = (() => {
       const digits = App.getDigits();
       if (digits) {
         const converted = Search.convertQuery(query);
-        const chunks = Search.findChunked(digits, converted.digitQuery);
+        const breaks = Search.letterBreaks(query, converted.mode);
+        const chunks = Search.findChunked(digits, converted.digitQuery, breaks);
         if (chunks.length > 1) {
           msg += `<br><br>But I can find it in <b>${chunks.length} parts</b>!`
             + `<br><button class="mascot-action-btn" id="tryMultiPart2">Try Multi-Part</button>`;
@@ -1402,7 +1412,8 @@ const UI = (() => {
             const converted = Search.convertQuery(query);
             const digs = App.getDigits();
             if (digs) {
-              const chunks = Search.findChunked(digs, converted.digitQuery);
+              const breaks = Search.letterBreaks(query, converted.mode);
+              const chunks = Search.findChunked(digs, converted.digitQuery, breaks);
               if (chunks.length > 1) {
                 banner.classList.add('hidden');
                 showChunkedResults(query, converted, chunks, _displayWord);
@@ -1494,7 +1505,7 @@ const UI = (() => {
     }
   }
 
-  async function showApiContextPanel(globalPos, matchLen, digitStr, label, totalDigits) {
+  async function showApiContextPanel(globalPos, matchLen, digitStr, label, apiTotal) {
     const ctxPanel = document.getElementById('apiContextPanel');
     const strip = document.getElementById('apiContextStrip');
     const localEl = document.getElementById('scaleLocal');
@@ -1507,13 +1518,15 @@ const UI = (() => {
     pinEl.style.display = '';
 
     const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
+    // Extend scale when api total is too close to local
+    const totalDigits = apiTotal < localDigits * 5 ? localDigits * 10 : apiTotal;
 
     // Scale bar
     const localFrac = _logScale(localDigits, totalDigits) * 100;
     const matchFrac = _logScale(globalPos, totalDigits) * 100;
     localEl.style.width = Math.max(0.5, localFrac) + '%';
     pinEl.style.left = matchFrac + '%';
-    totalLabel.textContent = _compactNum(totalDigits);
+    totalLabel.textContent = _displayTotalCompact(apiTotal);
 
     // Render tick marks
     _renderScaleTicks(totalDigits);
@@ -1529,13 +1542,15 @@ const UI = (() => {
     const totalLabel = document.getElementById('scaleTotalLabel');
     const strip = document.getElementById('apiContextStrip');
 
-    const totalDigits = (found.length > 0 ? found[0].totalDigits : notFound[0]?.totalDigits) || 1e12;
+    const apiTotal = (found.length > 0 ? found[0].totalDigits : notFound[0]?.totalDigits) || 1e12;
     const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
+    // Extend scale when api total is too close to local (< 5x), so pins aren't crammed
+    const totalDigits = apiTotal < localDigits * 5 ? localDigits * 10 : apiTotal;
 
     // Scale bar — local range
     const localFrac = _logScale(localDigits, totalDigits) * 100;
     localEl.style.width = Math.max(0.5, localFrac) + '%';
-    totalLabel.textContent = _compactNum(totalDigits);
+    totalLabel.textContent = _displayTotalCompact(apiTotal);
 
     // Hide the default single pin
     pinEl.style.display = 'none';
