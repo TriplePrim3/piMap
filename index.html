@@ -93,7 +93,26 @@
         <span>Shop</span>
       </button>
     </div>
+
+    <!-- Mobile menu button (hidden on desktop) -->
+    <button id="mobileMenuBtn" class="mobile-menu-btn" title="Menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
   </header>
+
+  <!-- Mobile drawer (hidden on desktop) -->
+  <div id="mobileDrawer" class="mobile-drawer hidden">
+    <div class="mobile-drawer-backdrop"></div>
+    <div class="mobile-drawer-panel">
+      <div class="mobile-drawer-header">
+        <span>Menu</span>
+        <button id="mobileDrawerClose" class="mobile-drawer-close">&times;</button>
+      </div>
+      <div class="mobile-drawer-items"></div>
+    </div>
+  </div>
 
   <!-- Translation Display (floating below top bar) -->
   <div id="searchConversion" class="search-conversion hidden"></div>

@@ -442,7 +442,109 @@ const UI = (() => {
 
     document.getElementById('apiResultClose').addEventListener('click', hideApiBanner);
 
+    setupMobileDrawer();
     updateInfoBar();
+  }
+
+  function setupMobileDrawer() {
+    const menuBtn = document.getElementById('mobileMenuBtn');
+    const drawer = document.getElementById('mobileDrawer');
+    if (!menuBtn || !drawer) return;
+
+    const backdrop = drawer.querySelector('.mobile-drawer-backdrop');
+    const closeBtn = document.getElementById('mobileDrawerClose');
+    const itemsEl = drawer.querySelector('.mobile-drawer-items');
+
+    function openDrawer() { drawer.classList.remove('hidden'); }
+    function closeDrawer() { drawer.classList.add('hidden'); }
+
+    menuBtn.addEventListener('click', openDrawer);
+    closeBtn.addEventListener('click', closeDrawer);
+    backdrop.addEventListener('click', closeDrawer);
+
+    // Populate drawer items
+    itemsEl.innerHTML = `
+      <button class="mobile-drawer-item" data-action="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Search
+      </button>
+      <button class="mobile-drawer-item" data-action="shop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        Shop
+      </button>
+      <button class="mobile-drawer-item" data-action="famous">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>
+        Famous in π
+      </button>
+      <button class="mobile-drawer-item" data-action="achievements">
+        <span style="font-size:20px">🏆</span>
+        Achievements
+      </button>
+      <div class="mobile-drawer-section">Constant</div>
+      <button class="mobile-drawer-item" data-action="const-pi">π — Pi</button>
+      <button class="mobile-drawer-item" data-action="const-e">e — Euler's number</button>
+      <button class="mobile-drawer-item" data-action="const-sqrt2">√2</button>
+      <button class="mobile-drawer-item" data-action="const-sqrt3">√3</button>
+      <div class="mobile-drawer-section">Settings</div>
+      <button class="mobile-drawer-item" data-action="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </button>
+      <button class="mobile-drawer-item" data-action="mute">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+        Toggle Sound
+      </button>
+    `;
+
+    // Handle drawer item clicks
+    itemsEl.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-action]');
+      if (!item) return;
+      const action = item.dataset.action;
+      closeDrawer();
+
+      switch (action) {
+        case 'search':
+          document.body.classList.add('mobile-search-active');
+          setTimeout(() => document.getElementById('searchInput').focus(), 100);
+          break;
+        case 'shop':
+          document.getElementById('shopBtn').click();
+          break;
+        case 'famous':
+          const panel = document.getElementById('famousPanel');
+          panel.classList.remove('collapsed');
+          break;
+        case 'achievements':
+          document.getElementById('achievementsBtn').click();
+          break;
+        case 'const-pi':
+        case 'const-e':
+        case 'const-sqrt2':
+        case 'const-sqrt3':
+          const key = action.replace('const-', '');
+          App.switchConstant(key);
+          document.querySelectorAll('.const-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.constant === key);
+          });
+          break;
+        case 'settings':
+          document.getElementById('panelToggle').click();
+          break;
+        case 'mute':
+          document.getElementById('muteBtn').click();
+          break;
+      }
+    });
+
+    // Close mobile search when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!document.body.classList.contains('mobile-search-active')) return;
+      const searchContainer = document.querySelector('.search-container');
+      if (searchContainer && !searchContainer.contains(e.target)) {
+        document.body.classList.remove('mobile-search-active');
+      }
+    });
   }
 
   function setupSearch() {

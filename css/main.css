@@ -1963,98 +1963,168 @@ html, body {
 }
 
 /* === Mobile Responsive === */
+/* === Mobile menu button (hidden on desktop) === */
+.mobile-menu-btn {
+  display: none;
+  background: rgba(18, 18, 42, 0.85);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  color: var(--text);
+  cursor: pointer;
+  height: 42px;
+  width: 42px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* === Mobile drawer === */
+.mobile-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+}
+.mobile-drawer.hidden { display: none; }
+.mobile-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+}
+.mobile-drawer-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: slideInRight 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.mobile-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+.mobile-drawer-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.mobile-drawer-items {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.mobile-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s;
+}
+.mobile-drawer-item:hover {
+  background: var(--bg-hover);
+}
+.mobile-drawer-item svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.mobile-drawer-section {
+  padding: 12px 16px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+}
+
 @media (max-width: 768px) {
-  /* Top bar: stack vertically */
+  /* Top bar: minimal on mobile */
   #topBar {
-    height: auto;
-    flex-wrap: wrap;
-    padding: 8px 12px;
-    gap: 6px;
+    height: 52px;
+    padding: 0 12px;
+    gap: 8px;
   }
 
-  .logo {
-    order: 0;
-  }
+  .logo-text { display: none; }
 
-  .constant-selector {
-    order: 1;
-    height: 36px;
-    padding: 2px;
-  }
-  .const-btn {
-    padding: 4px 8px;
-    font-size: 13px;
-    height: 30px;
-  }
-  .constant-selector .panel-toggle {
-    width: 30px;
-    height: 30px;
-  }
-
-  /* Right group: shrink to fit on same row as logo */
-  .topbar-right {
-    order: 2;
-    gap: 4px;
-  }
-  .famous-panel-header {
-    height: 36px;
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-  .achievements-btn {
-    height: 36px;
-    padding: 6px 8px;
-  }
-  .shop-open-btn {
-    height: 36px;
-    padding: 6px 10px;
-    font-size: 12px;
-    border-radius: 10px;
-  }
-  .shop-open-btn svg {
-    width: 16px;
-    height: 16px;
-  }
-
-  /* Search: full width on its own row */
+  /* Hide desktop elements on mobile */
+  .constant-selector,
+  .topbar-right,
   .search-container {
-    position: relative;
-    left: auto;
-    transform: none;
-    order: 3;
-    width: 100%;
+    display: none !important;
+  }
+
+  /* Show mobile menu button */
+  .mobile-menu-btn {
+    display: flex;
+    margin-left: auto;
+  }
+
+  /* Mobile search overlay — triggered by search icon in drawer */
+  .mobile-search-active .search-container {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 250;
     flex-direction: column;
+    background: var(--bg-surface);
+    padding: 10px 12px;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    transform: none;
     align-items: stretch;
   }
-  .search-box {
+  .mobile-search-active .search-box {
     min-width: 0;
     width: 100%;
     padding: 10px 14px;
   }
-  #searchInput {
+  .mobile-search-active #searchInput {
     font-size: 14px;
   }
-
-  /* Encoding pills: wrap and don't overlap search */
-  .search-encoding {
+  .mobile-search-active .search-encoding {
     flex-wrap: wrap;
-    gap: 2px;
-    width: 100%;
+    gap: 4px;
   }
-  .enc-pill span {
+  .mobile-search-active .enc-pill span {
     font-size: 11px;
     padding: 4px 8px;
   }
-
-  /* Famous panel: dropdown goes full width on mobile */
-  .famous-panel .famous-list {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    top: auto;
-    width: auto;
-    max-height: 50vh;
-    z-index: 100;
+  .mobile-search-active .search-nav {
+    align-self: center;
   }
 
   /* Minimap: hide on mobile */
@@ -2077,11 +2147,14 @@ html, body {
     gap: 8px;
   }
 
-  /* Settings dropdown */
+  /* Settings dropdown: full width on mobile */
   .settings-dropdown {
+    position: fixed;
     left: 12px;
     right: 12px;
+    top: 60px;
     width: auto;
+    z-index: 260;
   }
 
   /* API banner */
@@ -2093,12 +2166,11 @@ html, body {
   /* Shop modal: full screen scrollable on mobile */
   .shop-modal {
     align-items: flex-start;
-    padding: 12px 0;
   }
   .shop-modal-content {
     width: 100vw;
     max-height: none;
-    min-height: 100vh;
+    height: 100vh;
     border-radius: 0;
     padding: 16px;
     overflow-y: auto;
@@ -2112,36 +2184,29 @@ html, body {
     font-size: 18px;
   }
 
+  /* Famous panel inline in drawer — override desktop dropdown */
+  .famous-panel .famous-list {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 12px;
+    width: auto;
+    max-height: 60vh;
+    z-index: 310;
+    border-radius: var(--radius);
+  }
+
   /* Achievements panel */
   .achievements-panel {
-    top: 56px;
-    right: 10px;
-    width: 260px;
-  }
-}
-
-@media (max-width: 480px) {
-  .logo-text {
-    display: none;
-  }
-  .logo-symbol {
-    font-size: 22px;
-  }
-  .search-box {
-    padding: 8px 12px;
-    gap: 8px;
-  }
-  .shop-open-btn span {
-    display: none;
-  }
-  .shop-open-btn {
-    padding: 8px;
-  }
-  .famous-panel-header span {
-    display: none;
-  }
-  .famous-panel-header {
-    padding: 6px 8px;
-    gap: 4px;
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    max-height: 70vh;
+    z-index: 310;
   }
 }
