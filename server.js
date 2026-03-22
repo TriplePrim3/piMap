@@ -552,7 +552,7 @@ console.log('piMap server starting...');
 console.log('Loading pi digit chunks...');
 loadChunkMeta();
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\npiMap server running at http://localhost:${PORT}`);
   console.log(`Search API: http://localhost:${PORT}/api/pisearch?q=14159`);
   console.log(`Status API: http://localhost:${PORT}/api/pistatus`);
