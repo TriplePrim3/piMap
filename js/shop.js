@@ -41,7 +41,7 @@ const Shop = (() => {
       backCrop:  { x: 0.53, y: 0.05, w: 0.43, h: 0.92 },
       // Print zones (% of cropped frame)
       frontPrint: { x: 0.22, y: 0.30, w: 0.56, h: 0.45 },
-      backPrint:  { x: 0.18, y: 0.26, w: 0.60, h: 0.50 },
+      backPrint:  { x: 0.16, y: 0.26, w: 0.60, h: 0.50 },
       hasBack: true,
     },
     cap: {
@@ -189,9 +189,8 @@ const Shop = (() => {
     else if (type === 'pimark') _renderPiMark(ctx, size);
 
     _drawPrintText(ctx, size, type);
-    return size >= PRINT_SIZE
-      ? canvas.toDataURL('image/jpeg', 0.92)
-      : canvas.toDataURL('image/png');
+    // Always use PNG to preserve transparency for t-shirt printing
+    return canvas.toDataURL('image/png');
   }
 
   function _getSpiralTransform(size) {
@@ -241,11 +240,34 @@ const Shop = (() => {
 
   // ─── Polygon ───
 
+  // Preload HD spiral background
+  let _spiralBgImg = null;
+  let _spiralBgLoaded = false;
+  (function() {
+    const img = new Image();
+    img.onload = () => { _spiralBgImg = img; _spiralBgLoaded = true; };
+    img.src = 'assets/pi-spiral-bg.png';
+  })();
+
+  function _drawSpiralBg(ctx, t, size) {
+    if (!_spiralBgImg) return;
+    // Center on the spiral origin (digit 0) and cover the full art area
+    const imgSize = size * 0.73;
+    ctx.drawImage(_spiralBgImg,
+      t.offX - imgSize / 2,
+      t.offY - imgSize / 2,
+      imgSize, imgSize);
+  }
+
   function _renderPolygon(ctx, size) {
     const t = _getSpiralTransform(size);
     if (!t) return;
 
-    _drawSpiralDots(ctx, t);
+    if (_spiralBgLoaded) {
+      _drawSpiralBg(ctx, t, size);
+    } else {
+      _drawSpiralDots(ctx, t);
+    }
 
     if (capturedChunks && capturedChunks.length > 0) {
       _drawChunkPolygon(ctx, t, size);
@@ -407,7 +429,11 @@ const Shop = (() => {
     const validPositions = matchPositions.filter(p => p < t.effLen);
 
     // Spiral as base
-    _drawSpiralDots(ctx, t, 0.5);
+    if (_spiralBgLoaded) {
+      _drawSpiralBg(ctx, t, size);
+    } else {
+      _drawSpiralDots(ctx, t, 0.5);
+    }
 
     if (validPositions.length === 0) return;
 
@@ -702,28 +728,44 @@ const Shop = (() => {
     const y = size * 0.86;
 
     ctx.save();
-    ctx.textBaseline = 'middle';
 
-    // "Your Place in π"
-    const titleSize = size * 0.055;
-    ctx.font = `300 ${titleSize}px system-ui`;
-    const partA = 'Your Place in ';
-    const wA = ctx.measureText(partA).width;
-    ctx.font = `700 ${titleSize * 1.15}px system-ui`;
-    const wPi = ctx.measureText('π').width;
-    const totalW = wA + wPi;
-    let lx = cx - totalW / 2;
+    // Logo: magnifying glass (circle + handle) + π
+    const logoSize = size * 0.045;
+    const grad = ctx.createLinearGradient(cx - logoSize, y - logoSize, cx + logoSize, y + logoSize * 0.5);
+    grad.addColorStop(0, '#7c6ff7');
+    grad.addColorStop(1, '#ff6b9d');
 
+    // Measure π to compute total logo width
+    ctx.font = `700 ${logoSize * 1.8}px system-ui`;
+    const piW = ctx.measureText('π').width;
+    const glassR = logoSize * 0.55;
+    const totalLogoW = glassR * 2 + logoSize * 0.2 + piW;
+    const startX = cx - totalLogoW / 2;
+
+    // Magnifying glass circle
+    const glassCx = startX + glassR;
+    const glassCy = y;
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = size * 0.004;
+    ctx.beginPath();
+    ctx.arc(glassCx, glassCy, glassR, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Handle
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(glassCx - glassR * 0.3, glassCy + glassR * 0.7);
+    ctx.lineTo(glassCx - glassR * 0.3, glassCy + glassR * 2);
+    ctx.stroke();
+
+    // π symbol
     ctx.textAlign = 'left';
-    ctx.fillStyle = tc;
-    ctx.globalAlpha = 1;
-    ctx.font = `300 ${titleSize}px system-ui`;
-    ctx.fillText(partA, lx, y);
-    lx += wA;
-    ctx.font = `700 ${titleSize * 1.15}px system-ui`;
-    ctx.fillText('π', lx, y);
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = grad;
+    ctx.font = `700 ${logoSize * 1.8}px system-ui`;
+    ctx.fillText('π', startX + glassR * 2 + logoSize * 0.2, y);
 
-    // Search word underneath
+    // Search word underneath — lower
     if (capturedWord) {
       const wordSize = size * 0.048;
       ctx.textAlign = 'center';
@@ -731,7 +773,7 @@ const Shop = (() => {
       ctx.letterSpacing = `${size * 0.004}px`;
       ctx.fillStyle = tc;
       ctx.globalAlpha = 0.85;
-      ctx.fillText(capturedWord, cx, y + size * 0.075);
+      ctx.fillText(capturedWord, cx, y + size * 0.09);
       ctx.letterSpacing = '0px';
     }
 
@@ -1351,9 +1393,10 @@ const Shop = (() => {
       checkoutBtn.addEventListener('click', checkout);
     }
 
+    const SHOW_DOWNLOAD = false; // toggle to true to enable download button
     const dlBtn = document.getElementById('shopDownloadDesign');
     if (dlBtn) {
-      dlBtn.style.display = 'block';
+      dlBtn.style.display = SHOW_DOWNLOAD ? 'block' : 'none';
       dlBtn.addEventListener('click', () => {
         const word = capturedWord || 'design';
         const designs = ['pimark', 'polygon', 'heatmap'];
