@@ -482,9 +482,7 @@ async function handleCheckout(req, res) {
 
     jsonResponse(res, 200, { url: session.url });
   } catch (err) {
-    const key = process.env.STRIPE_SECRET_KEY || '';
     console.error('Checkout error:', err.message);
-    console.error('Stripe key prefix:', key.slice(0, 8) + '...' + key.slice(-4), '| length:', key.length);
     jsonResponse(res, 500, { error: 'Checkout failed. Please try again later.' });
   }
 }
