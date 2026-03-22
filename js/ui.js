@@ -2252,7 +2252,13 @@ const UI = (() => {
       // Show fun fact via mascot
       const famousEntry = FAMOUS_PATTERNS.find(p => p.pattern === pattern && p.pos === pos);
       if (famousEntry && famousEntry.facts) {
-        const fact = famousEntry.facts[Math.floor(Math.random() * famousEntry.facts.length)];
+        let fact;
+        if (!famousEntry._firstShown) {
+          fact = famousEntry.facts[0];
+          famousEntry._firstShown = true;
+        } else {
+          fact = famousEntry.facts[Math.floor(Math.random() * famousEntry.facts.length)];
+        }
         mascotSay(`<div class="bubble-title">${famousEntry.name}</div>${fact}`, 10000);
       }
       if (pattern === '999999') unlock('feynman');
