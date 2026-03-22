@@ -467,7 +467,20 @@ const UI = (() => {
         }
       }
     }
+    html += `<button id="achResetBtn" style="margin-top:12px;width:100%;padding:8px;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:6px;cursor:pointer;font-size:12px;opacity:0.5;transition:opacity .2s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.5'">Reset all achievements</button>`;
     list.innerHTML = html;
+    document.getElementById('achResetBtn').addEventListener('click', () => {
+      if (!confirm('Reset all achievements? This cannot be undone.')) return;
+      unlockedSet.clear();
+      localStorage.removeItem('pimap_achievements');
+      navCount = 0;
+      localStorage.removeItem('pimap_navcount');
+      encodingsUsed.clear();
+      localStorage.removeItem('pimap_encodings');
+      updateAchievementsCount();
+      renderAchievements();
+      mascotSay('<div class="bubble-title">Fresh start!</div>All achievements wiped. Time to earn them all over again.', 5000);
+    });
   }
 
   function setupMuteButton() {
