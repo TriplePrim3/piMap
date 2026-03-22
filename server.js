@@ -483,7 +483,7 @@ async function handleCheckout(req, res) {
     jsonResponse(res, 200, { url: session.url });
   } catch (err) {
     console.error('Checkout error:', err.message);
-    jsonResponse(res, 500, { error: err.message });
+    jsonResponse(res, 500, { error: 'Checkout failed. Please try again later.' });
   }
 }
 
@@ -616,7 +616,7 @@ async function handleStripeWebhook(req, res) {
     jsonResponse(res, 200, { received: true });
   } catch (err) {
     console.error('Webhook error:', err.message);
-    jsonResponse(res, 400, { error: err.message });
+    jsonResponse(res, 400, { error: 'Webhook processing failed.' });
   }
 }
 
@@ -689,7 +689,8 @@ async function handleAdminRetry(req, res) {
       jsonResponse(res, 200, { success: true, orderId });
     }
   } catch (err) {
-    jsonResponse(res, 500, { error: err.message });
+    console.error('Fulfill error:', err.message);
+    jsonResponse(res, 500, { error: 'Order fulfillment failed.' });
   }
 }
 
