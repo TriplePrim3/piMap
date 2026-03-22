@@ -205,19 +205,19 @@ const UI = (() => {
     });
 
     // On mobile: eyes wander randomly since there's no mouse
-    if ('ontouchstart' in window) {
+    if (window.innerWidth <= 768) {
       let eyeX = 0, eyeY = 0, eyeTargetX = 0, eyeTargetY = 0;
       function pickEyeTarget() {
         const angle = Math.random() * Math.PI * 2;
-        const r = Math.random() * maxMove;
+        const r = (0.5 + Math.random() * 0.5) * maxMove;
         eyeTargetX = Math.cos(angle) * r;
         eyeTargetY = Math.sin(angle) * r;
-        setTimeout(pickEyeTarget, 1500 + Math.random() * 3000);
+        setTimeout(pickEyeTarget, 2000 + Math.random() * 2000);
       }
       pickEyeTarget();
       function animateEyes() {
-        eyeX += (eyeTargetX - eyeX) * 0.04;
-        eyeY += (eyeTargetY - eyeY) * 0.04;
+        eyeX += (eyeTargetX - eyeX) * 0.12;
+        eyeY += (eyeTargetY - eyeY) * 0.12;
         setEyeOffset(eyeX, eyeY);
         requestAnimationFrame(animateEyes);
       }
@@ -1945,7 +1945,7 @@ const UI = (() => {
       if (!wasDrag && e.target === canvas && App.getCurrentConstant() === 'pi') {
         const last = Renderer.getLastDigitScreenPos();
         if (last && !Renderer.isExpanding()) {
-          const margin = Math.max(last.w, last.h) * 0.8;
+          const margin = Math.max(last.w, last.h, 40) * 1.5;
           if (e.clientX >= last.x - margin && e.clientX <= last.x + last.w + margin &&
               e.clientY >= last.y - margin && e.clientY <= last.y + last.h + margin) {
             Renderer.expandDigits(5000);
@@ -2039,7 +2039,7 @@ const UI = (() => {
       if (!wasDrag && App.getCurrentConstant() === 'pi') {
         const last = Renderer.getLastDigitScreenPos();
         if (last && !Renderer.isExpanding()) {
-          const margin = Math.max(last.w, last.h) * 0.8;
+          const margin = Math.max(last.w, last.h, 40) * 1.5;
           if (touchStartX >= last.x - margin && touchStartX <= last.x + last.w + margin &&
               touchStartY >= last.y - margin && touchStartY <= last.y + last.h + margin) {
             Renderer.expandDigits(5000);

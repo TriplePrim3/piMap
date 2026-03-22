@@ -2204,7 +2204,7 @@ html, body {
     right: 8px;
     left: auto;
     bottom: auto;
-    top: 50%;
+    top: 40%;
     transform: scale(0.6) translateY(-50%);
     transform-origin: right center;
   }
