@@ -30,13 +30,27 @@ const Renderer = (() => {
     canvas.addEventListener('mousemove', (e) => {
       mouseScreenX = e.clientX;
       mouseScreenY = e.clientY;
-      if (Layout.getType() === 'wave') Camera.markDirty();
+      Camera.markDirty();
     });
 
     canvas.addEventListener('mouseleave', () => {
       mouseScreenX = -1000;
       mouseScreenY = -1000;
-      if (Layout.getType() === 'wave') Camera.markDirty();
+      Camera.markDirty();
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 1) {
+        mouseScreenX = e.touches[0].clientX;
+        mouseScreenY = e.touches[0].clientY;
+        Camera.markDirty();
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => {
+      mouseScreenX = -1000;
+      mouseScreenY = -1000;
+      Camera.markDirty();
     });
   }
 
