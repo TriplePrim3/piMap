@@ -99,8 +99,11 @@ const UI = (() => {
   ];
 
   let _typewriterTimer = null;
+  let _bubbleSticky = false; // when true, bubble can't be dismissed by clicking
 
-  function mascotSay(html, duration) {
+  function mascotSay(html, duration, sticky) {
+    if (_bubbleSticky) return; // don't replace a sticky bubble
+    _bubbleSticky = !!sticky;
     const bubble = document.getElementById('mascotBubble');
     bubble.classList.remove('hidden');
 
@@ -161,6 +164,7 @@ const UI = (() => {
   }
 
   function mascotHide() {
+    if (_bubbleSticky) return; // don't dismiss sticky bubbles
     document.getElementById('mascotBubble').classList.add('hidden');
     clearTimeout(mascotTimer);
   }
@@ -263,6 +267,7 @@ const UI = (() => {
   }
 
   function handleBirthday(dateStr) {
+    _bubbleSticky = false; // allow bubble to be replaced now
     // dateStr is YYYY-MM-DD from the date picker
     const [y, m, d] = dateStr.split('-');
     const digits = App.getDigits();
@@ -315,7 +320,7 @@ const UI = (() => {
 
   const ACHIEVEMENTS = [
     { id: 'cake_lie', icon: '🍰', name: 'The Cake Is a Lie', desc: 'Clicked the cake at the end of π' },
-    { id: 'birthday', icon: '🎂', name: 'The Cake Is Alive', desc: 'Found your birthday cake in π' },
+    { id: 'birthday', icon: '🎂', name: 'The Cake Is Alive', desc: 'Find the cake in π' },
     { id: 'name_search', icon: '🧘', name: 'Self Discovery', desc: 'Searched a name in π' },
     { id: 'feynman', icon: '🎯', name: 'Feynman Fan', desc: 'Visited the Feynman Point' },
     { id: 'explorer', icon: '🧭', name: 'Explorer', desc: 'Navigated to 10 different positions' },
@@ -411,7 +416,7 @@ const UI = (() => {
       </div>`;
     }
     // Some achievements are shown even when locked (visible hints)
-    const VISIBLE_LOCKED = new Set(['multi_part', 'shopaholic', 'pi_owner']);
+    const VISIBLE_LOCKED = new Set(['birthday', 'multi_part', 'shopaholic', 'pi_owner']);
     if (locked.length > 0) {
       for (const ach of locked) {
         if (VISIBLE_LOCKED.has(ach.id)) {
@@ -1962,12 +1967,13 @@ const UI = (() => {
                 0
               );
             } else if (cakeClickCount === 2) {
-              // Second click — offer birthday
+              // Second click — offer birthday (sticky — stays until submitted)
               mascotSay(
                 `<div class="bubble-title">🍰 Wait...</div>`
                 + `What if the cake comes to you?<br>Tell me your birthday and I'll find it a place in π!`
                 + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">🎂 Find my birthday!</button></div>`,
-                0
+                0,
+                true
               );
               setTimeout(() => {
                 const picker = document.getElementById('bdayPicker');
@@ -2073,7 +2079,8 @@ const UI = (() => {
                 `<div class="bubble-title">🍰 Wait...</div>`
                 + `What if the cake comes to you?<br>Tell me your birthday and I'll find it a place in π!`
                 + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">🎂 Find my birthday!</button></div>`,
-                0
+                0,
+                true
               );
               setTimeout(() => {
                 const picker = document.getElementById('bdayPicker');
