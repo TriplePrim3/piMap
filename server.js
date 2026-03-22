@@ -188,12 +188,14 @@ function kmpSearch(text, pattern, fail, maxResults) {
 let chunkMeta = null;
 let chunkFiles = [];
 let totalDigits = 0;
+let reportedDigits = 0; // capped at 1M for display — extra 100K is only for cake expansion
 
 function loadChunkMeta() {
   const metaPath = path.join(CHUNKS_DIR, 'meta.json');
   if (fs.existsSync(metaPath)) {
     chunkMeta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
     totalDigits = chunkMeta.totalDigits;
+    reportedDigits = Math.min(totalDigits, 1000000);
 
     chunkFiles = [];
     for (let i = 0; i < chunkMeta.chunkCount; i++) {
@@ -208,6 +210,7 @@ function loadChunkMeta() {
   if (fs.existsSync(PI_TXT)) {
     const raw = fs.readFileSync(PI_TXT, 'utf8').replace(/[^0-9]/g, '');
     totalDigits = raw.length;
+    reportedDigits = Math.min(totalDigits, 1000000);
     chunkMeta = { totalDigits, chunkSize: raw.length, overlap: 0, chunkCount: 1 };
     chunkFiles = [{ path: PI_TXT, index: 0, preloaded: raw }];
     console.log(`  Using pi.txt as single chunk: ${totalDigits.toLocaleString()} digits`);
@@ -267,7 +270,7 @@ function searchChunks(pattern, pairAligned) {
     found: results.length > 0,
     results,
     count: results.length,
-    totalDigits,
+    totalDigits: reportedDigits,
     elapsed,
   };
 }
@@ -299,7 +302,7 @@ function handlePiContext(posStr, radiusStr, res) {
   const matchOffset = pos - globalStart;
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ digits, start: globalStart, matchOffset, totalDigits }));
+  res.end(JSON.stringify({ digits, start: globalStart, matchOffset, totalDigits: reportedDigits }));
 }
 
 // ─── Digit fetcher ───
@@ -316,7 +319,7 @@ function handlePiDigits(offsetStr, countStr, res) {
 
   if (offset >= totalDigits) {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ digits: '', offset, totalDigits }));
+    res.end(JSON.stringify({ digits: '', offset, totalDigits: reportedDigits }));
     return;
   }
 
@@ -338,7 +341,7 @@ function handlePiDigits(offsetStr, countStr, res) {
   }
 
   res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ digits: result, offset, totalDigits }));
+  res.end(JSON.stringify({ digits: result, offset, totalDigits: reportedDigits }));
 }
 
 // ─── API handler ───
@@ -760,7 +763,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       ready: chunkMeta !== null,
-      totalDigits,
+      totalDigits: reportedDigits,
       chunkCount: chunkFiles.length,
       chunkSize: chunkMeta?.chunkSize || 0,
     }));
