@@ -2238,13 +2238,52 @@ html, body {
     z-index: 260;
   }
 
-  /* API banner */
+  /* API banner — compact on mobile */
   .api-banner {
     left: 8px;
     right: 8px;
     transform: none;
     width: auto;
     bottom: 60px;
+  }
+  .api-banner .api-banner-content {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .api-banner .api-icon {
+    font-size: 20px;
+  }
+  .api-banner .api-title {
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+  .api-banner .api-detail {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+  .api-banner .api-close {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    z-index: 35;
+  }
+  .api-banner .api-context-panel {
+    padding: 8px 10px 10px;
+  }
+  .api-banner .api-scale-bar {
+    margin-bottom: 8px;
+    padding-top: 16px;
+    padding-bottom: 20px;
+  }
+  .api-banner .scale-track {
+    height: 14px;
+  }
+  .api-banner .api-context-strip {
+    font-size: 10px;
+  }
+  /* Hide mascot bubble when API banner is showing */
+  .api-banner:not(.hidden) ~ .pi-mascot .mascot-bubble {
+    display: none;
   }
 
   /* Shop modal: full screen scrollable on mobile with safe padding */
