@@ -131,7 +131,7 @@ const Shop = (() => {
   }
 
   function captureDesign(word, chunks, singlePos) {
-    capturedWord = (word || '').toUpperCase().replace(/\s+/g, '');
+    capturedWord = (word || '').toUpperCase().trim();
     capturedChunks = chunks;
     capturedSinglePos = singlePos;
     backDesign = 'polygon';
