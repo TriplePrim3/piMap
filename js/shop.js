@@ -1355,12 +1355,15 @@ const Shop = (() => {
     if (dlBtn) {
       dlBtn.style.display = 'block';
       dlBtn.addEventListener('click', () => {
-        const frontKey = _getFrontDesignKey();
-        const hires = _renderDesign(frontKey, PRINT_SIZE);
-        const a = document.createElement('a');
-        a.href = hires;
-        a.download = `pimap-design-${capturedWord || 'front'}-3000px.png`;
-        a.click();
+        const word = capturedWord || 'design';
+        const designs = ['pimark', 'polygon', 'heatmap'];
+        for (const key of designs) {
+          const hires = _renderDesign(key, PRINT_SIZE);
+          const a = document.createElement('a');
+          a.href = hires;
+          a.download = `pimap-${key}-${word}-3000px.png`;
+          a.click();
+        }
       });
     }
 
