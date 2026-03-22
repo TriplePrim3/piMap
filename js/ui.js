@@ -482,6 +482,43 @@ const UI = (() => {
 
     setupMobileDrawer();
     updateInfoBar();
+
+    // Auto-prompt: nudge user toward features they haven't tried yet
+    setTimeout(startAutoPrompts, 15000); // first prompt after 15s
+  }
+
+  // ─── Auto-prompts ───
+
+  const FEATURE_PROMPTS = [
+    { achId: 'name_search', html: '<div class="bubble-title">Try this!</div>Type your name in the search bar — it\'s hiding somewhere in π!' },
+    { achId: 'multi_part', html: '<div class="bubble-title">Multi-part search</div>Try searching a longer word! If it\'s not in one piece, I\'ll find it scattered across π.' },
+    { achId: 'cake_lie', html: '<div class="bubble-title">🍰 Psst...</div>There\'s a cake hiding at the very end of π. Try scrolling all the way to the last digit...' },
+    { achId: 'birthday', html: '<div class="bubble-title">🎂 Birthday mystery</div>Have you found the cake yet? Click it and see what happens...' },
+    { achId: 'feynman', html: '<div class="bubble-title">Famous in π</div>Check out the <b>Famous</b> tab — did you know six 9s in a row appear at digit 762?' },
+    { achId: 'encoding', html: '<div class="bubble-title">Secret codes</div>Try switching text encodings! There\'s T9, compact, and alpha-26 — each one finds different hidden words.' },
+    { achId: 'zoom_master', html: '<div class="bubble-title">Zoom in!</div>Try pinching or scrolling to zoom way in — the digits get really detailed up close.' },
+    { achId: 'both_sides', html: '<div class="bubble-title">Light side 🌗</div>Try toggling between light and dark mode in Settings!' },
+    { achId: 'shopaholic', html: '<div class="bubble-title">🛍️ Pi merch!</div>Check out the Shop — you can put your place in π on a t-shirt!' },
+  ];
+
+  let autoPromptIdx = 0;
+
+  function startAutoPrompts() {
+    setInterval(() => {
+      // Don't interrupt: skip if bubble is visible, sticky, or typewriter is running
+      const bubble = document.getElementById('mascotBubble');
+      if (_bubbleSticky) return;
+      if (_typewriterTimer) return;
+      if (bubble && !bubble.classList.contains('hidden')) return;
+
+      // Find next unlocked-achievement prompt
+      const remaining = FEATURE_PROMPTS.filter(p => !unlockedSet.has(p.achId));
+      if (remaining.length === 0) return; // user has done everything!
+
+      const prompt = remaining[autoPromptIdx % remaining.length];
+      autoPromptIdx++;
+      mascotSay(prompt.html, 8000);
+    }, 10000);
   }
 
   function setupMobileDrawer() {
