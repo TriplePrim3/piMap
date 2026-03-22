@@ -1955,7 +1955,7 @@ const UI = (() => {
           const margin = Math.max(last.w, last.h, 40) * 1.5;
           if (e.clientX >= last.x - margin && e.clientX <= last.x + last.w + margin &&
               e.clientY >= last.y - margin && e.clientY <= last.y + last.h + margin) {
-            Renderer.expandDigits(100);
+            Renderer.expandDigits(10);
             Sounds.cakeClick();
             unlock('cake_lie');
             if (Renderer.getEffectiveLength() > 1e6) unlock('expander');
@@ -2064,7 +2064,7 @@ const UI = (() => {
           const margin = Math.max(last.w, last.h, 40) * 1.5;
           if (touchStartX >= last.x - margin && touchStartX <= last.x + last.w + margin &&
               touchStartY >= last.y - margin && touchStartY <= last.y + last.h + margin) {
-            Renderer.expandDigits(100);
+            Renderer.expandDigits(10);
             Sounds.cakeClick();
             unlock('cake_lie');
             if (Renderer.getEffectiveLength() > 1e6) unlock('expander');
