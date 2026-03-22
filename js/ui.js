@@ -186,6 +186,13 @@ const UI = (() => {
     const eyeRCenter = { x: 35, y: 16 };
     const maxMove = 2.5;
 
+    function setEyeOffset(offX, offY) {
+      pupilL.setAttribute('cx', eyeLCenter.x + offX);
+      pupilL.setAttribute('cy', eyeLCenter.y + offY);
+      pupilR.setAttribute('cx', eyeRCenter.x + offX);
+      pupilR.setAttribute('cy', eyeRCenter.y + offY);
+    }
+
     window.addEventListener('mousemove', (e) => {
       const rect = body.getBoundingClientRect();
       const bodyCX = rect.left + rect.width / 2;
@@ -194,13 +201,28 @@ const UI = (() => {
       const dy = e.clientY - bodyCY;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       const clamp = Math.min(1, dist / 150);
-      const offX = (dx / dist) * maxMove * clamp;
-      const offY = (dy / dist) * maxMove * clamp;
-      pupilL.setAttribute('cx', eyeLCenter.x + offX);
-      pupilL.setAttribute('cy', eyeLCenter.y + offY);
-      pupilR.setAttribute('cx', eyeRCenter.x + offX);
-      pupilR.setAttribute('cy', eyeRCenter.y + offY);
+      setEyeOffset((dx / dist) * maxMove * clamp, (dy / dist) * maxMove * clamp);
     });
+
+    // On mobile: eyes wander randomly since there's no mouse
+    if ('ontouchstart' in window) {
+      let eyeX = 0, eyeY = 0, eyeTargetX = 0, eyeTargetY = 0;
+      function pickEyeTarget() {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.random() * maxMove;
+        eyeTargetX = Math.cos(angle) * r;
+        eyeTargetY = Math.sin(angle) * r;
+        setTimeout(pickEyeTarget, 1500 + Math.random() * 3000);
+      }
+      pickEyeTarget();
+      function animateEyes() {
+        eyeX += (eyeTargetX - eyeX) * 0.04;
+        eyeY += (eyeTargetY - eyeY) * 0.04;
+        setEyeOffset(eyeX, eyeY);
+        requestAnimationFrame(animateEyes);
+      }
+      animateEyes();
+    }
 
     // Initial greeting
     setTimeout(() => {
@@ -356,6 +378,11 @@ const UI = (() => {
 
     document.addEventListener('click', (e) => {
       if (!panel.classList.contains('hidden') && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+        // Don't close if click came from mobile drawer or bottom nav
+        const drawer = document.getElementById('mobileDrawer');
+        const bottomNav = document.getElementById('mobileBottomNav');
+        if (drawer && drawer.contains(e.target)) return;
+        if (bottomNav && bottomNav.contains(e.target)) return;
         panel.classList.add('hidden');
       }
     });
@@ -482,6 +509,12 @@ const UI = (() => {
         case 'shop':
           document.getElementById('shopBtn').click();
           break;
+        case 'achievements': {
+          const panel = document.getElementById('achievementsPanel');
+          panel.classList.toggle('hidden');
+          if (!panel.classList.contains('hidden')) renderAchievements();
+          break;
+        }
         case 'more':
           openDrawer();
           break;
@@ -490,10 +523,6 @@ const UI = (() => {
 
     // Drawer now only has secondary items
     itemsEl.innerHTML = `
-      <button class="mobile-drawer-item" data-action="achievements">
-        <span style="font-size:20px">🏆</span>
-        Achievements
-      </button>
       <div class="mobile-drawer-section">Constant</div>
       <button class="mobile-drawer-item" data-action="const-pi">π — Pi</button>
       <button class="mobile-drawer-item" data-action="const-e">e — Euler's number</button>
@@ -505,8 +534,9 @@ const UI = (() => {
         Settings
       </button>
       <button class="mobile-drawer-item" data-action="mute">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
-        Toggle Sound
+        ${Sounds.isMuted()
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg> Sound: OFF'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg> Sound: ON'}
       </button>
     `;
 
@@ -518,9 +548,12 @@ const UI = (() => {
       closeDrawer();
 
       switch (action) {
-        case 'achievements':
-          document.getElementById('achievementsBtn').click();
+        case 'achievements': {
+          const panel = document.getElementById('achievementsPanel');
+          panel.classList.toggle('hidden');
+          if (!panel.classList.contains('hidden')) renderAchievements();
           break;
+        }
         case 'const-pi':
         case 'const-e':
         case 'const-sqrt2':
@@ -532,12 +565,24 @@ const UI = (() => {
           });
           break;
         }
-        case 'settings':
-          document.getElementById('panelToggle').click();
+        case 'settings': {
+          const dd = document.getElementById('settingsDropdown');
+          dd.classList.toggle('hidden');
           break;
-        case 'mute':
-          document.getElementById('muteBtn').click();
+        }
+        case 'mute': {
+          Sounds.setMuted(!Sounds.isMuted());
+          const mb = document.getElementById('muteBtn');
+          const wv = document.getElementById('muteSoundWaves');
+          if (Sounds.isMuted()) { mb.classList.add('muted'); wv.style.display = 'none'; }
+          else { mb.classList.remove('muted'); wv.style.display = ''; }
+          // Update drawer item icon & text
+          const muted = Sounds.isMuted();
+          item.innerHTML = muted
+            ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg> Sound: OFF`
+            : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg> Sound: ON`;
           break;
+        }
       }
     });
 
@@ -709,18 +754,18 @@ const UI = (() => {
         else if (mode === 'compact') encoded = Mappings.letterToCompact(ch);
         else encoded = Mappings.letterToPair(ch);
         if (encoded) {
-          parts.push(`<span style="color:${color}">${ch.toUpperCase()}</span><span class="conv-arrow">=</span><span style="color:var(--text)">${encoded}</span>`);
+          parts.push(`<span class="conv-pair"><span style="color:${color}">${ch.toUpperCase()}</span><span class="conv-arrow">=</span><span style="color:var(--text)">${encoded}</span></span>`);
         }
       } else if (/\d/.test(ch)) {
-        parts.push(`<span style="color:var(--text)">${ch}</span>`);
+        parts.push(`<span class="conv-pair"><span style="color:var(--text)">${ch}</span></span>`);
       }
     }
 
     return `<span class="conv-label">${modeLabels[mode] || mode} encoding</span>`
       + `<span class="conv-mapping">${parts.join('  ')}</span>`
-      + `<span class="conv-arrow" style="margin-left:12px">→</span> `
+      + `<span class="conv-result"><span class="conv-arrow" style="margin-left:12px">→</span> `
       + `<span style="color:${color};font-size:20px;font-weight:800">${converted.digitQuery}</span>`
-      + `<span style="color:var(--text-dim);font-size:12px;margin-left:8px">(${converted.digitQuery.length} digits)</span>`;
+      + `<span style="color:var(--text-dim);font-size:12px;margin-left:8px">(${converted.digitQuery.length} digits)</span></span>`;
   }
 
   function updateSpiralLines(query) {
@@ -1768,6 +1813,10 @@ const UI = (() => {
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
       if (!dropdown.classList.contains('hidden') && !dropdown.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
+        const drawer = document.getElementById('mobileDrawer');
+        const bottomNav = document.getElementById('mobileBottomNav');
+        if (drawer && drawer.contains(e.target)) return;
+        if (bottomNav && bottomNav.contains(e.target)) return;
         dropdown.classList.add('hidden');
       }
     });
