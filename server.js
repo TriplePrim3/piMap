@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 const STATIC_DIR = __dirname;
 const CHUNKS_DIR = path.join(__dirname, 'data', 'pi-chunks');
 const PI_TXT = path.join(__dirname, 'data', 'pi.txt');
