@@ -76,7 +76,7 @@ const App = (() => {
       Camera.setZoom(1);
       Camera.centerOn(0, 0);
     } else if (type === 'spiral') {
-      Camera.setZoom(2.5);
+      Camera.setZoom(0.9);
       Camera.centerOn(0, 0);
     } else {
       Camera.setZoom(1);
