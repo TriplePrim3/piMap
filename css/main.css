@@ -2238,10 +2238,10 @@ html, body {
     z-index: 260;
   }
 
-  /* API banner — compact on mobile */
+  /* API banner — compact on mobile, leave room for mascot on right */
   .api-banner {
     left: 8px;
-    right: 8px;
+    right: 70px;
     transform: none;
     width: auto;
     bottom: 60px;
