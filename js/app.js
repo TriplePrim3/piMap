@@ -36,6 +36,10 @@ const App = (() => {
         toast.innerHTML = '<span class="toast-icon">🎉</span><div><div style="font-size:11px;opacity:0.6;text-transform:uppercase;letter-spacing:1px">Order Placed!</div>Your custom Pi merch is on its way!</div>';
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 6000);
+        if (typeof UI !== 'undefined') {
+          UI.launchConfetti();
+          UI.launchFireworks();
+        }
       }, 800);
       // Clean URL
       window.history.replaceState({}, '', '/');

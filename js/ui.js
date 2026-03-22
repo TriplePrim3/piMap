@@ -301,6 +301,8 @@ const UI = (() => {
         8000
       );
       unlock('birthday');
+      launchConfetti();
+      launchFireworks();
     } else {
       // Neither format found — still search the shorter one
       const shortStr = d + m;
@@ -2224,5 +2226,172 @@ const UI = (() => {
     panel.addEventListener('mousedown', (e) => e.stopPropagation());
   }
 
-  return { init, updateInfoBar, unlock };
+  // ─── Confetti ───
+
+  function launchConfetti() {
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#ff6b9d','#4ecdc4','#ffe66d','#a78bfa','#f97316','#22d3ee','#f43f5e','#34d399'];
+    const pieces = [];
+    for (let i = 0; i < 150; i++) {
+      pieces.push({
+        x: canvas.width * 0.5 + (Math.random() - 0.5) * canvas.width * 0.4,
+        y: canvas.height * 0.5,
+        vx: (Math.random() - 0.5) * 16,
+        vy: -Math.random() * 18 - 4,
+        w: Math.random() * 8 + 4,
+        h: Math.random() * 6 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * Math.PI * 2,
+        rv: (Math.random() - 0.5) * 0.3,
+        gravity: 0.25 + Math.random() * 0.1,
+        opacity: 1
+      });
+    }
+
+    let frame = 0;
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+      for (const p of pieces) {
+        p.vy += p.gravity;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.rv;
+        p.vx *= 0.99;
+        if (frame > 60) p.opacity -= 0.015;
+        if (p.opacity <= 0) continue;
+        alive = true;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.opacity);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      frame++;
+      if (alive && frame < 200) {
+        requestAnimationFrame(animate);
+      } else {
+        canvas.remove();
+      }
+    }
+    requestAnimationFrame(animate);
+    try { Sounds.achievement(); } catch(e) {}
+  }
+
+  // ─── Fireworks ───
+
+  function launchFireworks() {
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998';
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#ff6b9d','#ffe66d','#4ecdc4','#a78bfa','#f97316','#22d3ee','#f43f5e'];
+    const rockets = [];
+    const sparks = [];
+
+    // Launch 5 rockets with staggered timing
+    for (let i = 0; i < 5; i++) {
+      rockets.push({
+        x: canvas.width * (0.2 + Math.random() * 0.6),
+        y: canvas.height,
+        vx: (Math.random() - 0.5) * 2,
+        vy: -(8 + Math.random() * 6),
+        targetY: canvas.height * (0.15 + Math.random() * 0.3),
+        color: colors[Math.floor(Math.random() * colors.length)],
+        delay: i * 15,
+        exploded: false,
+        trail: []
+      });
+    }
+
+    let frame = 0;
+    function animate() {
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Update rockets
+      for (const r of rockets) {
+        if (r.delay > 0) { r.delay--; continue; }
+        if (r.exploded) continue;
+        r.x += r.vx;
+        r.y += r.vy;
+        r.vy += 0.06;
+        r.trail.push({ x: r.x, y: r.y, life: 15 });
+
+        // Draw trail
+        for (let t = r.trail.length - 1; t >= 0; t--) {
+          r.trail[t].life--;
+          if (r.trail[t].life <= 0) { r.trail.splice(t, 1); continue; }
+          ctx.beginPath();
+          ctx.arc(r.trail[t].x, r.trail[t].y, 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,200,${r.trail[t].life / 15})`;
+          ctx.fill();
+        }
+
+        // Draw rocket
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+
+        // Explode when reaching target
+        if (r.y <= r.targetY) {
+          r.exploded = true;
+          const sparkCount = 60 + Math.floor(Math.random() * 40);
+          for (let s = 0; s < sparkCount; s++) {
+            const angle = (Math.PI * 2 * s) / sparkCount + (Math.random() - 0.5) * 0.3;
+            const speed = 2 + Math.random() * 4;
+            sparks.push({
+              x: r.x, y: r.y,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              color: Math.random() > 0.3 ? r.color : colors[Math.floor(Math.random() * colors.length)],
+              life: 40 + Math.random() * 30,
+              maxLife: 70,
+              size: 1.5 + Math.random() * 1.5
+            });
+          }
+        }
+      }
+
+      // Update sparks
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.x += s.vx;
+        s.y += s.vy;
+        s.vy += 0.04;
+        s.vx *= 0.98;
+        s.life--;
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size * (s.life / s.maxLife), 0, Math.PI * 2);
+        ctx.fillStyle = s.color;
+        ctx.globalAlpha = s.life / s.maxLife;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      frame++;
+      const allExploded = rockets.every(r => r.exploded || r.delay > 0);
+      if (frame < 300 && !(allExploded && sparks.length === 0)) {
+        requestAnimationFrame(animate);
+      } else {
+        canvas.remove();
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  return { init, updateInfoBar, unlock, launchConfetti, launchFireworks };
 })();
