@@ -1351,6 +1351,19 @@ const Shop = (() => {
       checkoutBtn.addEventListener('click', checkout);
     }
 
+    const dlBtn = document.getElementById('shopDownloadDesign');
+    if (dlBtn) {
+      dlBtn.style.display = 'block';
+      dlBtn.addEventListener('click', () => {
+        const frontKey = _getFrontDesignKey();
+        const hires = _renderDesign(frontKey, PRINT_SIZE);
+        const a = document.createElement('a');
+        a.href = hires;
+        a.download = `pimap-design-${capturedWord || 'front'}-3000px.png`;
+        a.click();
+      });
+    }
+
     const flipBtn = document.getElementById('shopFlip');
     if (flipBtn) {
       flipBtn.addEventListener('click', () => {
