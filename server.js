@@ -468,6 +468,7 @@ async function handleCheckout(req, res) {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
+      customer_creation: 'always',
       shipping_address_collection: {
         allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'IN', 'JP'],
       },
