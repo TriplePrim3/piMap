@@ -604,12 +604,17 @@ async function handleStripeWebhook(req, res) {
 
       console.log(`\n✓ Payment received for ${orderId} — ${order.items.length} item(s)`);
 
-      // Fulfill → Printful
-      const errors = await fulfillOrder(order);
-      if (errors.length > 0) {
-        console.error(`⚠ Order ${orderId} had fulfillment errors:`, errors);
+      // Fulfill → Printful (skip in Stripe test mode to avoid real orders)
+      const isTestMode = (process.env.STRIPE_SECRET_KEY || '').startsWith('sk_test_');
+      if (isTestMode) {
+        console.log(`⏭ Skipping Printful fulfillment — Stripe is in test mode`);
       } else {
-        console.log(`✓ Order ${orderId} fully fulfilled`);
+        const errors = await fulfillOrder(order);
+        if (errors.length > 0) {
+          console.error(`⚠ Order ${orderId} had fulfillment errors:`, errors);
+        } else {
+          console.log(`✓ Order ${orderId} fully fulfilled`);
+        }
       }
     }
 
