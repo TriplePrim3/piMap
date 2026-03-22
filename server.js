@@ -5,7 +5,15 @@ const path = require('path');
 const url = require('url');
 require('dotenv').config();
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Lazy-init Stripe to avoid crash if env var isn't ready at module load
+let stripe = null;
+function getStripe() {
+  if (!stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY not set');
+    stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripe;
+}
 
 const PORT = process.env.PORT || 8080;
 const STATIC_DIR = __dirname;
@@ -17,10 +25,17 @@ const PERSIST_DIR = process.env.PERSIST_DIR || path.join(__dirname, 'persist');
 const DESIGNS_DIR = path.join(PERSIST_DIR, 'designs');
 const ORDERS_DIR = path.join(PERSIST_DIR, 'orders');
 
-// Ensure dirs exist
-for (const dir of [DESIGNS_DIR, ORDERS_DIR]) {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+// Ensure dirs exist — retry briefly in case volume mount is still attaching
+function ensureDirs() {
+  for (const dir of [DESIGNS_DIR, ORDERS_DIR]) {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    } catch (err) {
+      console.warn(`Could not create ${dir}: ${err.message} — will retry on first use`);
+    }
+  }
 }
+ensureDirs();
 
 // ─── Printful helper ───
 
@@ -96,6 +111,7 @@ function generateOrderId() {
 }
 
 function saveOrder(order) {
+  if (!fs.existsSync(ORDERS_DIR)) fs.mkdirSync(ORDERS_DIR, { recursive: true });
   const filePath = path.join(ORDERS_DIR, `${order.id}.json`);
   fs.writeFileSync(filePath, JSON.stringify(order, null, 2));
 }
@@ -382,6 +398,7 @@ function handleUploadDesign(req, res) {
       const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
       const ext = dataUrl.startsWith('data:image/jpeg') ? 'jpg' : 'png';
       const fileName = `${orderId}_${key}.${ext}`;
+      if (!fs.existsSync(DESIGNS_DIR)) fs.mkdirSync(DESIGNS_DIR, { recursive: true });
       fs.writeFileSync(path.join(DESIGNS_DIR, fileName), base64, 'base64');
       urls[key] = `/designs/${fileName}`;
     }
@@ -447,7 +464,7 @@ async function handleCheckout(req, res) {
       };
     });
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
@@ -553,7 +570,7 @@ async function handleStripeWebhook(req, res) {
 
     let event;
     if (process.env.STRIPE_WEBHOOK_SECRET) {
-      event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
+      event = getStripe().webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
     } else {
       console.warn('⚠ STRIPE_WEBHOOK_SECRET not set — skipping signature verification');
       event = JSON.parse(buf.toString());
