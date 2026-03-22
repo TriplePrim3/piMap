@@ -2300,7 +2300,6 @@ const UI = (() => {
     const rockets = [];
     const sparks = [];
 
-    // Launch 5 rockets with staggered timing
     for (let i = 0; i < 5; i++) {
       rockets.push({
         x: canvas.width * (0.2 + Math.random() * 0.6),
@@ -2317,35 +2316,34 @@ const UI = (() => {
 
     let frame = 0;
     function animate() {
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Update rockets
+      // Update & draw rockets
       for (const r of rockets) {
         if (r.delay > 0) { r.delay--; continue; }
-        if (r.exploded) continue;
+        if (r.exploded) { r.trail.length = 0; continue; }
         r.x += r.vx;
         r.y += r.vy;
         r.vy += 0.06;
-        r.trail.push({ x: r.x, y: r.y, life: 15 });
+        r.trail.push({ x: r.x, y: r.y });
+        if (r.trail.length > 12) r.trail.shift();
 
         // Draw trail
-        for (let t = r.trail.length - 1; t >= 0; t--) {
-          r.trail[t].life--;
-          if (r.trail[t].life <= 0) { r.trail.splice(t, 1); continue; }
+        for (let t = 0; t < r.trail.length; t++) {
+          const alpha = (t + 1) / r.trail.length * 0.6;
           ctx.beginPath();
           ctx.arc(r.trail[t].x, r.trail[t].y, 1.5, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,255,200,${r.trail[t].life / 15})`;
+          ctx.fillStyle = `rgba(255,255,200,${alpha})`;
           ctx.fill();
         }
 
-        // Draw rocket
+        // Draw rocket head
         ctx.beginPath();
         ctx.arc(r.x, r.y, 2.5, 0, Math.PI * 2);
         ctx.fillStyle = '#fff';
         ctx.fill();
 
-        // Explode when reaching target
+        // Explode
         if (r.y <= r.targetY) {
           r.exploded = true;
           const sparkCount = 60 + Math.floor(Math.random() * 40);
@@ -2359,25 +2357,39 @@ const UI = (() => {
               color: Math.random() > 0.3 ? r.color : colors[Math.floor(Math.random() * colors.length)],
               life: 40 + Math.random() * 30,
               maxLife: 70,
-              size: 1.5 + Math.random() * 1.5
+              size: 1.5 + Math.random() * 1.5,
+              prev: []
             });
           }
         }
       }
 
-      // Update sparks
+      // Update & draw sparks with short trails
       for (let i = sparks.length - 1; i >= 0; i--) {
         const s = sparks[i];
+        s.prev.push({ x: s.x, y: s.y });
+        if (s.prev.length > 4) s.prev.shift();
         s.x += s.vx;
         s.y += s.vy;
         s.vy += 0.04;
         s.vx *= 0.98;
         s.life--;
         if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        const fade = s.life / s.maxLife;
+        // Draw trail
+        for (let t = 0; t < s.prev.length; t++) {
+          const a = fade * (t + 1) / s.prev.length * 0.4;
+          ctx.beginPath();
+          ctx.arc(s.prev[t].x, s.prev[t].y, s.size * fade * 0.6, 0, Math.PI * 2);
+          ctx.fillStyle = s.color;
+          ctx.globalAlpha = a;
+          ctx.fill();
+        }
+        // Draw spark
+        ctx.globalAlpha = fade;
         ctx.beginPath();
-        ctx.arc(s.x, s.y, s.size * (s.life / s.maxLife), 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, s.size * fade, 0, Math.PI * 2);
         ctx.fillStyle = s.color;
-        ctx.globalAlpha = s.life / s.maxLife;
         ctx.fill();
         ctx.globalAlpha = 1;
       }

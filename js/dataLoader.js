@@ -11,7 +11,9 @@ const DataLoader = (() => {
     if (!resp.ok) throw new Error(`Failed to load ${info.file}`);
 
     const text = await resp.text();
-    const digits = text.replace(/[^0-9]/g, '');
+    let digits = text.replace(/[^0-9]/g, '');
+    // Cap initial load at 1M digits — extra digits are available via /api/pidigits for expansion
+    if (digits.length > 1000000) digits = digits.slice(0, 1000000);
     cache.set(constantKey, digits);
     return digits;
   }
