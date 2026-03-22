@@ -2189,6 +2189,7 @@ const UI = (() => {
         const center = getTouchCenter(e.touches);
         const factor = dist / lastTouchDist;
         Camera.zoomAt(factor, center.x, center.y);
+        if (Camera.getState().zoom > 8) unlock('zoom_master');
         lastTouchDist = dist;
         updateInfoBar();
       }
