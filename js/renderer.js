@@ -437,25 +437,71 @@ const Renderer = (() => {
     };
   }
 
+  // ─── Digit expansion (cake gag: 100 digits per click) ───
+  // Server-first with client-side Machin formula fallback.
+  // Machin: pi/4 = 4·arctan(1/5) - arctan(1/239), computed with BigInt.
+  // Client-side is cached so repeated calls don't recompute.
+
+  let piClientCache = ''; // caches all client-generated pi digits
+
+  function computePiMachin(numDigits) {
+    const precision = numDigits + 20; // guard digits
+    const one = 10n ** BigInt(precision);
+    function arccot(x) {
+      const X = BigInt(x);
+      const x2 = X * X;
+      let term = one / X;
+      let sum = term;
+      let n = 1;
+      while (true) {
+        term = term / x2;
+        n += 2;
+        const contrib = term / BigInt(n);
+        if (contrib === 0n) break;
+        sum += (n & 2) ? -contrib : contrib;
+      }
+      return sum;
+    }
+    const pi4 = 4n * arccot(5) - arccot(239);
+    return (4n * pi4).toString().slice(0, numDigits);
+  }
+
   async function expandDigits(batchSize) {
     if (expanding || isPrinting() || constKey !== 'pi') return;
     expanding = true;
-    const count = batchSize || 5000;
+    const count = batchSize || 100;
     const offset = digits.length;
+
+    let newDigits = '';
+
+    // Try server first (instant, precomputed)
     try {
       const resp = await fetch(`/api/pidigits?offset=${offset}&count=${count}`);
-      if (!resp.ok) { expanding = false; return; }
-      const data = await resp.json();
-      if (data.digits && data.digits.length > 0) {
-        // Queue for print animation
-        printBaseIdx = digits.length;
-        printQueue = data.digits;
-        printVisible = 0;
-        printFlashIdx = -1;
-        Camera.markDirty();
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.digits && data.digits.length > 0) newDigits = data.digits;
       }
-    } catch (e) {
-      // Server not running — silently fail
+    } catch (e) { /* server unavailable or offline */ }
+
+    // Fallback: client-side Machin formula
+    if (!newDigits) {
+      const need = offset + count;
+      if (piClientCache.length < need) {
+        // Compute in chunks — cap single computation at 50K to avoid freezing
+        const target = Math.min(need, piClientCache.length + 50000);
+        piClientCache = computePiMachin(target);
+      }
+      if (piClientCache.length >= need) {
+        newDigits = piClientCache.slice(offset, offset + count);
+      }
+    }
+
+    if (newDigits.length > 0) {
+      printBaseIdx = digits.length;
+      printQueue = newDigits;
+      printVisible = 0;
+      printFlashIdx = -1;
+      Camera.markDirty();
     }
     expanding = false;
   }
