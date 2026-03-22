@@ -418,6 +418,22 @@ const UI = (() => {
     if (encodingsUsed.size >= 3) unlock('encoding');
   }
 
+  const ENC_LABELS = { t9: 'T9', compact: 'Compact', alpha26: 'Alpha-26' };
+  function updateEncodingIndicator(mode) {
+    const el = document.getElementById('encodingIndicator');
+    const text = document.getElementById('encodingIndicatorText');
+    if (!el || !text) return;
+    if (!mode) {
+      el.classList.add('hidden');
+      return;
+    }
+    const color = ENC_COLORS[mode] || '#ccc';
+    text.innerHTML = `<span class="enc-dot" style="background:${color}"></span> ${ENC_LABELS[mode] || mode}`;
+    el.style.color = color;
+    el.classList.remove('hidden');
+    el.classList.add('active');
+  }
+
   function setupAchievements() {
     const btn = document.getElementById('achievementsBtn');
     const panel = document.getElementById('achievementsPanel');
@@ -925,6 +941,7 @@ const UI = (() => {
       badge.classList.add('hidden');
       convEl.classList.add('hidden');
       encEl.classList.add('hidden');
+      updateEncodingIndicator(null);
       mascotHide();
       return;
     }
@@ -978,9 +995,11 @@ const UI = (() => {
     // Show conversion info for text searches in its own banner
     if (converted.mode !== 'digits') {
       trackEncoding(converted.mode);
+      updateEncodingIndicator(converted.mode);
       convEl.innerHTML = buildConversionHTML(query, converted);
       convEl.classList.remove('hidden');
     } else {
+      updateEncodingIndicator(null);
       convEl.classList.add('hidden');
     }
 
@@ -1272,7 +1291,7 @@ const UI = (() => {
           + `<span class="api-position">digit #${best.pos.toLocaleString()}</span>`;
       } else {
         icon.textContent = '\u{1F50D}';
-        title.innerHTML = `"<b>${word}</b>" is beyond ${_compactNum(apiTotalDigits)} digits in all encodings`;
+        title.innerHTML = `"<b>${word}</b>" is beyond ${_displayTotalCompact(apiTotalDigits)} digits in all encodings`;
       }
 
       // Show all encoding results (found + not found) with matching colors
@@ -1288,7 +1307,7 @@ const UI = (() => {
       for (const nf of notFound) {
         const color = ENC_COLORS[nf.mode] || '#ccc';
         detailHtml += `<div style="margin:2px 0;opacity:0.5">`
-          + `<span style="color:${color}">&#9679;</span> ${nf.label}: beyond ${_compactNum(nf.totalDigits)} digits</div>`;
+          + `<span style="color:${color}">&#9679;</span> ${nf.label}: beyond ${_displayTotalCompact(nf.totalDigits)} digits</div>`;
       }
       detail.innerHTML = detailHtml;
 
@@ -1300,7 +1319,7 @@ const UI = (() => {
         mascotHtml += `<span style="color:${ENC_COLORS[f.mode]}"><b>${f.label}</b></span>: ${_posWords(f.pos)}<br>`;
       }
       for (const nf of notFound) {
-        mascotHtml += `<span style="color:${ENC_COLORS[nf.mode]}"><b>${nf.label}</b></span>: <i>beyond ${_compactNum(nf.totalDigits)} digits!</i><br>`;
+        mascotHtml += `<span style="color:${ENC_COLORS[nf.mode]}"><b>${nf.label}</b></span>: <i>beyond ${_displayTotalCompact(nf.totalDigits)} digits!</i><br>`;
       }
       // Achievements
       if (notFound.length > 0) unlock('far_out');
@@ -1424,7 +1443,7 @@ const UI = (() => {
         const first = result.results[0];
         const pos = first.position;
         const posFormatted = pos.toLocaleString();
-        const totalFormatted = result.totalDigits.toLocaleString();
+        const totalFormatted = _displayTotal(result.totalDigits);
 
         icon.textContent = '\u{1F3AF}';
         const label = word || digitStr;
@@ -1447,7 +1466,7 @@ const UI = (() => {
 
         Minimap.setApiMarker(pos, label);
       } else {
-        const totalFormatted = (result.totalDigits || 0).toLocaleString();
+        const totalFormatted = _displayTotal(result.totalDigits || 0);
         icon.textContent = '\u{1F50D}';
         title.textContent = `"${word || digitStr}" not found in ${totalFormatted} digits of \u03C0`;
         detail.textContent = `Sequence "${digitStr}" doesn't appear in the available digits. Download more with: node scripts/download-pi.js`;
@@ -1535,7 +1554,7 @@ const UI = (() => {
     // Add pins for not-found encodings — pinned at the far right edge
     for (const nf of notFound) {
       const color = ENC_COLORS[nf.mode] || '#e84393';
-      _addScalePin(track, 97, color, nf.label, '>' + _compactNum(nf.totalDigits));
+      _addScalePin(track, 97, color, nf.label, '>' + _displayTotalCompact(nf.totalDigits));
     }
 
     // Render tick marks + log scale indicator
@@ -1695,6 +1714,16 @@ const UI = (() => {
     if (n >= 1e6)  { const v = n / 1e6;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'M'; }
     if (n >= 1e3)  { const v = n / 1e3;  return (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + 'K'; }
     return String(n);
+  }
+
+  // Display-only cap: show "1 million" / "1M" for the local pi.txt range (1–1.2M)
+  function _displayTotal(n) {
+    if (n > 1e6 && n <= 1.2e6) return '1,000,000';
+    return n.toLocaleString();
+  }
+  function _displayTotalCompact(n) {
+    if (n > 1e6 && n <= 1.2e6) return '1M';
+    return _compactNum(n);
   }
 
   // Render log-scale tick marks into the scale track
