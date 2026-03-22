@@ -408,15 +408,18 @@ async function handleCheckout(req, res) {
       shipping_address_collection: {
         allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'IN', 'JP'],
       },
-      metadata: {
-        order_items: JSON.stringify(items.map(i => ({
-          product: i.product,
-          color: i.colorName,
-          size: i.size,
-          word: i.word,
-          designUrls: i.designUrls,
-        }))),
-      },
+      metadata: Object.assign(
+        { item_count: String(items.length) },
+        ...items.map((i, idx) => ({
+          [`item_${idx}`]: JSON.stringify({
+            product: i.product,
+            color: i.colorName,
+            size: i.size,
+            word: i.word,
+            designUrls: i.designUrls,
+          }),
+        }))
+      ),
       success_url: `${siteUrl}?checkout=success`,
       cancel_url: `${siteUrl}?checkout=cancel`,
     });
@@ -442,7 +445,12 @@ async function handleStripeWebhook(req, res) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const shipping = session.shipping_details || session.customer_details;
-      const items = JSON.parse(session.metadata.order_items || '[]');
+      const itemCount = parseInt(session.metadata.item_count || '0', 10);
+      const items = [];
+      for (let i = 0; i < itemCount; i++) {
+        const raw = session.metadata[`item_${i}`];
+        if (raw) items.push(JSON.parse(raw));
+      }
       const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
 
       console.log(`\n✓ Payment received! Order for ${items.length} item(s)`);
