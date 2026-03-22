@@ -2015,11 +2015,25 @@ const UI = (() => {
 
     canvas.addEventListener('touchmove', (e) => {
       if (e.touches.length === 1 && dragging) {
-        const dx = e.touches[0].clientX - lastX;
-        const dy = e.touches[0].clientY - lastY;
-        Camera.pan(dx, dy);
-        lastX = e.touches[0].clientX;
-        lastY = e.touches[0].clientY;
+        const tx = e.touches[0].clientX;
+        const ty = e.touches[0].clientY;
+        // If touching near the last digit, don't pan — let repulsion work
+        let nearCake = false;
+        if (App.getCurrentConstant() === 'pi') {
+          const last = Renderer.getLastDigitScreenPos();
+          if (last && !Renderer.isExpanding()) {
+            const cdx = tx - (last.x + last.w / 2);
+            const cdy = ty - (last.y + last.h / 2);
+            nearCake = Math.sqrt(cdx * cdx + cdy * cdy) < Math.max(last.w, last.h, 40) * 3;
+          }
+        }
+        if (!nearCake) {
+          const dx = tx - lastX;
+          const dy = ty - lastY;
+          Camera.pan(dx, dy);
+        }
+        lastX = tx;
+        lastY = ty;
       } else if (e.touches.length === 2) {
         const dist = getTouchDist(e.touches);
         const center = getTouchCenter(e.touches);
