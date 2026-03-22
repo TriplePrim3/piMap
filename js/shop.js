@@ -131,6 +131,14 @@ const Shop = (() => {
   }
 
   function captureDesign(word, chunks, singlePos) {
+    // Shop only supports spiral layout — switch if needed
+    if (Layout.getType() !== 'spiral') {
+      Layout.setType('spiral');
+      Camera.setZoom(2.5);
+      Camera.centerOn(0, 0);
+      const radio = document.querySelector('input[name="layout"][value="spiral"]');
+      if (radio) radio.checked = true;
+    }
     capturedWord = (word || '').toUpperCase().trim();
     capturedChunks = chunks;
     capturedSinglePos = singlePos;
@@ -874,6 +882,14 @@ const Shop = (() => {
   // ─── Preview Modal ───
 
   function showPreview() {
+    // Shop only supports spiral layout — switch if needed
+    if (Layout.getType() !== 'spiral') {
+      Layout.setType('spiral');
+      Camera.setZoom(2.5);
+      Camera.centerOn(0, 0);
+      const radio = document.querySelector('input[name="layout"][value="spiral"]');
+      if (radio) radio.checked = true;
+    }
     const modal = document.getElementById('shopModal');
     if (!modal) return;
     modal.classList.remove('hidden');

@@ -72,11 +72,11 @@ const App = (() => {
       Camera.setZoom(1);
       Camera.centerOn(0, 0);
     } else if (type === 'spiral') {
-      Camera.setZoom(1.5);
+      Camera.setZoom(2.5);
       Camera.centerOn(0, 0);
     } else {
       Camera.setZoom(1);
-      Camera.centerOn(Layout.getCols() * cw / 2, ch * 5);
+      Camera.setPosition(0, 10);
     }
   }
 

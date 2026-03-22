@@ -1645,14 +1645,14 @@ const UI = (() => {
       radio.addEventListener('change', () => {
         Layout.setType(radio.value);
         if (radio.value === 'spiral') {
-          Camera.setZoom(1.5);
+          Camera.setZoom(2.5);
           Camera.centerOn(0, 0);
         } else if (radio.value === 'wave') {
           Camera.setZoom(1);
           Camera.centerOn(0, 0);
         } else {
           Camera.setZoom(1);
-          Camera.centerOn(Layout.getCols() * Layout.getCellW() / 2, Layout.getCellH() * 5);
+          Camera.setPosition(0, 10);
         }
       });
     });
