@@ -11,10 +11,16 @@ const PORT = process.env.PORT || 8080;
 const STATIC_DIR = __dirname;
 const CHUNKS_DIR = path.join(__dirname, 'data', 'pi-chunks');
 const PI_TXT = path.join(__dirname, 'data', 'pi.txt');
-const DESIGNS_DIR = path.join(__dirname, 'uploads', 'designs');
 
-// Ensure uploads dir exists
-if (!fs.existsSync(DESIGNS_DIR)) fs.mkdirSync(DESIGNS_DIR, { recursive: true });
+// Persistent data directory — set PERSIST_DIR to a Railway Volume mount for durability
+const PERSIST_DIR = process.env.PERSIST_DIR || path.join(__dirname, 'persist');
+const DESIGNS_DIR = path.join(PERSIST_DIR, 'designs');
+const ORDERS_DIR = path.join(PERSIST_DIR, 'orders');
+
+// Ensure dirs exist
+for (const dir of [DESIGNS_DIR, ORDERS_DIR]) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
 
 // ─── Printful helper ───
 
@@ -83,6 +89,30 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
+// ─── Order Store ───
+
+function generateOrderId() {
+  return `ord_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function saveOrder(order) {
+  const filePath = path.join(ORDERS_DIR, `${order.id}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(order, null, 2));
+}
+
+function loadOrder(orderId) {
+  const filePath = path.join(ORDERS_DIR, `${orderId}.json`);
+  if (!fs.existsSync(filePath)) return null;
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function listOrders(status) {
+  const files = fs.readdirSync(ORDERS_DIR).filter(f => f.endsWith('.json'));
+  const orders = files.map(f => JSON.parse(fs.readFileSync(path.join(ORDERS_DIR, f), 'utf8')));
+  if (status) return orders.filter(o => o.status === status);
+  return orders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
 // ─── Static file server ───
 
 function serveStatic(req, res) {
@@ -134,8 +164,8 @@ function kmpSearch(text, pattern, fail, maxResults) {
 
 // ─── Chunk-based pi search ───
 
-let chunkMeta = null;   // loaded once
-let chunkFiles = [];    // sorted list of chunk file paths
+let chunkMeta = null;
+let chunkFiles = [];
 let totalDigits = 0;
 
 function loadChunkMeta() {
@@ -144,7 +174,6 @@ function loadChunkMeta() {
     chunkMeta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
     totalDigits = chunkMeta.totalDigits;
 
-    // List chunk files in order
     chunkFiles = [];
     for (let i = 0; i < chunkMeta.chunkCount; i++) {
       const name = `chunk_${String(i).padStart(6, '0')}.txt`;
@@ -155,7 +184,6 @@ function loadChunkMeta() {
     return true;
   }
 
-  // No chunks — fall back to pi.txt as single "chunk"
   if (fs.existsSync(PI_TXT)) {
     const raw = fs.readFileSync(PI_TXT, 'utf8').replace(/[^0-9]/g, '');
     totalDigits = raw.length;
@@ -178,27 +206,23 @@ function searchChunks(pattern, pairAligned) {
   const step = chunkSize - overlap;
   const results = [];
   const maxResults = 100;
-  const seen = new Set(); // deduplicate matches in overlap zones
+  const seen = new Set();
   const startTime = Date.now();
 
   for (const cf of chunkFiles) {
     const chunkData = cf.preloaded || fs.readFileSync(cf.path, 'utf8');
-    const chunkOffset = cf.index * step; // global digit offset of this chunk's start
+    const chunkOffset = cf.index * step;
 
     const localMatches = kmpSearch(chunkData, pattern, fail, maxResults * 2);
 
     for (const localPos of localMatches) {
       const globalPos = chunkOffset + localPos;
 
-      // Skip duplicates from overlap zones
       if (seen.has(globalPos)) continue;
       seen.add(globalPos);
 
-      // Pair alignment check: match must start at an even offset from decimal (position 1)
-      // decimalAt = 1 for pi, so valid starts are 1, 3, 5, 7, ...
       if (pairAligned && globalPos >= 1 && (globalPos - 1) % 2 !== 0) continue;
 
-      // Get context: 20 digits before and after
       let before = '', after = '';
       const beforeStart = Math.max(0, localPos - 20);
       before = chunkData.slice(beforeStart, localPos);
@@ -227,7 +251,7 @@ function searchChunks(pattern, pairAligned) {
   };
 }
 
-// ─── Context fetcher (get N digits around a position) ───
+// ─── Context fetcher ───
 
 function handlePiContext(posStr, radiusStr, res) {
   const pos = parseInt(posStr);
@@ -257,7 +281,7 @@ function handlePiContext(posStr, radiusStr, res) {
   res.end(JSON.stringify({ digits, start: globalStart, matchOffset, totalDigits }));
 }
 
-// ─── Digit fetcher (get N digits from offset) ───
+// ─── Digit fetcher ───
 
 function handlePiDigits(offsetStr, countStr, res) {
   const offset = parseInt(offsetStr) || 0;
@@ -343,7 +367,6 @@ function handleUploadDesign(req, res) {
   readBody(req).then(buf => {
     const body = JSON.parse(buf.toString());
     const { orderId, designs } = body;
-    // designs: { front: 'data:image/png;base64,...', back: '...' }
 
     if (!orderId || !designs) {
       return jsonResponse(res, 400, { error: 'Missing orderId or designs' });
@@ -355,7 +378,7 @@ function handleUploadDesign(req, res) {
       const ext = dataUrl.startsWith('data:image/jpeg') ? 'jpg' : 'png';
       const fileName = `${orderId}_${key}.${ext}`;
       fs.writeFileSync(path.join(DESIGNS_DIR, fileName), base64, 'base64');
-      urls[key] = `/uploads/designs/${fileName}`;
+      urls[key] = `/designs/${fileName}`;
     }
 
     jsonResponse(res, 200, { urls });
@@ -372,7 +395,6 @@ async function handleCheckout(req, res) {
     const buf = await readBody(req);
     const body = JSON.parse(buf.toString());
     const { items } = body;
-    // items: [{ product, colorName, size, word, designUrls: { front, back? } }]
 
     if (!items || items.length === 0) {
       return jsonResponse(res, 400, { error: 'No items' });
@@ -380,12 +402,31 @@ async function handleCheckout(req, res) {
 
     const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
 
+    // Create persistent order record BEFORE charging
+    const orderId = generateOrderId();
+    const order = {
+      id: orderId,
+      status: 'pending',       // pending → paid → fulfilled / failed
+      createdAt: Date.now(),
+      items: items.map(i => ({
+        product: i.product,
+        color: i.colorName,
+        size: i.size,
+        word: i.word,
+        designUrls: i.designUrls,
+      })),
+      stripeSessionId: null,   // filled after session creation
+      shipping: null,          // filled on webhook
+      printfulOrderIds: [],    // filled on fulfillment
+      error: null,
+    };
+    saveOrder(order);
+
     const lineItems = items.map(item => {
       const productData = {
         name: `${item.productLabel} — "${item.word}"`,
         description: `${item.colorName}, ${item.size} | Your Place in π`,
       };
-      // Add mockup image (design on shirt) for Stripe checkout display
       if (item.mockupUrl) {
         productData.images = [siteUrl + item.mockupUrl];
       } else if (item.designUrls?.front) {
@@ -408,21 +449,14 @@ async function handleCheckout(req, res) {
       shipping_address_collection: {
         allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'IN', 'JP'],
       },
-      metadata: Object.assign(
-        { item_count: String(items.length) },
-        ...items.map((i, idx) => ({
-          [`item_${idx}`]: JSON.stringify({
-            product: i.product,
-            color: i.colorName,
-            size: i.size,
-            word: i.word,
-            designUrls: i.designUrls,
-          }),
-        }))
-      ),
+      metadata: { order_id: orderId },
       success_url: `${siteUrl}?checkout=success`,
       cancel_url: `${siteUrl}?checkout=cancel`,
     });
+
+    // Update order with Stripe session ID
+    order.stripeSessionId = session.id;
+    saveOrder(order);
 
     jsonResponse(res, 200, { url: session.url });
   } catch (err) {
@@ -431,75 +465,129 @@ async function handleCheckout(req, res) {
   }
 }
 
-// ─── Stripe Webhook → Printful Order ───
+// ─── Fulfill a single order → Printful ───
+
+async function fulfillOrder(order) {
+  const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
+  const errors = [];
+
+  for (let i = 0; i < order.items.length; i++) {
+    const item = order.items[i];
+    const productMap = PRINTFUL_PRODUCTS[item.product];
+    if (!productMap) { errors.push(`Unknown product: ${item.product}`); continue; }
+
+    const variantKey = `${item.color}-${item.size}`;
+    const variantId = productMap.variants[variantKey];
+    if (!variantId) { errors.push(`Unknown variant: ${variantKey}`); continue; }
+
+    const printfulItem = {
+      variant_id: variantId,
+      quantity: 1,
+      files: [],
+    };
+
+    if (item.designUrls?.front) {
+      printfulItem.files.push({
+        type: productMap.placements.front,
+        url: siteUrl + item.designUrls.front,
+      });
+    }
+    if (item.designUrls?.back && productMap.placements.back) {
+      printfulItem.files.push({
+        type: productMap.placements.back,
+        url: siteUrl + item.designUrls.back,
+      });
+    }
+
+    const pfOrder = {
+      recipient: {
+        name: order.shipping?.name || 'Customer',
+        address1: order.shipping?.address?.line1 || '',
+        address2: order.shipping?.address?.line2 || '',
+        city: order.shipping?.address?.city || '',
+        state_code: order.shipping?.address?.state || '',
+        country_code: order.shipping?.address?.country || '',
+        zip: order.shipping?.address?.postal_code || '',
+      },
+      items: [printfulItem],
+    };
+
+    console.log(`  Submitting item ${i + 1}/${order.items.length} to Printful...`);
+    const result = await printfulRequest('POST', '/orders', pfOrder);
+
+    if (result?.code === 200 || result?.result?.id) {
+      const pfId = result.result?.id || 'unknown';
+      order.printfulOrderIds.push(pfId);
+      console.log(`  ✓ Printful order created: ${pfId}`);
+    } else {
+      const errMsg = result?.result || result?.error?.message || JSON.stringify(result);
+      errors.push(`Item ${i}: ${errMsg}`);
+      console.error(`  ✗ Printful error for item ${i}:`, errMsg);
+    }
+  }
+
+  if (errors.length > 0) {
+    order.status = 'failed';
+    order.error = errors.join('; ');
+  } else {
+    order.status = 'fulfilled';
+    order.error = null;
+  }
+
+  order.fulfilledAt = Date.now();
+  saveOrder(order);
+  return errors;
+}
+
+// ─── Stripe Webhook → Fulfill Order ───
 
 async function handleStripeWebhook(req, res) {
   try {
     const buf = await readBody(req);
     const sig = req.headers['stripe-signature'];
 
-    // In production, verify webhook signature with endpoint secret
-    // const event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    const event = JSON.parse(buf.toString());
+    let event;
+    if (process.env.STRIPE_WEBHOOK_SECRET) {
+      event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    } else {
+      console.warn('⚠ STRIPE_WEBHOOK_SECRET not set — skipping signature verification');
+      event = JSON.parse(buf.toString());
+    }
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      const shipping = session.shipping_details || session.customer_details;
-      const itemCount = parseInt(session.metadata.item_count || '0', 10);
-      const items = [];
-      for (let i = 0; i < itemCount; i++) {
-        const raw = session.metadata[`item_${i}`];
-        if (raw) items.push(JSON.parse(raw));
+      const orderId = session.metadata?.order_id;
+
+      if (!orderId) {
+        console.error('Webhook: no order_id in metadata');
+        return jsonResponse(res, 200, { received: true });
       }
-      const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
 
-      console.log(`\n✓ Payment received! Order for ${items.length} item(s)`);
+      const order = loadOrder(orderId);
+      if (!order) {
+        console.error(`Webhook: order ${orderId} not found on disk`);
+        return jsonResponse(res, 200, { received: true });
+      }
 
-      // Submit each item to Printful
-      for (const item of items) {
-        const productMap = PRINTFUL_PRODUCTS[item.product];
-        if (!productMap) { console.error('Unknown product:', item.product); continue; }
+      // Save shipping info from Stripe
+      const shipping = session.shipping_details || session.customer_details;
+      order.shipping = {
+        name: shipping?.name || '',
+        address: shipping?.address || {},
+      };
+      order.status = 'paid';
+      order.paidAt = Date.now();
+      order.stripePaymentIntent = session.payment_intent;
+      saveOrder(order);
 
-        const variantKey = `${item.color}-${item.size}`;
-        const variantId = productMap.variants[variantKey];
-        if (!variantId) { console.error('Unknown variant:', variantKey); continue; }
+      console.log(`\n✓ Payment received for ${orderId} — ${order.items.length} item(s)`);
 
-        const printfulItem = {
-          variant_id: variantId,
-          quantity: 1,
-          files: [],
-        };
-
-        // Add design files
-        if (item.designUrls?.front) {
-          printfulItem.files.push({
-            type: productMap.placements.front,
-            url: siteUrl + item.designUrls.front,
-          });
-        }
-        if (item.designUrls?.back && productMap.placements.back) {
-          printfulItem.files.push({
-            type: productMap.placements.back,
-            url: siteUrl + item.designUrls.back,
-          });
-        }
-
-        const order = {
-          recipient: {
-            name: shipping?.name || 'Customer',
-            address1: shipping?.address?.line1 || '',
-            address2: shipping?.address?.line2 || '',
-            city: shipping?.address?.city || '',
-            state_code: shipping?.address?.state || '',
-            country_code: shipping?.address?.country || '',
-            zip: shipping?.address?.postal_code || '',
-          },
-          items: [printfulItem],
-        };
-
-        console.log('Submitting to Printful:', JSON.stringify(order, null, 2));
-        const result = await printfulRequest('POST', '/orders', order);
-        console.log('Printful response:', JSON.stringify(result, null, 2));
+      // Fulfill → Printful
+      const errors = await fulfillOrder(order);
+      if (errors.length > 0) {
+        console.error(`⚠ Order ${orderId} had fulfillment errors:`, errors);
+      } else {
+        console.log(`✓ Order ${orderId} fully fulfilled`);
       }
     }
 
@@ -507,6 +595,79 @@ async function handleStripeWebhook(req, res) {
   } catch (err) {
     console.error('Webhook error:', err.message);
     jsonResponse(res, 400, { error: err.message });
+  }
+}
+
+// ─── Admin auth + rate limiting ───
+
+const adminAttempts = new Map(); // ip → { count, resetAt }
+const ADMIN_MAX_ATTEMPTS = 5;
+const ADMIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkAdmin(req, res) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+  const now = Date.now();
+
+  // Check rate limit
+  const record = adminAttempts.get(ip);
+  if (record && record.count >= ADMIN_MAX_ATTEMPTS && now < record.resetAt) {
+    const mins = Math.ceil((record.resetAt - now) / 60000);
+    jsonResponse(res, 429, { error: `Too many attempts. Try again in ${mins} min.` });
+    return false;
+  }
+
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!process.env.ADMIN_KEY || token !== process.env.ADMIN_KEY) {
+    // Track failed attempt
+    if (!record || now >= (record.resetAt || 0)) {
+      adminAttempts.set(ip, { count: 1, resetAt: now + ADMIN_LOCKOUT_MS });
+    } else {
+      record.count++;
+    }
+    jsonResponse(res, 401, { error: 'Unauthorized' });
+    return false;
+  }
+
+  // Success — clear attempts
+  adminAttempts.delete(ip);
+  return true;
+}
+
+// ─── Admin: list orders / retry failed ───
+
+function handleAdminOrders(query, res) {
+  const status = query.status || null;
+  const orders = listOrders(status);
+  // Strip large fields for listing
+  const summary = orders.map(o => ({
+    id: o.id,
+    status: o.status,
+    createdAt: new Date(o.createdAt).toISOString(),
+    itemCount: o.items?.length || 0,
+    word: o.items?.[0]?.word || '',
+    error: o.error,
+    printfulOrderIds: o.printfulOrderIds,
+  }));
+  jsonResponse(res, 200, { count: summary.length, orders: summary });
+}
+
+async function handleAdminRetry(req, res) {
+  try {
+    const buf = await readBody(req);
+    const { orderId } = JSON.parse(buf.toString());
+    const order = loadOrder(orderId);
+    if (!order) return jsonResponse(res, 404, { error: 'Order not found' });
+    if (order.status === 'fulfilled') return jsonResponse(res, 400, { error: 'Already fulfilled' });
+
+    console.log(`\n↻ Retrying order ${orderId}...`);
+    const errors = await fulfillOrder(order);
+    if (errors.length > 0) {
+      jsonResponse(res, 500, { error: 'Partial failure', errors });
+    } else {
+      jsonResponse(res, 200, { success: true, orderId });
+    }
+  } catch (err) {
+    jsonResponse(res, 500, { error: err.message });
   }
 }
 
@@ -529,11 +690,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ── Serve uploaded designs ──
-  if (parsed.pathname.startsWith('/uploads/designs/')) {
-    const filePath = path.join(__dirname, parsed.pathname);
+  // ── Admin API (Bearer token + rate limiting) ──
+  if (parsed.pathname === '/api/admin/orders') {
+    if (!checkAdmin(req, res)) return;
+    if (req.method === 'GET') return handleAdminOrders(parsed.query, res);
+    if (req.method === 'POST') return handleAdminRetry(req, res);
+  }
+
+  // ── Serve uploaded designs from persistent dir ──
+  if (parsed.pathname.startsWith('/designs/')) {
+    const fileName = path.basename(parsed.pathname);
+    const filePath = path.join(DESIGNS_DIR, fileName);
     if (fs.existsSync(filePath)) {
-      res.writeHead(200, { 'Content-Type': 'image/png' });
+      const ext = path.extname(fileName);
+      const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+      res.writeHead(200, { 'Content-Type': mime });
       res.end(fs.readFileSync(filePath));
       return;
     }
@@ -572,6 +743,7 @@ const server = http.createServer((req, res) => {
 
 // Boot
 console.log('piMap server starting...');
+console.log(`Persist dir: ${PERSIST_DIR}`);
 console.log('Loading pi digit chunks...');
 loadChunkMeta();
 
@@ -579,4 +751,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`\npiMap server running at http://localhost:${PORT}`);
   console.log(`Search API: http://localhost:${PORT}/api/pisearch?q=14159`);
   console.log(`Status API: http://localhost:${PORT}/api/pistatus`);
+  console.log(`Orders API: http://localhost:${PORT}/api/admin/orders`);
 });
