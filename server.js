@@ -1,12 +1,74 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+require('dotenv').config();
+
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const PORT = 8080;
 const STATIC_DIR = __dirname;
 const CHUNKS_DIR = path.join(__dirname, 'data', 'pi-chunks');
 const PI_TXT = path.join(__dirname, 'data', 'pi.txt');
+const DESIGNS_DIR = path.join(__dirname, 'uploads', 'designs');
+
+// Ensure uploads dir exists
+if (!fs.existsSync(DESIGNS_DIR)) fs.mkdirSync(DESIGNS_DIR, { recursive: true });
+
+// ─── Printful helper ───
+
+function printfulRequest(method, endpoint, body) {
+  return new Promise((resolve, reject) => {
+    const data = body ? JSON.stringify(body) : null;
+    const opts = {
+      hostname: 'api.printful.com',
+      path: endpoint,
+      method,
+      headers: {
+        'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+    };
+    if (data) opts.headers['Content-Length'] = Buffer.byteLength(data);
+
+    const req = https.request(opts, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); } catch { resolve(body); }
+      });
+    });
+    req.on('error', reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+// ─── Printful product mappings ───
+
+const PRINTFUL_PRODUCTS = {
+  tshirt: {
+    productId: 71, // Bella+Canvas 3001
+    variants: {
+      'White-XS': 9526, 'White-S': 4011, 'White-M': 4012, 'White-L': 4013,
+      'White-XL': 4014, 'White-2XL': 4015, 'White-3XL': 5294, 'White-4XL': 5309,
+      'Black-XS': 9527, 'Black-S': 4016, 'Black-M': 4017, 'Black-L': 4018,
+      'Black-XL': 4019, 'Black-2XL': 4020, 'Black-3XL': 5295, 'Black-4XL': 5310,
+    },
+    placements: { front: 'front', back: 'back' },
+  },
+  cap: {
+    productId: 864, // Otto Cap 18-253
+    variants: {
+      'White-One Size': 22669,
+      'Black-One Size': 22663,
+    },
+    placements: { front: 'embroidery_front' },
+  },
+};
+
+const PRICE_CENTS = 3141; // $31.41
 
 const MIME = {
   '.html': 'text/html',
@@ -15,6 +77,8 @@ const MIME = {
   '.json': 'application/json',
   '.txt': 'text/plain',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
 };
@@ -252,10 +316,205 @@ function handlePiSearch(query, pairAligned, res) {
   res.end(JSON.stringify(result));
 }
 
+// ─── Read POST body ───
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+function jsonResponse(res, status, data) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+}
+
+// ─── Upload design images ───
+
+function handleUploadDesign(req, res) {
+  readBody(req).then(buf => {
+    const body = JSON.parse(buf.toString());
+    const { orderId, designs } = body;
+    // designs: { front: 'data:image/png;base64,...', back: '...' }
+
+    if (!orderId || !designs) {
+      return jsonResponse(res, 400, { error: 'Missing orderId or designs' });
+    }
+
+    const urls = {};
+    for (const [key, dataUrl] of Object.entries(designs)) {
+      const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+      const fileName = `${orderId}_${key}.png`;
+      fs.writeFileSync(path.join(DESIGNS_DIR, fileName), base64, 'base64');
+      urls[key] = `/uploads/designs/${fileName}`;
+    }
+
+    jsonResponse(res, 200, { urls });
+  }).catch(err => {
+    console.error('Upload error:', err);
+    jsonResponse(res, 500, { error: 'Upload failed' });
+  });
+}
+
+// ─── Create Stripe Checkout Session ───
+
+async function handleCheckout(req, res) {
+  try {
+    const buf = await readBody(req);
+    const body = JSON.parse(buf.toString());
+    const { items } = body;
+    // items: [{ product, colorName, size, word, designUrls: { front, back? } }]
+
+    if (!items || items.length === 0) {
+      return jsonResponse(res, 400, { error: 'No items' });
+    }
+
+    const lineItems = items.map(item => ({
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: `${item.productLabel} — "${item.word}"`,
+          description: `${item.colorName}, ${item.size} | Custom Pi design`,
+        },
+        unit_amount: PRICE_CENTS,
+      },
+      quantity: 1,
+    }));
+
+    const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      mode: 'payment',
+      shipping_address_collection: {
+        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'IN', 'JP'],
+      },
+      metadata: {
+        order_items: JSON.stringify(items.map(i => ({
+          product: i.product,
+          color: i.colorName,
+          size: i.size,
+          word: i.word,
+          designUrls: i.designUrls,
+        }))),
+      },
+      success_url: `${siteUrl}?checkout=success`,
+      cancel_url: `${siteUrl}?checkout=cancel`,
+    });
+
+    jsonResponse(res, 200, { url: session.url });
+  } catch (err) {
+    console.error('Checkout error:', err.message);
+    jsonResponse(res, 500, { error: err.message });
+  }
+}
+
+// ─── Stripe Webhook → Printful Order ───
+
+async function handleStripeWebhook(req, res) {
+  try {
+    const buf = await readBody(req);
+    const sig = req.headers['stripe-signature'];
+
+    // In production, verify webhook signature with endpoint secret
+    // const event = stripe.webhooks.constructEvent(buf, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    const event = JSON.parse(buf.toString());
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const shipping = session.shipping_details || session.customer_details;
+      const items = JSON.parse(session.metadata.order_items || '[]');
+      const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
+
+      console.log(`\n✓ Payment received! Order for ${items.length} item(s)`);
+
+      // Submit each item to Printful
+      for (const item of items) {
+        const productMap = PRINTFUL_PRODUCTS[item.product];
+        if (!productMap) { console.error('Unknown product:', item.product); continue; }
+
+        const variantKey = `${item.color}-${item.size}`;
+        const variantId = productMap.variants[variantKey];
+        if (!variantId) { console.error('Unknown variant:', variantKey); continue; }
+
+        const printfulItem = {
+          variant_id: variantId,
+          quantity: 1,
+          files: [],
+        };
+
+        // Add design files
+        if (item.designUrls?.front) {
+          printfulItem.files.push({
+            type: productMap.placements.front,
+            url: siteUrl + item.designUrls.front,
+          });
+        }
+        if (item.designUrls?.back && productMap.placements.back) {
+          printfulItem.files.push({
+            type: productMap.placements.back,
+            url: siteUrl + item.designUrls.back,
+          });
+        }
+
+        const order = {
+          recipient: {
+            name: shipping?.name || 'Customer',
+            address1: shipping?.address?.line1 || '',
+            address2: shipping?.address?.line2 || '',
+            city: shipping?.address?.city || '',
+            state_code: shipping?.address?.state || '',
+            country_code: shipping?.address?.country || '',
+            zip: shipping?.address?.postal_code || '',
+          },
+          items: [printfulItem],
+        };
+
+        console.log('Submitting to Printful:', JSON.stringify(order, null, 2));
+        const result = await printfulRequest('POST', '/orders', order);
+        console.log('Printful response:', JSON.stringify(result, null, 2));
+      }
+    }
+
+    jsonResponse(res, 200, { received: true });
+  } catch (err) {
+    console.error('Webhook error:', err.message);
+    jsonResponse(res, 400, { error: err.message });
+  }
+}
+
 // ─── Server ───
 
 const server = http.createServer((req, res) => {
   const parsed = url.parse(req.url, true);
+
+  // ── Shop API ──
+  if (req.method === 'POST' && parsed.pathname === '/api/upload-design') {
+    handleUploadDesign(req, res);
+    return;
+  }
+  if (req.method === 'POST' && parsed.pathname === '/api/checkout') {
+    handleCheckout(req, res);
+    return;
+  }
+  if (req.method === 'POST' && parsed.pathname === '/api/stripe-webhook') {
+    handleStripeWebhook(req, res);
+    return;
+  }
+
+  // ── Serve uploaded designs ──
+  if (parsed.pathname.startsWith('/uploads/designs/')) {
+    const filePath = path.join(__dirname, parsed.pathname);
+    if (fs.existsSync(filePath)) {
+      res.writeHead(200, { 'Content-Type': 'image/png' });
+      res.end(fs.readFileSync(filePath));
+      return;
+    }
+  }
 
   if (parsed.pathname === '/api/pisearch') {
     const q = parsed.query.q;

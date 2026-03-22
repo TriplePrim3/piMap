@@ -4,3 +4,12 @@ data/pi-billion-raw.txt
 
 # Node
 node_modules/
+
+# Environment secrets
+.env
+
+# Uploaded design files
+uploads/
+
+# Temp
+tmp/

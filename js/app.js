@@ -26,6 +26,23 @@ const App = (() => {
     overlay.classList.add('fade-out');
     setTimeout(() => overlay.remove(), 600);
 
+    // Check for checkout result
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') {
+      setTimeout(() => {
+        if (typeof UI !== 'undefined' && UI.unlock) UI.unlock('pi_owner');
+        const toast = document.createElement('div');
+        toast.className = 'achievement-toast';
+        toast.innerHTML = '<span class="toast-icon">🎉</span><div><div style="font-size:11px;opacity:0.6;text-transform:uppercase;letter-spacing:1px">Order Placed!</div>Your custom Pi merch is on its way!</div>';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 6000);
+      }, 800);
+      // Clean URL
+      window.history.replaceState({}, '', '/');
+    } else if (params.get('checkout') === 'cancel') {
+      window.history.replaceState({}, '', '/');
+    }
+
     // Start render loop
     lastTime = performance.now();
     requestAnimationFrame(renderLoop);

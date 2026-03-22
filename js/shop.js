@@ -1102,6 +1102,10 @@ const Shop = (() => {
     const col = _getColor();
     if (typeof UI !== 'undefined' && UI.unlock) UI.unlock('shopaholic');
 
+    // Render high-res print files for this item
+    const frontHires = _renderDesign(_getFrontDesignKey(), PRINT_SIZE);
+    const backHires = cfg.hasBack ? _renderDesign(_getBackDesignKey(), PRINT_SIZE) : null;
+
     cart.push({
       product,
       productLabel: cfg.label,
@@ -1113,6 +1117,8 @@ const Shop = (() => {
       flipped,
       frontImg: designImages[_getFrontDesignKey()],
       backImg: cfg.hasBack ? designImages[_getBackDesignKey()] : null,
+      frontHires,
+      backHires,
     });
 
     _renderCart();
@@ -1138,7 +1144,7 @@ const Shop = (() => {
     }
 
     cartEl.classList.remove('hidden');
-    checkoutBtn.disabled = true; // Coming soon
+    checkoutBtn.disabled = false;
 
     itemsEl.innerHTML = '';
     cart.forEach((item, i) => {
@@ -1157,6 +1163,66 @@ const Shop = (() => {
       row.querySelector('.cart-item-remove').addEventListener('click', () => removeFromCart(i));
       itemsEl.appendChild(row);
     });
+  }
+
+  // ─── Checkout ───
+
+  async function checkout() {
+    if (cart.length === 0) return;
+
+    const checkoutBtn = document.getElementById('shopCheckout');
+    if (checkoutBtn) {
+      checkoutBtn.disabled = true;
+      checkoutBtn.textContent = 'Processing...';
+    }
+
+    try {
+      // 1. Upload high-res designs for each cart item
+      const items = [];
+      for (let i = 0; i < cart.length; i++) {
+        const item = cart[i];
+        const orderId = `order_${Date.now()}_${i}`;
+        const designs = { front: item.frontHires };
+        if (item.backHires) designs.back = item.backHires;
+
+        const uploadRes = await fetch('/api/upload-design', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, designs }),
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed');
+
+        items.push({
+          product: item.product,
+          productLabel: item.productLabel,
+          word: item.word,
+          size: item.size,
+          colorName: item.colorName,
+          designUrls: uploadData.urls,
+        });
+      }
+
+      // 2. Create Stripe checkout session
+      const checkoutRes = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      const checkoutData = await checkoutRes.json();
+      if (!checkoutRes.ok) throw new Error(checkoutData.error || 'Checkout failed');
+
+      // 3. Redirect to Stripe
+      if (typeof UI !== 'undefined' && UI.unlock) UI.unlock('pi_owner');
+      window.location.href = checkoutData.url;
+    } catch (err) {
+      console.error('Checkout error:', err);
+      alert('Checkout failed: ' + err.message);
+      if (checkoutBtn) {
+        checkoutBtn.disabled = false;
+        checkoutBtn.textContent = 'Checkout — $31.41 each';
+      }
+    }
   }
 
   // ─── In-shop search ───
@@ -1221,9 +1287,7 @@ const Shop = (() => {
 
     const checkoutBtn = document.getElementById('shopCheckout');
     if (checkoutBtn) {
-      checkoutBtn.addEventListener('click', () => {
-        if (typeof UI !== 'undefined' && UI.unlock) UI.unlock('pi_owner');
-      });
+      checkoutBtn.addEventListener('click', checkout);
     }
 
     const flipBtn = document.getElementById('shopFlip');
