@@ -2154,18 +2154,9 @@ html, body {
     align-self: center;
   }
 
-  /* Push encoding conversion below the search overlay on mobile */
-  .mobile-search-active .search-conversion,
+  /* Hide encoding conversion on mobile — pills already show the mode */
   .search-conversion {
-    top: auto;
-    bottom: 68px;
-    z-index: 251;
-    font-size: 13px;
-    padding: 8px 14px;
-    max-width: 92vw;
-  }
-  .search-conversion .conv-mapping {
-    font-size: 13px;
+    display: none !important;
   }
 
   /* Minimap: hide on mobile */
@@ -2219,7 +2210,7 @@ html, body {
     bottom: 60px;
   }
 
-  /* Shop modal: full screen scrollable on mobile */
+  /* Shop modal: full screen scrollable on mobile with safe padding */
   .shop-modal {
     align-items: flex-start;
   }
@@ -2228,7 +2219,7 @@ html, body {
     max-height: none;
     height: 100vh;
     border-radius: 0;
-    padding: 16px;
+    padding: 20px 16px 80px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }

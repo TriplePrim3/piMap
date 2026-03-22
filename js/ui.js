@@ -1948,12 +1948,15 @@ const UI = (() => {
 
     // Touch support
     let lastTouchDist = 0;
+    let touchStartX = 0, touchStartY = 0;
 
     canvas.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         dragging = true;
         lastX = e.touches[0].clientX;
         lastY = e.touches[0].clientY;
+        touchStartX = lastX;
+        touchStartY = lastY;
       } else if (e.touches.length === 2) {
         dragging = false;
         lastTouchDist = getTouchDist(e.touches);
@@ -1979,8 +1982,50 @@ const UI = (() => {
       e.preventDefault();
     }, { passive: false });
 
-    canvas.addEventListener('touchend', () => {
+    canvas.addEventListener('touchend', (e) => {
+      const wasDrag = Math.abs(lastX - touchStartX) > 5 || Math.abs(lastY - touchStartY) > 5;
       dragging = false;
+
+      // Tap (not drag) — check for cake click, same as mouseup
+      if (!wasDrag && App.getCurrentConstant() === 'pi') {
+        const last = Renderer.getLastDigitScreenPos();
+        if (last && !Renderer.isExpanding()) {
+          const margin = Math.max(last.w, last.h) * 0.8;
+          if (touchStartX >= last.x - margin && touchStartX <= last.x + last.w + margin &&
+              touchStartY >= last.y - margin && touchStartY <= last.y + last.h + margin) {
+            Renderer.expandDigits(5000);
+            Sounds.cakeClick();
+            unlock('cake_lie');
+            if (Renderer.getEffectiveLength() > 1e6) unlock('expander');
+            cakeClickCount++;
+            if (cakeClickCount === 1) {
+              mascotSay(
+                `<div class="bubble-title">🍰 The Cake</div>`
+                + `Oh that's right... π has no end.<br>Does that mean the cake is a lie?<br>`
+                + `<i style="opacity:0.6">There's got to be another way to get it.</i>`,
+                0
+              );
+            } else if (cakeClickCount === 2) {
+              mascotSay(
+                `<div class="bubble-title">🍰 Wait...</div>`
+                + `What if the cake comes to you?<br>Tell me your birthday and I'll find it a place in π!`
+                + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">🎂 Find my birthday!</button></div>`,
+                0
+              );
+              setTimeout(() => {
+                const picker = document.getElementById('bdayPicker');
+                const btn = document.getElementById('bdayGo');
+                if (!picker || !btn) return;
+                btn.addEventListener('click', () => { if (picker.value) handleBirthday(picker.value); });
+                picker.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && picker.value) handleBirthday(picker.value); });
+              }, 50);
+            } else {
+              const quip = CAKE_QUIPS[cakeClickCount % CAKE_QUIPS.length];
+              mascotSay(`<div class="bubble-title">🍰 The Cake</div>${quip}`, 6000);
+            }
+          }
+        }
+      }
     });
   }
 
