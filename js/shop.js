@@ -1155,6 +1155,8 @@ const Shop = (() => {
     _renderCart();
   }
 
+  const PRICE = 31.41;
+
   function _renderCart() {
     const cartEl = document.getElementById('shopCart');
     const countEl = document.getElementById('cartCount');
@@ -1166,6 +1168,11 @@ const Shop = (() => {
     cartEl.classList.remove('hidden');
     countEl.textContent = cart.length;
     checkoutBtn.disabled = cart.length === 0;
+
+    const total = cart.length * PRICE;
+    checkoutBtn.textContent = cart.length > 0
+      ? `Checkout — $${total.toFixed(2)}`
+      : 'Checkout';
 
     itemsEl.innerHTML = '';
     if (cart.length === 0) {
@@ -1182,6 +1189,7 @@ const Shop = (() => {
           <div class="cart-item-word">${item.word}</div>
           <div class="cart-item-detail">${item.productLabel} · ${item.colorName} · ${item.size}</div>
         </div>
+        <div class="cart-item-price">$${PRICE.toFixed(2)}</div>
         <button class="cart-item-remove" data-idx="${i}">&times;</button>
       `;
       row.querySelector('.cart-item-remove').addEventListener('click', () => removeFromCart(i));
@@ -1272,7 +1280,8 @@ const Shop = (() => {
       alert('Checkout failed: ' + err.message);
       if (checkoutBtn) {
         checkoutBtn.disabled = false;
-        checkoutBtn.textContent = 'Checkout — $31.41 each';
+        const total = cart.length * PRICE;
+        checkoutBtn.textContent = `Checkout — $${total.toFixed(2)}`;
       }
     }
   }

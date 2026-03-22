@@ -1541,6 +1541,14 @@ html, body {
 .shop-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
+}
+.shop-price-tag {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffe66d;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 .shop-btn {
@@ -1659,6 +1667,13 @@ html, body {
   color: var(--text-dim);
 }
 
+.cart-item-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffe66d;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .cart-item-remove {
   background: none;
   border: none;
