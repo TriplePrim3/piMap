@@ -517,7 +517,7 @@ html, body {
 .famous-panel {
   position: fixed;
   top: 68px;
-  right: 14px;
+  left: 14px;
   width: 250px;
   max-height: calc(100vh - 120px);
   z-index: 9;
@@ -530,6 +530,13 @@ html, body {
   border-radius: var(--radius);
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.famous-panel.collapsed .famous-list {
+  display: none;
+}
+.famous-panel.collapsed {
+  max-height: 44px;
 }
 
 [data-theme="light"] .famous-panel {
@@ -549,6 +556,22 @@ html, body {
   color: #ffe66d;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.famous-panel-header:hover {
+  background: var(--bg-hover);
+}
+.famous-chevron {
+  margin-left: auto;
+  transition: transform 0.3s ease;
+}
+.famous-panel.collapsed .famous-chevron {
+  transform: rotate(-90deg);
 }
 
 .famous-list {
@@ -1063,9 +1086,8 @@ html, body {
 /* === π Mascot === */
 .pi-mascot {
   position: fixed;
-  left: 24px;
-  top: 50%;
-  transform: translateY(-50%);
+  right: 24px;
+  bottom: 420px;
   z-index: 30;
   pointer-events: auto;
   display: flex;
@@ -1106,7 +1128,7 @@ html, body {
 
 .mascot-bubble {
   position: absolute;
-  left: 82px;
+  right: 82px;
   top: 50%;
   transform: translateY(-50%);
   background: rgba(18, 18, 42, 0.95);
@@ -1131,15 +1153,15 @@ html, body {
 .mascot-bubble::after {
   content: '';
   position: absolute;
-  left: -7px;
+  right: -7px;
   top: 50%;
   margin-top: -7px;
   width: 14px;
   height: 14px;
   background: rgba(18, 18, 42, 0.95);
   border: 1px solid var(--border);
-  border-top: none;
-  border-right: none;
+  border-bottom: none;
+  border-left: none;
   transform: rotate(45deg);
 }
 
@@ -1148,7 +1170,7 @@ html, body {
 }
 
 @keyframes bubblePop {
-  from { opacity: 0; transform: translateY(-50%) translateX(-8px) scale(0.9); }
+  from { opacity: 0; transform: translateY(-50%) translateX(8px) scale(0.9); }
   to   { opacity: 1; transform: translateY(-50%) translateX(0) scale(1); }
 }
 
@@ -1690,12 +1712,11 @@ html, body {
   opacity: 0.9;
 }
 
-/* === Achievements === */
-/* Bottom-left button row (above mascot) */
-.bottom-left-btns {
+/* === Top-right buttons (shop + achievements) === */
+.top-right-btns {
   position: fixed;
-  left: 24px;
-  bottom: 28px;
+  top: 14px;
+  right: 14px;
   z-index: 31;
   display: flex;
   gap: 8px;
@@ -1726,39 +1747,57 @@ html, body {
 }
 
 /* Shop open button */
+@keyframes rainbow-border {
+  0%   { border-color: #FF0000; box-shadow: 0 0 12px #FF000066, 0 0 30px #FF000033; }
+  14%  { border-color: #FF8C00; box-shadow: 0 0 12px #FF8C0066, 0 0 30px #FF8C0033; }
+  28%  { border-color: #FFD700; box-shadow: 0 0 12px #FFD70066, 0 0 30px #FFD70033; }
+  42%  { border-color: #00AA00; box-shadow: 0 0 12px #00AA0066, 0 0 30px #00AA0033; }
+  57%  { border-color: #0000FF; box-shadow: 0 0 12px #0000FF66, 0 0 30px #0000FF33; }
+  71%  { border-color: #4B0082; box-shadow: 0 0 12px #4B008266, 0 0 30px #4B008233; }
+  85%  { border-color: #9400D3; box-shadow: 0 0 12px #9400D366, 0 0 30px #9400D333; }
+  100% { border-color: #FF0000; box-shadow: 0 0 12px #FF000066, 0 0 30px #FF000033; }
+}
+@keyframes rainbow-bg {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes shop-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.06); }
+}
 .shop-open-btn {
-  background: linear-gradient(135deg, rgba(124,111,247,0.15), rgba(255,107,157,0.12));
-  border: 1.5px solid rgba(124,111,247,0.4);
-  border-radius: 14px;
-  padding: 10px 18px;
+  background: linear-gradient(90deg, #FF0000, #FF8C00, #FFD700, #00AA00, #0000FF, #4B0082, #9400D3, #FF0000);
+  background-size: 200% 100%;
+  animation: rainbow-bg 3s linear infinite, shop-pulse 2s ease-in-out infinite, rainbow-border 3s linear infinite;
+  border: 2.5px solid #FF0000;
+  border-radius: 16px;
+  padding: 12px 22px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  transition: all 0.2s;
-  box-shadow: 0 2px 12px rgba(124,111,247,0.15);
+  gap: 10px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  transition: transform 0.15s;
 }
 .shop-open-btn:hover {
-  background: linear-gradient(135deg, rgba(124,111,247,0.25), rgba(255,107,157,0.2));
-  border-color: var(--accent);
-  transform: scale(1.08);
-  color: var(--accent);
-  box-shadow: 0 4px 20px rgba(124,111,247,0.25);
+  transform: scale(1.12) !important;
+  filter: brightness(1.15);
 }
 .shop-open-btn svg {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
 }
 
 .achievements-panel {
   position: fixed;
-  bottom: 64px;
-  left: 24px;
+  top: 64px;
+  right: 14px;
   z-index: 35;
   width: 280px;
   max-height: 400px;
@@ -1900,4 +1939,151 @@ html, body {
 /* === Utility === */
 .hidden {
   display: none !important;
+}
+
+/* === Mobile Responsive === */
+@media (max-width: 768px) {
+  /* Top bar: stack vertically */
+  #topBar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .logo {
+    order: 0;
+  }
+
+  .constant-selector {
+    order: 1;
+    padding: 2px;
+  }
+  .const-btn {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+  .constant-selector .panel-toggle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .search-container {
+    position: relative;
+    left: auto;
+    transform: none;
+    order: 2;
+    width: 100%;
+  }
+  .search-box {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 14px;
+  }
+  #searchInput {
+    font-size: 14px;
+  }
+
+  /* Top-right buttons: smaller, tighter */
+  .top-right-btns {
+    top: 10px;
+    right: 10px;
+    gap: 6px;
+  }
+  .shop-open-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 12px;
+  }
+  .shop-open-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  .achievements-btn {
+    padding: 6px 10px;
+  }
+
+  /* Famous panel: full width drawer on mobile */
+  .famous-panel {
+    top: auto;
+    bottom: 36px;
+    left: 10px;
+    right: auto;
+    width: calc(100vw - 20px);
+    max-height: 50vh;
+  }
+
+  /* Minimap: smaller */
+  #minimapContainer {
+    width: 160px;
+    height: 110px;
+    bottom: 36px;
+    right: 8px;
+    display: none; /* hide on mobile — too cluttered */
+  }
+
+  /* Mascot: smaller on mobile */
+  .pi-mascot {
+    right: 8px;
+    bottom: 180px;
+    transform: scale(0.7);
+    transform-origin: right center;
+  }
+
+  /* Info bar */
+  #infoBar {
+    font-size: 10px;
+    padding: 0 8px;
+    gap: 8px;
+  }
+
+  /* Settings dropdown */
+  .settings-dropdown {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
+  /* API banner */
+  .api-banner {
+    left: 8px;
+    right: 8px;
+  }
+
+  /* Shop modal: full screen on mobile */
+  .shop-modal-content {
+    width: 95vw;
+    max-height: 90vh;
+    padding: 16px;
+  }
+  .shop-frames {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Achievements panel */
+  .achievements-panel {
+    top: 56px;
+    right: 10px;
+    width: 260px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo-text {
+    display: none; /* Just show the π icon on very small screens */
+  }
+  .logo-symbol {
+    font-size: 22px;
+  }
+  .search-box {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .shop-open-btn span {
+    display: none; /* icon-only shop button on tiny screens */
+  }
+  .shop-open-btn {
+    padding: 10px;
+  }
 }

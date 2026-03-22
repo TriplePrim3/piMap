@@ -12,31 +12,36 @@ const UI = (() => {
         'Six 9s in a row at position 762. Feynman was a physicist, a bongo player, and apparently a π troll.',
         'The Feynman Point is like π rickrolling mathematicians since 1988.',
       ] },
-    { name: 'First 0123456789', pattern: '0123456789', pos: 17387594880, icon: '🔢', desc: 'All digits in order', section: 'Famous Sequences',
+    { name: 'First 1234', pattern: '1234', pos: 13806, icon: '📈', desc: 'Counting up 1–4', section: 'Consecutive Runs',
       facts: [
-        'The first time all ten digits appear in order (0123456789) in π is at the 17.4 billionth digit. That\'s deep!',
-        'π had to think about it for 17.4 billion digits before counting to 9. Relatable.',
-        '0123456789 in π? It took 17.4 billion digits. π really said "I\'ll do it in my own time."',
-      ] },
-    { name: 'First 123456', pattern: '123456', pos: 2458884, icon: '📈', desc: 'Counting up 1–6', section: 'Consecutive Runs',
-      facts: [
-        'Finding 123456 in π took over 2.4 million digits. Adding just one more digit (1234567) pushes it to 9.5 million!',
-        'π counted to 6 at position 2.4M. For a number that goes on forever, it sure took its time.',
+        'You\'d expect a random 4-digit pattern around position 10,000. 1234 is a little late to the party at 13,807.',
+        '1234 shows up at 13,807. Even π uses basic passwords sometimes.',
       ] },
     { name: 'First 12345', pattern: '12345', pos: 49701, icon: '📈', desc: 'Counting up 1–5', section: 'Consecutive Runs',
       facts: [
         'The counting sequence 12345 first shows up at position 49,702. Earlier than you might expect for a 5-digit string!',
         '12345 at position 49,702. π\'s password game is as weak as yours.',
       ] },
-    { name: 'First 1234', pattern: '1234', pos: 13806, icon: '📈', desc: 'Counting up 1–4', section: 'Consecutive Runs',
+    { name: 'First 123456', pattern: '123456', pos: 2458884, icon: '📈', desc: 'Counting up 1–6', section: 'Consecutive Runs',
       facts: [
-        'You\'d expect a random 4-digit pattern around position 10,000. 1234 is a little late to the party at 13,807.',
-        '1234 shows up at 13,807. Even π uses basic passwords sometimes.',
+        'Finding 123456 in π took over 2.4 million digits. Adding just one more digit (1234567) pushes it to 9.5 million!',
+        'π counted to 6 at position 2.4M. For a number that goes on forever, it sure took its time.',
       ] },
-    { name: 'Seven 3s', pattern: '3333333', pos: 710099, icon: '🔁', desc: 'Seven consecutive 3s', section: 'Repeated Digits',
+    { name: 'First 0123456789', pattern: '0123456789', pos: 17387594880, icon: '🔢', desc: 'All digits in order', section: 'Consecutive Runs',
       facts: [
-        'Seven 3s in a row! The digit 3 is the first digit of π after the decimal, so maybe π is just playing favorites.',
-        'Seven 3s at position 710,100. π really said "3 is my main character."',
+        'The first time all ten digits appear in order (0123456789) in π is at the 17.4 billionth digit. That\'s deep!',
+        'π had to think about it for 17.4 billion digits before counting to 9. Relatable.',
+        '0123456789 in π? It took 17.4 billion digits. π really said "I\'ll do it in my own time."',
+      ] },
+    { name: 'First 00000', pattern: '00000', pos: 17533, icon: '⭕', desc: 'Five consecutive 0s', section: 'Repeated Digits',
+      facts: [
+        'Five zeros in a row at position 17,534. The nothingness within infinity. Oddly poetic for a math constant.',
+        '00000 at position 17,534. π took a five-digit nap.',
+      ] },
+    { name: 'First 11111', pattern: '11111', pos: 32787, icon: '🔁', desc: 'Five consecutive 1s', section: 'Repeated Digits',
+      facts: [
+        'Five 1s in a row appear relatively early. Fun fact: the probability of five consecutive same digits at any point is 1 in 100,000.',
+        '11111 at position 32,788. π was just making sure the 1 key works.',
       ] },
     { name: 'Six 7s', pattern: '777777', pos: 399578, icon: '🎰', desc: 'Six consecutive 7s', section: 'Repeated Digits',
       facts: [
@@ -44,20 +49,10 @@ const UI = (() => {
         'Six 7s — a jackpot in π! If π were a slot machine, this would be the big win at position 399,579.',
         '777777 at position 399,579. Vegas wishes it had these odds.',
       ] },
-    { name: 'First 11111', pattern: '11111', pos: 32787, icon: '🔁', desc: 'Five consecutive 1s', section: 'Repeated Digits',
+    { name: 'Seven 3s', pattern: '3333333', pos: 710099, icon: '🔁', desc: 'Seven consecutive 3s', section: 'Repeated Digits',
       facts: [
-        'Five 1s in a row appear relatively early. Fun fact: the probability of five consecutive same digits at any point is 1 in 100,000.',
-        '11111 at position 32,788. π was just making sure the 1 key works.',
-      ] },
-    { name: 'First 00000', pattern: '00000', pos: 17533, icon: '⭕', desc: 'Five consecutive 0s', section: 'Repeated Digits',
-      facts: [
-        'Five zeros in a row at position 17,534. The nothingness within infinity. Oddly poetic for a math constant.',
-        '00000 at position 17,534. π took a five-digit nap.',
-      ] },
-    { name: '2718 (e)', pattern: '2718', pos: 11705, icon: 'e', desc: 'Euler\'s number in π', section: 'Constants in π',
-      facts: [
-        'π contains the start of e (2.718...) at position 11,706. Two of math\'s most famous constants, forever intertwined.',
-        'e hiding inside π at position 11,706. These two constants are basically besties.',
+        'Seven 3s in a row! The digit 3 is the first digit of π after the decimal, so maybe π is just playing favorites.',
+        'Seven 3s at position 710,100. π really said "3 is my main character."',
       ] },
     { name: '1414 (√2)', pattern: '1414', pos: 1635, icon: '√', desc: '√2 appears in π', section: 'Constants in π',
       facts: [
@@ -68,6 +63,11 @@ const UI = (() => {
       facts: [
         'The golden ratio φ (1.618...) shows up at position 6,004. Nature\'s favorite number, tucked inside the circle constant.',
         'φ inside π at position 6,004. The golden ratio and the circle constant in one place? Math is beautiful.',
+      ] },
+    { name: '2718 (e)', pattern: '2718', pos: 11705, icon: 'e', desc: 'Euler\'s number in π', section: 'Constants in π',
+      facts: [
+        'π contains the start of e (2.718...) at position 11,706. Two of math\'s most famous constants, forever intertwined.',
+        'e hiding inside π at position 11,706. These two constants are basically besties.',
       ] },
   ];
 
@@ -98,15 +98,66 @@ const UI = (() => {
     'π is irrational. It never repeats, never ends.',
   ];
 
+  let _typewriterTimer = null;
+
   function mascotSay(html, duration) {
     const bubble = document.getElementById('mascotBubble');
-    bubble.innerHTML = html;
     bubble.classList.remove('hidden');
-    Sounds.mascotSpeak();
+
+    // Kill any in-progress typewriter
+    if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
     clearTimeout(mascotTimer);
-    if (duration) {
-      mascotTimer = setTimeout(() => bubble.classList.add('hidden'), duration);
+    Sounds.stopBabble();
+
+    // Parse HTML into nodes, then reveal text character by character
+    // We render the full HTML invisibly first to preserve structure,
+    // then reveal characters one at a time
+    bubble.innerHTML = html;
+    const fullHTML = bubble.innerHTML;
+
+    // Collect all text nodes and their content
+    const textNodes = [];
+    function walk(node) {
+      if (node.nodeType === 3) { // text node
+        if (node.textContent.length > 0) textNodes.push(node);
+      } else {
+        for (const child of node.childNodes) walk(child);
+      }
     }
+    walk(bubble);
+
+    // Store original text, blank them all out
+    const originals = textNodes.map(n => n.textContent);
+    textNodes.forEach(n => { n.textContent = ''; });
+
+    let nodeIdx = 0;
+    let charIdx = 0;
+    const speed = 25; // ms per character
+
+    _typewriterTimer = setInterval(() => {
+      if (nodeIdx >= textNodes.length) {
+        clearInterval(_typewriterTimer);
+        _typewriterTimer = null;
+        // Start hide timer after typing finishes
+        if (duration) {
+          mascotTimer = setTimeout(() => bubble.classList.add('hidden'), duration);
+        }
+        return;
+      }
+
+      const orig = originals[nodeIdx];
+      charIdx++;
+      textNodes[nodeIdx].textContent = orig.substring(0, charIdx);
+
+      // Play tick sound for visible characters (skip spaces)
+      const ch = orig[charIdx - 1];
+      if (ch && ch !== ' ') Sounds.typeTick();
+
+      if (charIdx >= orig.length) {
+        nodeIdx++;
+        charIdx = 0;
+      }
+    }, speed);
   }
 
   function mascotHide() {
@@ -153,7 +204,7 @@ const UI = (() => {
 
     // Initial greeting
     setTimeout(() => {
-      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching your name, it's hiding somewhere in here.<br>Explore some famous findings in the panel on the right.<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
+      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching your name, it's hiding somewhere in here.<br>Explore some famous findings in the panel on the left.<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
     }, 1500);
   }
 
@@ -565,7 +616,8 @@ const UI = (() => {
     const matchIdx = document.getElementById('matchIndex');
     const convEl = document.getElementById('searchConversion');
     const encEl = document.getElementById('searchEncoding');
-    const query = input.value.replace(/\s+/g, '').trim();
+    const displayWord = input.value.trim();
+    const query = displayWord.replace(/\s+/g, '');
 
     hideApiBanner();
     Renderer.clearChunkConnectors();
@@ -679,7 +731,7 @@ const UI = (() => {
         const mineBtn = document.getElementById('makeItMineLocal');
         if (mineBtn) {
           mineBtn.addEventListener('click', () => {
-            Shop.captureDesign(query, null, pos);
+            Shop.captureDesign(displayWord, null, pos);
           });
         }
       }, 50);
@@ -696,13 +748,13 @@ const UI = (() => {
         if (digits) {
           const chunks = Search.findChunked(digits, converted.digitQuery);
           if (chunks.length > 1) {
-            showChunkedResults(query, converted, chunks);
+            showChunkedResults(query, converted, chunks, displayWord);
             return;
           }
         }
       }
       if (hasLetters && currentConstant === 'pi') {
-        searchAllEncodings(query);
+        searchAllEncodings(query, displayWord);
       } else if (currentConstant === 'pi' && converted.digitQuery.length >= 4) {
         searchPiApi(query, converted);
       } else {
@@ -726,7 +778,7 @@ const UI = (() => {
   let chunkedPositions = []; // stored for chunk navigation
   let currentChunkIdx = 0;
 
-  function showChunkedResults(query, converted, chunks) {
+  function showChunkedResults(query, converted, chunks, origWord) {
     chunkedPositions = chunks;
     currentChunkIdx = 0;
 
@@ -803,7 +855,7 @@ const UI = (() => {
       const mineBtn = document.getElementById('makeItMineBtn');
       if (mineBtn) {
         mineBtn.addEventListener('click', () => {
-          Shop.captureDesign(word, chunks, -1);
+          Shop.captureDesign(origWord || word, chunks, -1);
         });
       }
     }, 50);
@@ -860,8 +912,9 @@ const UI = (() => {
     return letters.length > 0 ? letters.join('') : '';
   }
 
-  async function searchAllEncodings(query) {
+  async function searchAllEncodings(query, origDisplayWord) {
     const word = query.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    const _displayWord = origDisplayWord || word;
     const modes = ['t9', 'compact', 'alpha26']; // shortest digit strings first
     const banner = document.getElementById('apiResultBanner');
     const icon = document.getElementById('apiResultIcon');
@@ -993,7 +1046,7 @@ const UI = (() => {
         const mineBtn = document.getElementById('makeItMineApi');
         if (mineBtn) {
           mineBtn.addEventListener('click', () => {
-            Shop.captureDesign(_word, null, _bestPos);
+            Shop.captureDesign(_displayWord, null, _bestPos);
           });
         }
         const btn = document.getElementById('tryMultiPart');
@@ -1005,7 +1058,7 @@ const UI = (() => {
             const digs = App.getDigits();
             if (digs) {
               const chunks = Search.findChunked(digs, converted.digitQuery);
-              if (chunks.length > 1) showChunkedResults(query, converted, chunks);
+              if (chunks.length > 1) showChunkedResults(query, converted, chunks, _displayWord);
             }
           });
         }
@@ -1041,7 +1094,7 @@ const UI = (() => {
               const chunks = Search.findChunked(digs, converted.digitQuery);
               if (chunks.length > 1) {
                 banner.classList.add('hidden');
-                showChunkedResults(query, converted, chunks);
+                showChunkedResults(query, converted, chunks, _displayWord);
               }
             }
           });
@@ -1818,6 +1871,16 @@ const UI = (() => {
     const panel = document.getElementById('famousPanel');
     const list = document.getElementById('famousPatterns');
     if (!list) return;
+
+    // Collapsible toggle
+    const toggle = document.getElementById('famousToggle');
+    if (toggle) {
+      // Start collapsed on mobile
+      if (window.innerWidth <= 768) panel.classList.add('collapsed');
+      toggle.addEventListener('click', () => {
+        panel.classList.toggle('collapsed');
+      });
+    }
 
     // Build list content
     let html = '';

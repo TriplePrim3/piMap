@@ -844,7 +844,44 @@ const Renderer = (() => {
     const renderText = cellPxH >= 8;
     const effectiveLen = getEffectiveLength();
     const skipLast = constKey === 'pi' && !isPrinting();
-    for (let cellIdx = 0; cellIdx < effectiveLen; cellIdx++) {
+
+    // Compute visible world-space bounding box
+    const worldLeft = camX - cellPxW / zoom;
+    const worldRight = camX + (w + cellPxW) / zoom;
+    const worldTop = camY - cellPxH / zoom;
+    const worldBottom = camY + (h + cellPxH) / zoom;
+
+    // Determine max visible radius from spiral center (0,0)
+    const corners = [
+      worldLeft * worldLeft + worldTop * worldTop,
+      worldRight * worldRight + worldTop * worldTop,
+      worldLeft * worldLeft + worldBottom * worldBottom,
+      worldRight * worldRight + worldBottom * worldBottom,
+    ];
+    const maxR = Math.sqrt(Math.max(...corners));
+
+    // Spiral params: angle = sqrt(index * 5.5), r = b * angle + offset
+    const spacing = cw * 1.5;
+    const b = spacing / (2 * Math.PI);
+    const offset = cw * 0.6;
+
+    // Max index that could be visible: r = b * sqrt(i * 5.5) + offset <= maxR
+    // sqrt(i * 5.5) <= (maxR - offset) / b => i <= ((maxR - offset) / b)^2 / 5.5
+    const maxAngle = Math.max(0, (maxR - offset) / b);
+    const maxIdx = Math.min(effectiveLen, Math.ceil(maxAngle * maxAngle / 5.5) + 100);
+
+    // Min visible radius (closest point of viewport to origin)
+    let minR = 0;
+    if (worldLeft > 0) minR = Math.max(minR, worldLeft);
+    else if (worldRight < 0) minR = Math.max(minR, -worldRight);
+    if (worldTop > 0) minR = Math.max(minR, worldTop);
+    else if (worldBottom < 0) minR = Math.max(minR, -worldBottom);
+    // If origin is inside viewport, start from 0
+    const originVisible = worldLeft <= 0 && worldRight >= 0 && worldTop <= 0 && worldBottom >= 0;
+    const minAngle = originVisible ? 0 : Math.max(0, (minR - offset) / b);
+    const startIdx = originVisible ? 0 : Math.max(0, Math.floor(minAngle * minAngle / 5.5) - 100);
+
+    for (let cellIdx = startIdx; cellIdx < maxIdx; cellIdx++) {
       if (skipLast && cellIdx === effectiveLen - 1) continue;
       const pos = Layout.getPosition(cellIdx);
       const sx = (pos.x - camX) * zoom;

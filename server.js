@@ -385,8 +385,10 @@ async function handleCheckout(req, res) {
         name: `${item.productLabel} — "${item.word}"`,
         description: `${item.colorName}, ${item.size} | Your Place in π`,
       };
-      // Add design image for Stripe checkout display
-      if (item.designUrls?.front) {
+      // Add mockup image (design on shirt) for Stripe checkout display
+      if (item.mockupUrl) {
+        productData.images = [siteUrl + item.mockupUrl];
+      } else if (item.designUrls?.front) {
         productData.images = [siteUrl + item.designUrls.front];
       }
       return {

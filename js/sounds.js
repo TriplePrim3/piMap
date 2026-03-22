@@ -55,12 +55,28 @@ const Sounds = (() => {
     });
   }
 
-  // Mascot speak — soft pop/chirp
-  function mascotSpeak() {
+  // Typewriter tick — short click per character, slight pitch variation
+  function typeTick() {
     if (muted) return;
-    playTone(880, 0.08, 'sine', 0.1);
-    setTimeout(() => playTone(1100, 0.06, 'sine', 0.08), 50);
+    const ac = getCtx();
+    if (!ac) return;
+    const t = ac.currentTime;
+    const freq = 800 + Math.random() * 400; // 800-1200 Hz — slight variation
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.06, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.start(t);
+    osc.stop(t + 0.035);
   }
+
+  // No-op kept for backward compat — babble replaced by typewriter
+  function mascotSpeak() {}
+  function stopBabble() {}
 
   // Digit print tick — tiny click, pitch varies by digit
   function digitTick(digit) {
@@ -100,5 +116,5 @@ const Sounds = (() => {
     events.forEach(e => document.addEventListener(e, handler, { once: false, capture: true }));
   }
 
-  return { init, isMuted, setMuted, achievement, mascotSpeak, digitTick, cakeClick };
+  return { init, isMuted, setMuted, achievement, mascotSpeak, typeTick, stopBabble, digitTick, cakeClick };
 })();

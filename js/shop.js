@@ -697,7 +697,7 @@ const Shop = (() => {
     ctx.textBaseline = 'middle';
 
     // "Your Place in π"
-    const titleSize = size * 0.042;
+    const titleSize = size * 0.055;
     ctx.font = `300 ${titleSize}px system-ui`;
     const partA = 'Your Place in ';
     const wA = ctx.measureText(partA).width;
@@ -717,12 +717,14 @@ const Shop = (() => {
 
     // Search word underneath
     if (capturedWord) {
-      const wordSize = size * 0.034;
+      const wordSize = size * 0.048;
       ctx.textAlign = 'center';
-      ctx.font = `700 ${wordSize}px system-ui`;
+      ctx.font = `600 ${wordSize}px system-ui`;
+      ctx.letterSpacing = `${size * 0.004}px`;
       ctx.fillStyle = tc;
-      ctx.globalAlpha = 0.75;
-      ctx.fillText(capturedWord, cx, y + size * 0.055);
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(capturedWord, cx, y + size * 0.075);
+      ctx.letterSpacing = '0px';
     }
 
     ctx.globalAlpha = 1;
@@ -1108,6 +1110,11 @@ const Shop = (() => {
     const frontHires = _renderDesign(_getFrontDesignKey(), PRINT_SIZE);
     const backHires = cfg.hasBack ? _renderDesign(_getBackDesignKey(), PRINT_SIZE) : null;
 
+    // Capture the mockup preview (design on shirt) for Stripe checkout image
+    const frameFront = document.getElementById('frameFront');
+    const mockupCanvas = frameFront && frameFront.querySelector('canvas');
+    const mockupImg = mockupCanvas ? mockupCanvas.toDataURL('image/jpeg', 0.85) : null;
+
     cart.push({
       product,
       productLabel: cfg.label,
@@ -1121,6 +1128,7 @@ const Shop = (() => {
       backImg: cfg.hasBack ? designImages[_getBackDesignKey()] : null,
       frontHires,
       backHires,
+      mockupImg,
     });
 
     _renderCart();
@@ -1138,17 +1146,15 @@ const Shop = (() => {
     const checkoutBtn = document.getElementById('shopCheckout');
     if (!cartEl || !itemsEl) return;
 
-    countEl.textContent = cart.length;
-
-    if (cart.length === 0) {
-      cartEl.classList.add('hidden');
-      return;
-    }
-
+    // Always show the cart section
     cartEl.classList.remove('hidden');
-    checkoutBtn.disabled = false;
+    countEl.textContent = cart.length;
+    checkoutBtn.disabled = cart.length === 0;
 
     itemsEl.innerHTML = '';
+    if (cart.length === 0) {
+      itemsEl.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-dim);font-size:13px">Cart is empty</div>';
+    }
     cart.forEach((item, i) => {
       const row = document.createElement('div');
       row.className = 'shop-cart-item';
@@ -1208,6 +1214,20 @@ const Shop = (() => {
           designUrls.back = backData.urls.back;
         }
 
+        // Upload mockup preview (design on shirt) for Stripe checkout display
+        let mockupUrl = null;
+        if (item.mockupImg) {
+          const mockRes = await fetch('/api/upload-design', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, designs: { mockup: item.mockupImg } }),
+          });
+          if (mockRes.ok) {
+            const mockData = await mockRes.json();
+            mockupUrl = mockData.urls.mockup;
+          }
+        }
+
         items.push({
           product: item.product,
           productLabel: item.productLabel,
@@ -1215,6 +1235,7 @@ const Shop = (() => {
           size: item.size,
           colorName: item.colorName,
           designUrls,
+          mockupUrl,
         });
       }
 
@@ -1247,8 +1268,9 @@ const Shop = (() => {
     const status = document.getElementById('shopSearchStatus');
     if (!input || !status) return;
 
-    const raw = input.value.replace(/[^a-zA-Z0-9]/g, '').trim();
-    if (!raw) return;
+    const displayWord = input.value.trim();
+    const searchWord = displayWord.replace(/[^a-zA-Z0-9]/g, '');
+    if (!searchWord) return;
 
     const digits = App.getDigits();
     if (!digits) return;
@@ -1256,11 +1278,10 @@ const Shop = (() => {
     status.classList.remove('hidden');
     status.textContent = 'Searching…';
 
-    const word = raw;
-    const hasLetters = /[a-zA-Z]/.test(word);
+    const hasLetters = /[a-zA-Z]/.test(searchWord);
     const converted = hasLetters
-      ? Search.convertWithMode(word, shopEncoding || 'alpha26')
-      : Search.convertQuery(word);
+      ? Search.convertWithMode(searchWord, shopEncoding || 'alpha26')
+      : Search.convertQuery(searchWord);
     if (!converted.digitQuery) {
       status.textContent = 'Could not encode — try letters or digits.';
       return;
@@ -1269,20 +1290,20 @@ const Shop = (() => {
     // Try direct local search first
     const hits = Search.findPattern(digits, converted.digitQuery);
     if (hits.length > 0) {
-      status.innerHTML = `Found "<b>${word}</b>" at digit #${hits[0].toLocaleString()}`;
-      captureDesign(word, null, hits[0]);
+      status.innerHTML = `Found "<b>${displayWord}</b>" at digit #${hits[0].toLocaleString()}`;
+      captureDesign(displayWord, null, hits[0]);
       return;
     }
 
     // Try multi-part
     const chunks = Search.findChunked(digits, converted.digitQuery);
     if (chunks.length > 1) {
-      status.innerHTML = `Found "<b>${word}</b>" in ${chunks.length} parts (Multi-Part)`;
-      captureDesign(word, chunks, -1);
+      status.innerHTML = `Found "<b>${displayWord}</b>" in ${chunks.length} parts (Multi-Part)`;
+      captureDesign(displayWord, chunks, -1);
       return;
     }
 
-    status.textContent = `"${word}" not found locally — try from the main search for API lookup.`;
+    status.textContent = `"${displayWord}" not found locally — try from the main search for API lookup.`;
   }
 
   // ─── Init ───
