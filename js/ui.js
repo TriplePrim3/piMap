@@ -204,7 +204,11 @@ const UI = (() => {
 
     // Initial greeting
     setTimeout(() => {
-      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching your name, it's hiding somewhere in here.<br>Check out Famous in π in the top bar.<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
+      const isMobile = window.innerWidth <= 768;
+      const famousHint = isMobile
+        ? 'Tap <b>Famous</b> at the bottom to explore!'
+        : 'Check out Famous in π in the top bar.';
+      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching your name, it's hiding somewhere in here.<br>${famousHint}<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
     }, 1500);
   }
 
@@ -447,9 +451,9 @@ const UI = (() => {
   }
 
   function setupMobileDrawer() {
-    const menuBtn = document.getElementById('mobileMenuBtn');
+    const bottomNav = document.getElementById('mobileBottomNav');
     const drawer = document.getElementById('mobileDrawer');
-    if (!menuBtn || !drawer) return;
+    if (!bottomNav || !drawer) return;
 
     const backdrop = drawer.querySelector('.mobile-drawer-backdrop');
     const closeBtn = document.getElementById('mobileDrawerClose');
@@ -458,24 +462,34 @@ const UI = (() => {
     function openDrawer() { drawer.classList.remove('hidden'); }
     function closeDrawer() { drawer.classList.add('hidden'); }
 
-    menuBtn.addEventListener('click', openDrawer);
     closeBtn.addEventListener('click', closeDrawer);
     backdrop.addEventListener('click', closeDrawer);
 
-    // Populate drawer items
+    // Bottom nav bar handles primary actions directly
+    bottomNav.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-action]');
+      if (!item) return;
+      const action = item.dataset.action;
+
+      switch (action) {
+        case 'search':
+          document.body.classList.add('mobile-search-active');
+          setTimeout(() => document.getElementById('searchInput').focus(), 100);
+          break;
+        case 'famous':
+          _showMobileFamous();
+          break;
+        case 'shop':
+          document.getElementById('shopBtn').click();
+          break;
+        case 'more':
+          openDrawer();
+          break;
+      }
+    });
+
+    // Drawer now only has secondary items
     itemsEl.innerHTML = `
-      <button class="mobile-drawer-item" data-action="search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Search
-      </button>
-      <button class="mobile-drawer-item" data-action="shop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-        Shop
-      </button>
-      <button class="mobile-drawer-item" data-action="famous">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>
-        Famous in π
-      </button>
       <button class="mobile-drawer-item" data-action="achievements">
         <span style="font-size:20px">🏆</span>
         Achievements
@@ -504,29 +518,20 @@ const UI = (() => {
       closeDrawer();
 
       switch (action) {
-        case 'search':
-          document.body.classList.add('mobile-search-active');
-          setTimeout(() => document.getElementById('searchInput').focus(), 100);
-          break;
-        case 'shop':
-          document.getElementById('shopBtn').click();
-          break;
-        case 'famous':
-          _showMobileFamous();
-          break;
         case 'achievements':
           document.getElementById('achievementsBtn').click();
           break;
         case 'const-pi':
         case 'const-e':
         case 'const-sqrt2':
-        case 'const-sqrt3':
+        case 'const-sqrt3': {
           const key = action.replace('const-', '');
           App.switchConstant(key);
           document.querySelectorAll('.const-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.constant === key);
           });
           break;
+        }
         case 'settings':
           document.getElementById('panelToggle').click();
           break;
@@ -536,10 +541,11 @@ const UI = (() => {
       }
     });
 
-    // Close mobile search when clicking outside
+    // Close mobile search when clicking outside (ignore clicks on the bottom nav itself)
     document.addEventListener('click', (e) => {
       if (!document.body.classList.contains('mobile-search-active')) return;
       const searchContainer = document.querySelector('.search-container');
+      if (bottomNav.contains(e.target)) return; // don't close when tapping nav
       if (searchContainer && !searchContainer.contains(e.target)) {
         document.body.classList.remove('mobile-search-active');
       }

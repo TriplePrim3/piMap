@@ -1963,25 +1963,47 @@ html, body {
 }
 
 /* === Mobile Responsive === */
-/* === Mobile menu button (hidden on desktop, fixed FAB on mobile) === */
-.mobile-menu-btn {
+/* === Mobile bottom navigation bar (hidden on desktop) === */
+.mobile-bottom-nav {
   display: none;
   position: fixed;
-  bottom: 48px;
-  right: 14px;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
-  background: rgba(18, 18, 42, 0.92);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  padding: 12px;
-  color: var(--text);
-  cursor: pointer;
-  height: 50px;
-  width: 50px;
+  background: rgba(18, 18, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  justify-content: space-around;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-nav-item svg {
+  width: 22px;
+  height: 22px;
+}
+.mobile-nav-item:active,
+.mobile-nav-item.active {
+  color: var(--accent);
+}
+[data-theme="light"] .mobile-bottom-nav {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 /* === Mobile drawer === */
@@ -2091,8 +2113,8 @@ html, body {
     display: none !important;
   }
 
-  /* Show mobile menu button (fixed FAB) */
-  .mobile-menu-btn {
+  /* Show mobile bottom nav */
+  .mobile-bottom-nav {
     display: flex;
   }
 
@@ -2132,24 +2154,50 @@ html, body {
     align-self: center;
   }
 
+  /* Push encoding conversion below the search overlay on mobile */
+  .mobile-search-active .search-conversion,
+  .search-conversion {
+    top: auto;
+    bottom: 68px;
+    z-index: 251;
+    font-size: 13px;
+    padding: 8px 14px;
+    max-width: 92vw;
+  }
+  .search-conversion .conv-mapping {
+    font-size: 13px;
+  }
+
   /* Minimap: hide on mobile */
   #minimapContainer {
     display: none;
   }
 
-  /* Mascot: smaller on mobile */
+  /* Mascot: smaller on mobile, moved to left, above bottom nav */
   .pi-mascot {
-    right: 8px;
-    bottom: 80px;
+    right: auto;
+    left: 8px;
+    bottom: 72px;
     transform: scale(0.6);
-    transform-origin: right bottom;
+    transform-origin: left bottom;
+  }
+  /* Flip speech bubble to point left on mobile */
+  .mascot-bubble {
+    right: auto;
+    left: 82px;
+  }
+  .mascot-bubble::after {
+    right: auto;
+    left: -7px;
+    transform: rotate(-135deg);
   }
 
-  /* Info bar */
+  /* Info bar: push above bottom nav */
   #infoBar {
     font-size: 10px;
     padding: 0 8px;
     gap: 8px;
+    bottom: 52px;
   }
 
   /* Settings dropdown: full width on mobile */
@@ -2166,6 +2214,9 @@ html, body {
   .api-banner {
     left: 8px;
     right: 8px;
+    transform: none;
+    width: auto;
+    bottom: 60px;
   }
 
   /* Shop modal: full screen scrollable on mobile */
