@@ -1969,7 +1969,7 @@ html, body {
     height: auto;
     flex-wrap: wrap;
     padding: 8px 12px;
-    gap: 8px;
+    gap: 6px;
   }
 
   .logo {
@@ -1978,23 +1978,53 @@ html, body {
 
   .constant-selector {
     order: 1;
+    height: 36px;
     padding: 2px;
   }
   .const-btn {
-    padding: 6px 10px;
-    font-size: 14px;
+    padding: 4px 8px;
+    font-size: 13px;
+    height: 30px;
   }
   .constant-selector .panel-toggle {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
 
+  /* Right group: shrink to fit on same row as logo */
+  .topbar-right {
+    order: 2;
+    gap: 4px;
+  }
+  .famous-panel-header {
+    height: 36px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  .achievements-btn {
+    height: 36px;
+    padding: 6px 8px;
+  }
+  .shop-open-btn {
+    height: 36px;
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+  .shop-open-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Search: full width on its own row */
   .search-container {
     position: relative;
     left: auto;
     transform: none;
-    order: 2;
+    order: 3;
     width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
   .search-box {
     min-width: 0;
@@ -2005,46 +2035,39 @@ html, body {
     font-size: 14px;
   }
 
-  /* Top bar right group: tighter on mobile */
-  .topbar-right {
-    gap: 6px;
+  /* Encoding pills: wrap and don't overlap search */
+  .search-encoding {
+    flex-wrap: wrap;
+    gap: 2px;
+    width: 100%;
   }
-  .shop-open-btn {
-    padding: 8px 14px;
-    font-size: 13px;
-    border-radius: 12px;
-  }
-  .shop-open-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-  .achievements-btn {
-    padding: 6px 10px;
+  .enc-pill span {
+    font-size: 11px;
+    padding: 4px 8px;
   }
 
   /* Famous panel: dropdown goes full width on mobile */
   .famous-panel .famous-list {
-    left: -12px;
-    right: -12px;
-    width: calc(100vw - 24px);
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    top: auto;
+    width: auto;
     max-height: 50vh;
+    z-index: 100;
   }
 
-  /* Minimap: smaller */
+  /* Minimap: hide on mobile */
   #minimapContainer {
-    width: 160px;
-    height: 110px;
-    bottom: 36px;
-    right: 8px;
-    display: none; /* hide on mobile — too cluttered */
+    display: none;
   }
 
   /* Mascot: smaller on mobile */
   .pi-mascot {
     right: 8px;
-    bottom: 180px;
-    transform: scale(0.7);
-    transform-origin: right center;
+    bottom: 80px;
+    transform: scale(0.6);
+    transform-origin: right bottom;
   }
 
   /* Info bar */
@@ -2067,15 +2090,26 @@ html, body {
     right: 8px;
   }
 
-  /* Shop modal: full screen on mobile */
+  /* Shop modal: full screen scrollable on mobile */
+  .shop-modal {
+    align-items: flex-start;
+    padding: 12px 0;
+  }
   .shop-modal-content {
-    width: 95vw;
-    max-height: 90vh;
+    width: 100vw;
+    max-height: none;
+    min-height: 100vh;
+    border-radius: 0;
     padding: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .shop-frames {
     flex-direction: column;
     gap: 8px;
+  }
+  .shop-price-tag {
+    font-size: 18px;
   }
 
   /* Achievements panel */
@@ -2088,7 +2122,7 @@ html, body {
 
 @media (max-width: 480px) {
   .logo-text {
-    display: none; /* Just show the π icon on very small screens */
+    display: none;
   }
   .logo-symbol {
     font-size: 22px;
@@ -2098,9 +2132,16 @@ html, body {
     gap: 8px;
   }
   .shop-open-btn span {
-    display: none; /* icon-only shop button on tiny screens */
+    display: none;
   }
   .shop-open-btn {
-    padding: 10px;
+    padding: 8px;
+  }
+  .famous-panel-header span {
+    display: none;
+  }
+  .famous-panel-header {
+    padding: 6px 8px;
+    gap: 4px;
   }
 }
