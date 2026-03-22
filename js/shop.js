@@ -181,7 +181,9 @@ const Shop = (() => {
     else if (type === 'pimark') _renderPiMark(ctx, size);
 
     _drawPrintText(ctx, size, type);
-    return canvas.toDataURL('image/png');
+    return size >= PRINT_SIZE
+      ? canvas.toDataURL('image/jpeg', 0.92)
+      : canvas.toDataURL('image/png');
   }
 
   function _getSpiralTransform(size) {
@@ -1177,21 +1179,34 @@ const Shop = (() => {
     }
 
     try {
-      // 1. Upload high-res designs for each cart item
+      // 1. Upload high-res designs for each cart item (one file at a time)
       const items = [];
       for (let i = 0; i < cart.length; i++) {
         const item = cart[i];
         const orderId = `order_${Date.now()}_${i}`;
-        const designs = { front: item.frontHires };
-        if (item.backHires) designs.back = item.backHires;
+        const designUrls = {};
 
-        const uploadRes = await fetch('/api/upload-design', {
+        // Upload front
+        const frontRes = await fetch('/api/upload-design', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, designs }),
+          body: JSON.stringify({ orderId, designs: { front: item.frontHires } }),
         });
-        const uploadData = await uploadRes.json();
-        if (!uploadRes.ok) throw new Error(uploadData.error || 'Upload failed');
+        if (!frontRes.ok) throw new Error('Front design upload failed');
+        const frontData = await frontRes.json();
+        designUrls.front = frontData.urls.front;
+
+        // Upload back if exists
+        if (item.backHires) {
+          const backRes = await fetch('/api/upload-design', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, designs: { back: item.backHires } }),
+          });
+          if (!backRes.ok) throw new Error('Back design upload failed');
+          const backData = await backRes.json();
+          designUrls.back = backData.urls.back;
+        }
 
         items.push({
           product: item.product,
@@ -1199,7 +1214,7 @@ const Shop = (() => {
           word: item.word,
           size: item.size,
           colorName: item.colorName,
-          designUrls: uploadData.urls,
+          designUrls,
         });
       }
 

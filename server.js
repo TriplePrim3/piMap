@@ -318,10 +318,15 @@ function handlePiSearch(query, pairAligned, res) {
 
 // ─── Read POST body ───
 
-function readBody(req) {
+function readBody(req, maxSize = 50 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on('data', c => chunks.push(c));
+    let size = 0;
+    req.on('data', c => {
+      size += c.length;
+      if (size > maxSize) { req.destroy(); reject(new Error('Body too large')); return; }
+      chunks.push(c);
+    });
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
@@ -347,7 +352,8 @@ function handleUploadDesign(req, res) {
     const urls = {};
     for (const [key, dataUrl] of Object.entries(designs)) {
       const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
-      const fileName = `${orderId}_${key}.png`;
+      const ext = dataUrl.startsWith('data:image/jpeg') ? 'jpg' : 'png';
+      const fileName = `${orderId}_${key}.${ext}`;
       fs.writeFileSync(path.join(DESIGNS_DIR, fileName), base64, 'base64');
       urls[key] = `/uploads/designs/${fileName}`;
     }
@@ -372,19 +378,26 @@ async function handleCheckout(req, res) {
       return jsonResponse(res, 400, { error: 'No items' });
     }
 
-    const lineItems = items.map(item => ({
-      price_data: {
-        currency: 'usd',
-        product_data: {
-          name: `${item.productLabel} — "${item.word}"`,
-          description: `${item.colorName}, ${item.size} | Custom Pi design`,
-        },
-        unit_amount: PRICE_CENTS,
-      },
-      quantity: 1,
-    }));
-
     const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
+
+    const lineItems = items.map(item => {
+      const productData = {
+        name: `${item.productLabel} — "${item.word}"`,
+        description: `${item.colorName}, ${item.size} | Your Place in π`,
+      };
+      // Add design image for Stripe checkout display
+      if (item.designUrls?.front) {
+        productData.images = [siteUrl + item.designUrls.front];
+      }
+      return {
+        price_data: {
+          currency: 'usd',
+          product_data: productData,
+          unit_amount: PRICE_CENTS,
+        },
+        quantity: 1,
+      };
+    });
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
