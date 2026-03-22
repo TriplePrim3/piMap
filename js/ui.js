@@ -248,6 +248,8 @@ const UI = (() => {
     { id: 'thats_deep', icon: '🌊', name: "That's Deep", desc: 'Found something beyond 1 million digits' },
     { id: 'far_out', icon: '🛸', name: 'Far Out, Man', desc: 'Searched beyond a billion digits into π' },
     { id: 'both_sides', icon: '🌗', name: 'Both Sides of π', desc: 'Toggled between light and dark mode' },
+    { id: 'shopaholic', icon: '🛍️', name: 'Shopaholic', desc: 'Added something to the cart' },
+    { id: 'pi_owner', icon: '👕', name: 'Pi Owner', desc: 'Bought your place in π' },
   ];
 
   let unlockedSet = new Set(JSON.parse(localStorage.getItem('pimap_achievements') || '[]'));
@@ -325,15 +327,27 @@ const UI = (() => {
         <span class="ach-check">✓</span>
       </div>`;
     }
+    // Some achievements are shown even when locked (visible hints)
+    const VISIBLE_LOCKED = new Set(['shopaholic', 'pi_owner']);
     if (locked.length > 0) {
-      for (let i = 0; i < locked.length; i++) {
-        html += `<div class="achievement-item locked">
-          <span class="ach-icon">❓</span>
-          <div class="ach-info">
-            <div class="ach-name">???</div>
-            <div class="ach-desc">Keep exploring to unlock</div>
-          </div>
-        </div>`;
+      for (const ach of locked) {
+        if (VISIBLE_LOCKED.has(ach.id)) {
+          html += `<div class="achievement-item locked">
+            <span class="ach-icon">${ach.icon}</span>
+            <div class="ach-info">
+              <div class="ach-name">${ach.name}</div>
+              <div class="ach-desc">${ach.desc}</div>
+            </div>
+          </div>`;
+        } else {
+          html += `<div class="achievement-item locked">
+            <span class="ach-icon">❓</span>
+            <div class="ach-info">
+              <div class="ach-name">???</div>
+              <div class="ach-desc">Keep exploring to unlock</div>
+            </div>
+          </div>`;
+        }
       }
     }
     list.innerHTML = html;
@@ -371,6 +385,7 @@ const UI = (() => {
     setupMascot();
     setupAchievements();
     Sounds.init();
+    Shop.init();
     setupMuteButton();
 
     document.getElementById('apiResultClose').addEventListener('click', hideApiBanner);
@@ -652,12 +667,21 @@ const UI = (() => {
       navigateToMatch(results[0], digitPatternLen);
       const pos = results[0];
       const count = results.length;
+      const makeBtn = `<br><button class="mascot-action-btn" id="makeItMineLocal">Wear it</button>`;
       if (converted.mode === 'digits') {
-        mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}`, 5000);
+        mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
       } else {
         const encLabel = converted.mode === 't9' ? 'T9' : converted.mode === 'compact' ? 'Compact' : 'Alpha-26';
-        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${query}</b>" as ${encLabel} (<b>${converted.digitQuery}</b>) appears <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First at ${_posWords(pos)}. ${_posReaction(pos)}`, 5000);
+        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${query}</b>" as ${encLabel} (<b>${converted.digitQuery}</b>) appears <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First at ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
       }
+      setTimeout(() => {
+        const mineBtn = document.getElementById('makeItMineLocal');
+        if (mineBtn) {
+          mineBtn.addEventListener('click', () => {
+            Shop.captureDesign(query, null, pos);
+          });
+        }
+      }, 50);
     } else {
       badge.classList.add('hidden');
       nav.classList.add('hidden');
@@ -757,11 +781,12 @@ const UI = (() => {
     mascotSay(
       `<div class="bubble-title">Found in ${chunks.length} parts!</div>`
       + `"<b>${word}</b>" is too long to find in one go, but I found it in parts:<br>`
-      + chunkHtml,
+      + chunkHtml
+      + `<br><button class="mascot-action-btn" id="makeItMineBtn">Wear it</button>`,
       0
     );
 
-    // Make chunk lines clickable
+    // Make chunk lines and "Wear it" clickable
     setTimeout(() => {
       const bubble = document.getElementById('mascotBubble');
       bubble.querySelectorAll('[data-chunk]').forEach(el => {
@@ -772,6 +797,12 @@ const UI = (() => {
           matchIdx.textContent = `${idx + 1}/${chunks.length}`;
         });
       });
+      const mineBtn = document.getElementById('makeItMineBtn');
+      if (mineBtn) {
+        mineBtn.addEventListener('click', () => {
+          Shop.captureDesign(word, chunks, -1);
+        });
+      }
     }, 50);
 
     // Override next/prev for chunk navigation
@@ -933,21 +964,35 @@ const UI = (() => {
 
       // Offer multi-part as a clickable option
       const digits = App.getDigits();
+      let _apiChunks = null;
       if (digits) {
         const converted = Search.convertQuery(query);
-        const chunks = Search.findChunked(digits, converted.digitQuery);
-        if (chunks.length > 1) {
-          mascotHtml += `<br><br>I can also find it in <b>${chunks.length} parts</b> locally!`
+        _apiChunks = Search.findChunked(digits, converted.digitQuery);
+        if (_apiChunks.length > 1) {
+          mascotHtml += `<br><br>I can also find it in <b>${_apiChunks.length} parts</b> locally!`
             + `<br><button class="mascot-action-btn" id="tryMultiPart">Try Multi-Part</button>`;
         }
+      }
+
+      // "Wear it" for single result
+      if (best) {
+        mascotHtml += `<br><button class="mascot-action-btn" id="makeItMineApi" style="margin-left:4px">Wear it</button>`;
       }
 
       mascotSay(mascotHtml, 0);
       showApiContextPanelMulti(found, notFound, word);
       if (best) Minimap.setApiMarker(best.pos, word);
 
-      // Wire up the multi-part button if present
+      // Wire up buttons
+      const _bestPos = best ? best.pos : -1;
+      const _word = word;
       setTimeout(() => {
+        const mineBtn = document.getElementById('makeItMineApi');
+        if (mineBtn) {
+          mineBtn.addEventListener('click', () => {
+            Shop.captureDesign(_word, null, _bestPos);
+          });
+        }
         const btn = document.getElementById('tryMultiPart');
         if (btn) {
           btn.addEventListener('click', () => {
@@ -1856,5 +1901,5 @@ const UI = (() => {
     panel.addEventListener('mousedown', (e) => e.stopPropagation());
   }
 
-  return { init, updateInfoBar };
+  return { init, updateInfoBar, unlock };
 })();

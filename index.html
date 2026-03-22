@@ -51,7 +51,7 @@
           <circle cx="11" cy="11" r="8"/>
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
-        <input type="text" id="searchInput" placeholder="Search digits, words, or #N to go to digit..." autocomplete="off" maxlength="16" title="Type digits to search, letters to encode, or #100 to jump to the 100th digit">
+        <input type="text" id="searchInput" placeholder="Search digits, words, or #N to go to digit..." autocomplete="off" maxlength="20" title="Type digits to search, letters to encode, or #100 to jump to the 100th digit">
         <span id="searchResults" class="search-results-badge hidden"></span>
       </div>
       <div id="searchEncoding" class="search-encoding hidden">
@@ -190,10 +190,104 @@
     </div>
     <div id="achievementsList" class="achievements-list"></div>
   </div>
-  <button id="achievementsBtn" class="achievements-btn" title="Achievements">
-    <span class="achievements-icon">🏆</span>
-    <span id="achievementsCount" class="achievements-count">0</span>
-  </button>
+  <div class="bottom-left-btns">
+    <button id="shopBtn" class="shop-open-btn" title="Shop — Your Place in π">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+      <span>Shop</span>
+    </button>
+    <button id="achievementsBtn" class="achievements-btn" title="Achievements">
+      <span class="achievements-icon">🏆</span>
+      <span id="achievementsCount" class="achievements-count">0</span>
+    </button>
+  </div>
+
+  <!-- Shop Modal -->
+  <div id="shopModal" class="shop-modal hidden">
+    <div class="shop-modal-content">
+      <button id="shopModalClose" class="shop-close">&times;</button>
+      <h2 class="shop-title">Your Place in π</h2>
+      <p class="shop-subtitle">Your unique position in π — wear it.</p>
+
+      <!-- In-shop search -->
+      <div class="shop-search">
+        <input type="text" id="shopSearchInput" class="shop-search-input" placeholder="Type a name or word…" maxlength="20" autocomplete="off">
+        <button id="shopSearchBtn" class="shop-search-btn">Generate</button>
+      </div>
+      <div id="shopSearchStatus" class="shop-search-status hidden"></div>
+
+      <!-- Product picker -->
+      <div class="shop-control-group" style="margin-bottom:12px">
+        <span class="shop-label">Product</span>
+        <div id="productPicker" class="shop-pill-row"></div>
+      </div>
+
+      <!-- Front / Back mockup frames -->
+      <div class="shop-frames">
+        <div class="shop-frame">
+          <div class="shop-frame-label" id="frameLabelLeft">FRONT</div>
+          <div class="shop-frame-canvas" id="frameFront"></div>
+        </div>
+        <div class="shop-frame" id="shopFrameBack">
+          <div class="shop-frame-label" id="frameLabelRight">BACK</div>
+          <div class="shop-frame-canvas" id="frameBack"></div>
+        </div>
+      </div>
+
+      <!-- Pi vicinity strip -->
+      <div id="piVicinityStrip" class="pi-vicinity-strip hidden"></div>
+
+      <!-- Controls row -->
+      <div class="shop-controls">
+        <!-- Back design selector (t-shirt) -->
+        <div class="shop-control-group" id="backDesignGroup">
+          <span class="shop-label">Back</span>
+          <div id="backDesignPicker" class="shop-pill-row"></div>
+        </div>
+        <!-- Cap design selector -->
+        <div class="shop-control-group hidden" id="capDesignGroup">
+          <span class="shop-label">Design</span>
+          <div id="capDesignPicker" class="shop-pill-row"></div>
+        </div>
+        <!-- Flip (t-shirt only) -->
+        <button id="shopFlip" class="shop-flip-btn" title="Swap front and back designs">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+          <span>Flip</span>
+        </button>
+        <!-- Color -->
+        <div class="shop-control-group">
+          <span class="shop-label">Color</span>
+          <div id="shirtColorPicker" class="shop-color-row"></div>
+        </div>
+        <!-- Size -->
+        <div class="shop-control-group">
+          <span class="shop-label">Size</span>
+          <div id="sizePicker" class="shop-pill-row"></div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="shop-actions">
+        <button id="shopDownload" class="shop-btn shop-btn-secondary">Download PNG</button>
+        <button id="shopAddCart" class="shop-btn shop-btn-primary">Add to Cart</button>
+      </div>
+
+      <!-- Cart -->
+      <div id="shopCart" class="shop-cart hidden">
+        <div class="shop-cart-header">
+          <span class="shop-label">Cart</span>
+          <span id="cartCount" class="shop-cart-count">0</span>
+        </div>
+        <div id="cartItems" class="shop-cart-items"></div>
+        <button id="shopCheckout" class="shop-btn shop-btn-primary shop-checkout-btn" disabled>
+          Checkout — Coming Soon
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Digit Tooltip -->
   <div id="digitTooltip" class="digit-tooltip hidden"></div>
@@ -216,8 +310,9 @@
   <script src="js/particles.js?v=17"></script>
   <script src="js/sounds.js?v=17"></script>
   <script src="js/renderer.js?v=17"></script>
-  <script src="js/minimap.js?v=17"></script>
-  <script src="js/ui.js?v=17"></script>
+  <script src="js/minimap.js?v=18"></script>
+  <script src="js/shop.js?v=19"></script>
+  <script src="js/ui.js?v=19"></script>
   <script src="js/app.js?v=17"></script>
 </body>
 </html>
