@@ -2,7 +2,18 @@ const Shop = (() => {
   const PRINT_SIZE = 3000;
   const PREVIEW_SIZE = 500;
   const FONT = '"Cascadia Code", "Fira Code", Consolas, monospace';
-  const VIBGYOR = ['#9400D3','#4B0082','#0000FF','#00AA00','#FFD700','#FF8C00','#FF0000'];
+
+  // ── Color palettes for polygon / heatmap ──
+  const PALETTES = {
+    vibgyor:   { name: 'VIBGYOR',    colors: ['#9400D3','#4B0082','#0000FF','#00AA00','#FFD700','#FF8C00','#FF0000'] },
+    neon:      { name: 'Neon',       colors: ['#FF00FF','#00FFFF','#39FF14','#FFFF00','#FF6EC7','#7DF9FF','#FF3131'] },
+    ocean:     { name: 'Ocean',      colors: ['#0A2463','#1E6091','#168AAD','#34A0A4','#52B69A','#76C893','#99D98C'] },
+    fire:      { name: 'Fire',       colors: ['#590D22','#800F2F','#A4133C','#C9184A','#FF4D6D','#FF758F','#FFB3C1'] },
+    mono:      { name: 'Mono',       colors: ['#FFFFFF','#D4D4D4','#A3A3A3','#737373','#525252','#404040','#262626'] },
+    gold:      { name: 'Gold',       colors: ['#FFD700','#FFC300','#FFB000','#FF9500','#FF7B00','#FF6000','#FF4500'] },
+    aurora:    { name: 'Aurora',     colors: ['#00F5D4','#00BBF9','#9B5DE5','#F15BB5','#FEE440','#00F5D4','#00BBF9'] },
+  };
+  let selectedPalette = 'vibgyor';
 
   // ── Product configs ──
 
@@ -50,8 +61,56 @@ const Shop = (() => {
   let selectedSize = 'M';       // default size
   let designImages = {};        // { polygon, heatmap, pimark }
   let cart = [];                // [ { product, word, color, ... } ]
+  let shopEncoding = '';        // current encoding for shop designs: 'alpha26' | 'compact' | 't9' | 'digits'
 
   // ─── Public entry ───
+
+  function _reRenderDesigns() {
+    const designs = ['polygon', 'pimark', 'heatmap'];
+    for (const d of designs) {
+      try { designImages[d] = _renderDesign(d, PREVIEW_SIZE); } catch (e) { console.error(e); }
+    }
+    _renderPreview();
+  }
+
+  function _recomputeForEncoding(mode) {
+    const digits = App.getDigits();
+    if (!digits || !capturedWord) return;
+
+    shopEncoding = mode;
+    const conv = Search.convertWithMode(capturedWord, mode);
+    if (!conv.digitQuery) return;
+
+    // Try single match first
+    const hits = Search.findPattern(digits, conv.digitQuery);
+    if (hits.length > 0) {
+      capturedChunks = null;
+      capturedSinglePos = hits[0];
+    } else {
+      // Fall back to chunked search
+      const chunks = Search.findChunked(digits, conv.digitQuery);
+      if (chunks.length > 1) {
+        capturedChunks = chunks;
+        capturedSinglePos = -1;
+      } else if (chunks.length === 1) {
+        capturedChunks = null;
+        capturedSinglePos = chunks[0].pos;
+      }
+    }
+
+    // Re-render all designs
+    designImages = {};
+    const designs = ['polygon', 'pimark', 'heatmap'];
+    let i = 0;
+    function renderNext() {
+      if (i >= designs.length) return;
+      const d = designs[i++];
+      try { designImages[d] = _renderDesign(d, PREVIEW_SIZE); } catch (e) { console.error(e); }
+      _renderPreview();
+      if (i < designs.length) setTimeout(renderNext, 0);
+    }
+    setTimeout(renderNext, 0);
+  }
 
   function captureDesign(word, chunks, singlePos) {
     capturedWord = (word || '').toUpperCase().replace(/\s+/g, '');
@@ -63,6 +122,8 @@ const Shop = (() => {
     colorIdx = 0;
     selectedSize = 'M';
     designImages = {};
+    // Detect encoding from current search state
+    shopEncoding = Search.getTextEncoding() || 'alpha26';
 
     // Pre-fill search input
     const input = document.getElementById('shopSearchInput');
@@ -176,7 +237,7 @@ const Shop = (() => {
       chunkPts.push({
         sx: pos.x * t.scale + t.offX + t.cw * t.scale / 2,
         sy: pos.y * t.scale + t.offY + t.ch * t.scale / 2,
-        color: _vibgyorColor(i, n),
+        color: _paletteColor(i, n),
         chunk,
         idx: i,
       });
@@ -294,9 +355,17 @@ const Shop = (() => {
 
     const matchPositions = [];
     const query = capturedWord;
-    const modes = ['t9', 'compact', 'alpha26'];
-    for (const mode of modes) {
-      const conv = Search.convertWithMode(query, mode);
+    const hasLetters = /[a-zA-Z]/.test(query);
+    if (hasLetters) {
+      // Use selected encoding for the heat map
+      const enc = shopEncoding || 'alpha26';
+      const conv = Search.convertWithMode(query, enc);
+      if (conv.digitQuery) {
+        const hits = Search.findPattern(digits, conv.digitQuery);
+        for (const h of hits) matchPositions.push(h);
+      }
+    } else {
+      const conv = Search.convertQuery(query);
       if (conv.digitQuery) {
         const hits = Search.findPattern(digits, conv.digitQuery);
         for (const h of hits) matchPositions.push(h);
@@ -346,25 +415,27 @@ const Shop = (() => {
     }
     if (maxHeat <= 0) return;
 
+    // Build heat color ramp from active palette
+    const pal = _getActivePalette();
+    function _heatColor(v) {
+      const t2 = v * (pal.length - 1);
+      const lo = Math.floor(t2);
+      const hi = Math.min(lo + 1, pal.length - 1);
+      const f = t2 - lo;
+      const parse = hex => [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+      const a = parse(pal[lo]), b = parse(pal[hi]);
+      const r = Math.round(a[0] + (b[0]-a[0])*f);
+      const g = Math.round(a[1] + (b[1]-a[1])*f);
+      const bl = Math.round(a[2] + (b[2]-a[2])*f);
+      return `rgba(${r},${g},${bl},${Math.min(0.55, v * 0.6)})`;
+    }
+
     const cellW = size / gridRes;
     for (let gy = 0; gy < gridRes; gy++) {
       for (let gx = 0; gx < gridRes; gx++) {
         const v = heat[gy * gridRes + gx] / maxHeat;
         if (v < 0.01) continue;
-
-        let r, g, b;
-        if (v < 0.33) {
-          const t2 = v / 0.33;
-          r = 0; g = Math.floor(100 * t2); b = Math.floor(200 + 55 * t2);
-        } else if (v < 0.66) {
-          const t2 = (v - 0.33) / 0.33;
-          r = Math.floor(255 * t2); g = Math.floor(100 + 155 * t2); b = Math.floor(255 * (1 - t2));
-        } else {
-          const t2 = (v - 0.66) / 0.34;
-          r = 255; g = Math.floor(255 * (1 - t2 * 0.7)); b = 0;
-        }
-
-        ctx.fillStyle = `rgba(${r},${g},${b},${Math.min(0.55, v * 0.6)})`;
+        ctx.fillStyle = _heatColor(v);
         ctx.fillRect(gx * cellW, gy * cellW, cellW + 0.5, cellW + 0.5);
       }
     }
@@ -441,7 +512,10 @@ const Shop = (() => {
         for (let d = 0; d < c.digitStr.length; d++) matchSet.add(c.pos + d);
       }
     } else if (capturedSinglePos >= 0) {
-      const converted = Search.convertQuery(capturedWord);
+      const hasLetters = /[a-zA-Z]/.test(capturedWord);
+      const converted = hasLetters
+        ? Search.convertWithMode(capturedWord, shopEncoding || 'alpha26')
+        : Search.convertQuery(capturedWord);
       const patLen = converted.digitQuery ? converted.digitQuery.length : capturedWord.length;
       for (let d = 0; d < patLen; d++) matchSet.add(capturedSinglePos + d);
     }
@@ -460,8 +534,11 @@ const Shop = (() => {
     if (capturedChunks && capturedChunks.length > 0) {
       for (const c of capturedChunks) segments.push({ pos: c.pos, len: c.digitStr.length });
     } else if (capturedSinglePos >= 0 && capturedSinglePos < digits.length) {
-      const converted = Search.convertQuery(capturedWord);
-      const patLen = converted.digitQuery ? converted.digitQuery.length : capturedWord.length;
+      const hasLetters2 = /[a-zA-Z]/.test(capturedWord);
+      const converted2 = hasLetters2
+        ? Search.convertWithMode(capturedWord, shopEncoding || 'alpha26')
+        : Search.convertQuery(capturedWord);
+      const patLen = converted2.digitQuery ? converted2.digitQuery.length : capturedWord.length;
       segments.push({ pos: capturedSinglePos, len: patLen });
     }
 
@@ -553,7 +630,8 @@ const Shop = (() => {
         }
 
         if (s.hl) {
-          ctx.fillStyle = '#ff6b9d';
+          const pal = _getActivePalette();
+          ctx.fillStyle = pal[pal.length - 1];
           ctx.globalAlpha = 1;
         } else if (s.dim) {
           ctx.fillStyle = s.color;
@@ -571,9 +649,14 @@ const Shop = (() => {
 
   // ─── Shared helpers ───
 
-  function _vibgyorColor(i, total) {
-    const idx = total <= 1 ? 0 : Math.round(i * (VIBGYOR.length - 1) / (total - 1));
-    return VIBGYOR[Math.min(idx, VIBGYOR.length - 1)];
+  function _getActivePalette() {
+    return PALETTES[selectedPalette]?.colors || PALETTES.vibgyor.colors;
+  }
+
+  function _paletteColor(i, total) {
+    const pal = _getActivePalette();
+    const idx = total <= 1 ? 0 : Math.round(i * (pal.length - 1) / (total - 1));
+    return pal[Math.min(idx, pal.length - 1)];
   }
 
   function _hexToRgba(hex, a) {
@@ -663,7 +746,8 @@ const Shop = (() => {
         } else if (si < seq.length) {
           const s = seq[si++];
           if (s.hl) {
-            gridHtml += `<span class="vic-highlight">${s.ch}</span>`;
+            const pal = _getActivePalette();
+            gridHtml += `<span class="vic-highlight" style="color:${pal[pal.length - 1]}">${s.ch}</span>`;
           } else if (s.sep) {
             gridHtml += `<span style="color:${s.color}">${s.ch}</span>`;
           } else if (s.dim) {
@@ -687,7 +771,8 @@ const Shop = (() => {
       for (let i = 0; i < capturedChunks.length; i++) {
         const c = capturedChunks[i];
         const letter = String.fromCharCode(65 + i);
-        info += `<span class="vic-part">Part ${letter}: digit <b>#${c.pos.toLocaleString()}</b> → <span class="vic-highlight">${c.digitStr}</span></span>`;
+        const partColor = _paletteColor(i, capturedChunks.length);
+        info += `<span class="vic-part">Part ${letter}: digit <b>#${c.pos.toLocaleString()}</b> → <span style="color:${partColor};font-weight:700">${c.digitStr}</span></span>`;
       }
       info += '</div>';
     } else if (capturedSinglePos >= 0) {
@@ -704,12 +789,14 @@ const Shop = (() => {
   function _getProductConfig() { return PRODUCTS[product]; }
   function _getColor() { return _getProductConfig().colors[colorIdx]; }
 
+  // Cache loaded mockup images to avoid reloading on every preview update
+  const _mockupCache = {};
+
   function _compositeFrame(container, cropRegion, printZone, designDataUrl, colorObj) {
     const col = colorObj || _getColor();
-    // Use color-specific crop if available (e.g. cap black vs white from same image)
     const crop = col.cropOverride || cropRegion;
-    const img = new Image();
-    img.onload = () => {
+
+    function _doComposite(img) {
       const srcX = crop.x * img.width;
       const srcY = crop.y * img.height;
       const srcW = crop.w * img.width;
@@ -723,44 +810,33 @@ const Shop = (() => {
       canvas.height = outH;
       const ctx = canvas.getContext('2d');
 
-      // Draw mockup photo
       ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
 
-      // Composite design
       if (!designDataUrl) {
-        container.innerHTML = '';
         canvas.className = 'mockup-canvas';
+        container.innerHTML = '';
         container.appendChild(canvas);
-
         return;
       }
 
       const dImg = new Image();
       dImg.onload = () => {
-        const pz = printZone;
-        const px = pz.x * outW;
-        const py = pz.y * outH;
-        const pw = pz.w * outW;
-        const ph = pz.h * outH;
+        const px = printZone.x * outW;
+        const py = printZone.y * outH;
+        const pw = printZone.w * outW;
+        const ph = printZone.h * outH;
 
-        const isDark = col.dark;
-        if (isDark) {
-          // Screen blend for dark fabrics — light design on dark shirt
+        if (col.dark) {
           ctx.globalCompositeOperation = 'screen';
           ctx.globalAlpha = 0.9;
           ctx.drawImage(dImg, px, py, pw, ph);
-
-          // Normal overlay for sharpness
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 0.25;
           ctx.drawImage(dImg, px, py, pw, ph);
         } else {
-          // Multiply blend for light fabrics
           ctx.globalCompositeOperation = 'multiply';
           ctx.globalAlpha = 1;
           ctx.drawImage(dImg, px, py, pw, ph);
-
-          // Normal overlay for vibrancy and sharpness
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 0.55;
           ctx.drawImage(dImg, px, py, pw, ph);
@@ -769,14 +845,25 @@ const Shop = (() => {
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
 
-        container.innerHTML = '';
+        // Swap in the finished canvas without flashing
         canvas.className = 'mockup-canvas';
+        container.innerHTML = '';
         container.appendChild(canvas);
-
       };
       dImg.src = designDataUrl;
-    };
-    img.src = col.src;
+    }
+
+    // Use cached mockup image if available
+    if (_mockupCache[col.src]) {
+      _doComposite(_mockupCache[col.src]);
+    } else {
+      const img = new Image();
+      img.onload = () => {
+        _mockupCache[col.src] = img;
+        _doComposite(img);
+      };
+      img.src = col.src;
+    }
   }
 
   // ─── Preview Modal ───
@@ -826,15 +913,12 @@ const Shop = (() => {
     }
 
     // Show/hide back frame & tshirt-only controls
-    const flipBtn = document.getElementById('shopFlip');
     const backDesignGroup = document.getElementById('backDesignGroup');
     if (cfg.hasBack) {
       if (backFrame) backFrame.classList.remove('hidden');
-      if (flipBtn) flipBtn.classList.remove('hidden');
       if (backDesignGroup) backDesignGroup.classList.remove('hidden');
     } else {
       if (backFrame) backFrame.classList.add('hidden');
-      if (flipBtn) flipBtn.classList.add('hidden');
       if (backDesignGroup) backDesignGroup.classList.add('hidden');
     }
 
@@ -846,15 +930,11 @@ const Shop = (() => {
       labelLeft.textContent = 'FRONT';
       labelRight.textContent = 'BACK';
 
-      frameFront.innerHTML = '<div class="mockup-loading">Loading...</div>';
       _compositeFrame(frameFront, cfg.frontCrop, cfg.frontPrint, designImages[frontDesign]);
-
-      frameBack.innerHTML = '<div class="mockup-loading">Loading...</div>';
       _compositeFrame(frameBack, cfg.backCrop, cfg.backPrint, designImages[backDesignKey]);
     } else {
       // Cap: single front
       labelLeft.textContent = 'FRONT';
-      frameFront.innerHTML = '<div class="mockup-loading">Loading...</div>';
       _compositeFrame(frameFront, cfg.frontCrop, cfg.frontPrint, designImages[capDesign]);
     }
 
@@ -873,6 +953,48 @@ const Shop = (() => {
           btn.addEventListener('click', () => { backDesign = d; _renderPreview(); });
           picker.appendChild(btn);
         }
+      }
+    }
+
+    // Encoding picker (for letter-based queries)
+    const encPicker = document.getElementById('shopEncodingPicker');
+    const encGroup = document.getElementById('shopEncodingGroup');
+    const hasLetters = /[a-zA-Z]/.test(capturedWord);
+    if (encPicker && encGroup) {
+      if (hasLetters) {
+        encGroup.classList.remove('hidden');
+        encPicker.innerHTML = '';
+        for (const enc of ['alpha26', 'compact', 't9']) {
+          const btn = document.createElement('button');
+          btn.className = 'shop-pill' + (enc === shopEncoding ? ' active' : '');
+          btn.textContent = enc === 'alpha26' ? 'Alpha-26' : enc === 'compact' ? 'Compact' : 'T9';
+          btn.addEventListener('click', () => { _recomputeForEncoding(enc); });
+          encPicker.appendChild(btn);
+        }
+      } else {
+        encGroup.classList.add('hidden');
+      }
+    }
+
+    // Palette picker
+    const palGroup = document.getElementById('shopPaletteGroup');
+    const palPicker = document.getElementById('shopPalettePicker');
+    if (palGroup && palPicker) {
+      palGroup.classList.remove('hidden');
+      palPicker.innerHTML = '';
+      for (const key of Object.keys(PALETTES)) {
+        const p = PALETTES[key];
+        const btn = document.createElement('button');
+        btn.className = 'shop-palette-swatch' + (key === selectedPalette ? ' active' : '');
+        btn.title = p.name;
+        // Mini gradient preview
+        const grad = p.colors.map((c, i) => `${c} ${Math.round(i/(p.colors.length-1)*100)}%`).join(',');
+        btn.style.background = `linear-gradient(90deg, ${grad})`;
+        btn.addEventListener('click', () => {
+          selectedPalette = key;
+          _reRenderDesigns();
+        });
+        palPicker.appendChild(btn);
       }
     }
 
@@ -936,26 +1058,6 @@ const Shop = (() => {
 
   function _getBackDesignKey() {
     return flipped ? 'pimark' : backDesign;
-  }
-
-  function downloadDesign() {
-    const cfg = _getProductConfig();
-    const frontFull = _renderDesign(_getFrontDesignKey(), PRINT_SIZE);
-
-    const a1 = document.createElement('a');
-    a1.href = frontFull;
-    a1.download = `placeinpi-${capturedWord.toLowerCase()}-${product}-front.png`;
-    a1.click();
-
-    if (cfg.hasBack) {
-      const backFull = _renderDesign(_getBackDesignKey(), PRINT_SIZE);
-      setTimeout(() => {
-        const a2 = document.createElement('a');
-        a2.href = backFull;
-        a2.download = `placeinpi-${capturedWord.toLowerCase()}-${product}-back.png`;
-        a2.click();
-      }, 300);
-    }
   }
 
   // ─── Cart ───
@@ -1039,7 +1141,10 @@ const Shop = (() => {
     status.textContent = 'Searching…';
 
     const word = raw;
-    const converted = Search.convertQuery(word);
+    const hasLetters = /[a-zA-Z]/.test(word);
+    const converted = hasLetters
+      ? Search.convertWithMode(word, shopEncoding || 'alpha26')
+      : Search.convertQuery(word);
     if (!converted.digitQuery) {
       status.textContent = 'Could not encode — try letters or digits.';
       return;
@@ -1075,8 +1180,6 @@ const Shop = (() => {
       });
     }
 
-    const dlBtn = document.getElementById('shopDownload');
-    if (dlBtn) dlBtn.addEventListener('click', downloadDesign);
 
     const addCartBtn = document.getElementById('shopAddCart');
     if (addCartBtn) addCartBtn.addEventListener('click', addToCart);

@@ -1367,19 +1367,62 @@ html, body {
 }
 
 /* Controls row */
-.shop-controls {
+/* Customization panel */
+.shop-customize {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px 10px;
+  margin-bottom: 16px;
+}
+.shop-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.shop-option-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.shop-option-row {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 28px;
 }
-
-.shop-control-group {
+.shop-option-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.shop-option-value {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
+.shop-flip-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.shop-flip-btn-sm:hover { background: var(--bg-hover); color: var(--text); }
+.shop-flip-btn-sm.flipped { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 .shop-label {
   font-size: 10px;
@@ -1415,24 +1458,6 @@ html, body {
 }
 
 /* Flip button */
-.shop-flip-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 12px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg);
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.shop-flip-btn:hover { background: var(--bg-hover); color: var(--text); }
-.shop-flip-btn.flipped { background: var(--accent); color: #fff; border-color: var(--accent); }
-.shop-flip-btn svg { flex-shrink: 0; }
-
 /* Shirt color swatches */
 .shop-color-row {
   display: flex;
@@ -1451,6 +1476,28 @@ html, body {
 }
 .shop-color-swatch:hover { transform: scale(1.15); }
 .shop-color-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+
+/* Palette picker */
+.shop-palette-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.shop-palette-swatch {
+  width: 36px;
+  height: 18px;
+  border-radius: 9px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+}
+.shop-palette-swatch:hover { transform: scale(1.1); }
+.shop-palette-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
 .mockup-loading {
   display: flex;

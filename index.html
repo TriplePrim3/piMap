@@ -240,38 +240,61 @@
       <!-- Pi vicinity strip -->
       <div id="piVicinityStrip" class="pi-vicinity-strip hidden"></div>
 
-      <!-- Controls row -->
-      <div class="shop-controls">
-        <!-- Back design selector (t-shirt) -->
-        <div class="shop-control-group" id="backDesignGroup">
-          <span class="shop-label">Back</span>
-          <div id="backDesignPicker" class="shop-pill-row"></div>
-        </div>
-        <!-- Cap design selector -->
-        <div class="shop-control-group hidden" id="capDesignGroup">
-          <span class="shop-label">Design</span>
-          <div id="capDesignPicker" class="shop-pill-row"></div>
-        </div>
-        <!-- Flip (t-shirt only) -->
-        <button id="shopFlip" class="shop-flip-btn" title="Swap front and back designs">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
-          <span>Flip</span>
-        </button>
-        <!-- Color -->
-        <div class="shop-control-group">
-          <span class="shop-label">Color</span>
-          <div id="shirtColorPicker" class="shop-color-row"></div>
-        </div>
-        <!-- Size -->
-        <div class="shop-control-group">
-          <span class="shop-label">Size</span>
-          <div id="sizePicker" class="shop-pill-row"></div>
+      <!-- Customization panel -->
+      <div class="shop-customize">
+        <div class="shop-section-title">Customization</div>
+        <div class="shop-option-grid">
+          <!-- Row: Design + Flip -->
+          <div class="shop-option-row" id="backDesignGroup">
+            <span class="shop-option-label">Back Design</span>
+            <div class="shop-option-value">
+              <div id="backDesignPicker" class="shop-pill-row"></div>
+              <button id="shopFlip" class="shop-flip-btn-sm" title="Swap front and back designs">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+                Flip
+              </button>
+            </div>
+          </div>
+          <!-- Row: Cap design -->
+          <div class="shop-option-row hidden" id="capDesignGroup">
+            <span class="shop-option-label">Design</span>
+            <div class="shop-option-value">
+              <div id="capDesignPicker" class="shop-pill-row"></div>
+            </div>
+          </div>
+          <!-- Row: Encoding -->
+          <div class="shop-option-row hidden" id="shopEncodingGroup">
+            <span class="shop-option-label">Encoding</span>
+            <div class="shop-option-value">
+              <div id="shopEncodingPicker" class="shop-pill-row"></div>
+            </div>
+          </div>
+          <!-- Row: Palette -->
+          <div class="shop-option-row" id="shopPaletteGroup">
+            <span class="shop-option-label">Palette</span>
+            <div class="shop-option-value">
+              <div id="shopPalettePicker" class="shop-palette-row"></div>
+            </div>
+          </div>
+          <!-- Row: Color -->
+          <div class="shop-option-row">
+            <span class="shop-option-label">Color</span>
+            <div class="shop-option-value">
+              <div id="shirtColorPicker" class="shop-color-row"></div>
+            </div>
+          </div>
+          <!-- Row: Size -->
+          <div class="shop-option-row">
+            <span class="shop-option-label">Size</span>
+            <div class="shop-option-value">
+              <div id="sizePicker" class="shop-pill-row"></div>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- Actions -->
       <div class="shop-actions">
-        <button id="shopDownload" class="shop-btn shop-btn-secondary">Download PNG</button>
         <button id="shopAddCart" class="shop-btn shop-btn-primary">Add to Cart</button>
       </div>
 
@@ -311,8 +334,8 @@
   <script src="js/sounds.js?v=17"></script>
   <script src="js/renderer.js?v=17"></script>
   <script src="js/minimap.js?v=18"></script>
-  <script src="js/shop.js?v=19"></script>
-  <script src="js/ui.js?v=19"></script>
+  <script src="js/shop.js?v=20"></script>
+  <script src="js/ui.js?v=20"></script>
   <script src="js/app.js?v=17"></script>
 </body>
 </html>

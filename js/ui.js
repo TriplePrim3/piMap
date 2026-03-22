@@ -248,6 +248,7 @@ const UI = (() => {
     { id: 'thats_deep', icon: '🌊', name: "That's Deep", desc: 'Found something beyond 1 million digits' },
     { id: 'far_out', icon: '🛸', name: 'Far Out, Man', desc: 'Searched beyond a billion digits into π' },
     { id: 'both_sides', icon: '🌗', name: 'Both Sides of π', desc: 'Toggled between light and dark mode' },
+    { id: 'multi_part', icon: '🧩', name: 'Scattered Across π', desc: 'Found your word in multiple parts of π' },
     { id: 'shopaholic', icon: '🛍️', name: 'Shopaholic', desc: 'Added something to the cart' },
     { id: 'pi_owner', icon: '👕', name: 'Pi Owner', desc: 'Bought your place in π' },
   ];
@@ -328,7 +329,7 @@ const UI = (() => {
       </div>`;
     }
     // Some achievements are shown even when locked (visible hints)
-    const VISIBLE_LOCKED = new Set(['shopaholic', 'pi_owner']);
+    const VISIBLE_LOCKED = new Set(['multi_part', 'shopaholic', 'pi_owner']);
     if (locked.length > 0) {
       for (const ach of locked) {
         if (VISIBLE_LOCKED.has(ach.id)) {
@@ -769,6 +770,8 @@ const UI = (() => {
         + `<span style="color:var(--accent);font-weight:700">${c.digitStr}</span>${letterLabel}`
         + ` → digit <b>#${c.pos.toLocaleString()}</b></div>`;
     }
+
+    unlock('multi_part');
 
     const badge = document.getElementById('searchResults');
     const nav = document.getElementById('searchNav');
