@@ -490,15 +490,15 @@ const UI = (() => {
   // ─── Auto-prompts ───
 
   const FEATURE_PROMPTS = [
-    { achId: 'name_search', html: '<div class="bubble-title">Try this!</div>Type your name in the search bar — it\'s hiding somewhere in π!' },
-    { achId: 'multi_part', html: '<div class="bubble-title">Multi-part search</div>Try searching a longer word! If it\'s not in one piece, I\'ll find it scattered across π.' },
-    { achId: 'cake_lie', html: '<div class="bubble-title">🍰 Psst...</div>There\'s a cake hiding at the very end of π. Try scrolling all the way to the last digit...' },
-    { achId: 'birthday', html: '<div class="bubble-title">🎂 Birthday mystery</div>Have you found the cake yet? Click it and see what happens...' },
-    { achId: 'feynman', html: '<div class="bubble-title">Famous in π</div>Check out the <b>Famous</b> tab — did you know six 9s in a row appear at digit 762?' },
-    { achId: 'encoding', html: '<div class="bubble-title">Secret codes</div>Try switching text encodings! There\'s T9, compact, and alpha-26 — each one finds different hidden words.' },
-    { achId: 'zoom_master', html: '<div class="bubble-title">Zoom in!</div>Try pinching or scrolling to zoom way in — the digits get really detailed up close.' },
-    { achId: 'both_sides', html: '<div class="bubble-title">Light side 🌗</div>Try toggling between light and dark mode in Settings!' },
-    { achId: 'shopaholic', html: '<div class="bubble-title">🛍️ Pi merch!</div>Check out the Shop — you can put your place in π on a t-shirt!' },
+    { achId: 'name_search', html: '<div class="bubble-title">You\'re in here somewhere 👀</div>Type your name in the search bar. I promise π hasn\'t forgotten you.' },
+    { achId: 'multi_part', html: '<div class="bubble-title">Go big or go home</div>Try searching a long word — if π can\'t fit it in one piece, I\'ll track down every fragment. I\'m relentless like that.' },
+    { achId: 'cake_lie', html: '<div class="bubble-title">🍰 Don\'t tell anyone but...</div>There\'s a cake hiding at the very last digit. Scroll aaall the way down. I dare you.' },
+    { achId: 'birthday', html: '<div class="bubble-title">🎂 Unfinished business</div>That cake isn\'t just decoration. Click it. Trust me, it gets weird.' },
+    { achId: 'feynman', html: '<div class="bubble-title">Rumor has it...</div>Some say six 9s appear in a row somewhere in π. Sounds fake, right? Check the <b>Famous</b> tab and see for yourself.' },
+    { achId: 'encoding', html: '<div class="bubble-title">🔣 Speak π\'s language</div>There are 3 secret encodings hiding words in plain sight. You\'ve only tried... not all of them. Fix that.' },
+    { achId: 'zoom_master', html: '<div class="bubble-title">🔬 Enhance!</div>Zoom in. No, more. Keep going. There\'s a whole world in there if you squint hard enough.' },
+    { achId: 'both_sides', html: '<div class="bubble-title">Join the light side 🌗</div>Ever wondered what π looks like in the daytime? Toggle the theme in Settings. I won\'t judge.' },
+    { achId: 'shopaholic', html: '<div class="bubble-title">🛍️ Wear your digits</div>You found your place in π — now put it on a shirt. The Shop is right there. You know you want to.' },
   ];
 
   let autoPromptIdx = 0;
