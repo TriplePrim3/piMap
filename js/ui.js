@@ -174,8 +174,29 @@ const UI = (() => {
     const pupilL = document.getElementById('mascotPupilL');
     const pupilR = document.getElementById('mascotPupilR');
 
+    // Long press to mute/unmute
+    let longPressTimer = null;
+    let wasLongPress = false;
+    body.addEventListener('pointerdown', (e) => {
+      wasLongPress = false;
+      longPressTimer = setTimeout(() => {
+        wasLongPress = true;
+        Sounds.setMuted(!Sounds.isMuted());
+        const muted = Sounds.isMuted();
+        mascotSay(`<div class="bubble-title">${muted ? '🔇 Muted' : '🔊 Unmuted'}</div>${muted ? 'Shh... I\'ll keep talking, you just won\'t hear me.' : 'I\'m back! Did you miss my voice?'}`, 4000);
+        // Sync mute button state
+        const muteBtn = document.getElementById('muteBtn');
+        const waves = document.getElementById('muteSoundWaves');
+        if (muteBtn) muteBtn.classList.toggle('muted', muted);
+        if (waves) waves.style.display = muted ? 'none' : '';
+      }, 600);
+    });
+    body.addEventListener('pointerup', () => clearTimeout(longPressTimer));
+    body.addEventListener('pointerleave', () => clearTimeout(longPressTimer));
+
     body.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (wasLongPress) return;
       const bubble = document.getElementById('mascotBubble');
       if (!bubble.classList.contains('hidden')) {
         mascotHide();
@@ -234,7 +255,7 @@ const UI = (() => {
       const famousHint = isMobile
         ? 'Tap <b>Famous</b> at the bottom to explore!'
         : 'Check out Famous in π in the top bar.';
-      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching any word or phrase — it has a place in here.<br>${famousHint}<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
+      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching any word or phrase — it has a place in here.<br>${famousHint}<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i><br><i style="opacity:0.4;font-size:11px">Long press me to mute if I'm too loud — I'll still talk, you just won't hear me.</i>`, 12000);
     }, 1500);
   }
 
