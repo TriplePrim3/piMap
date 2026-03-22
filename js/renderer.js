@@ -376,8 +376,8 @@ const Renderer = (() => {
   function advancePrintAnimation() {
     if (!isPrinting()) return;
 
-    // Gentle speed: ~3 digits per frame at start, slowly ramps up
-    const speed = Math.min(20, 3 + printVisible * 0.002);
+    // Slow reveal: ~1 digit per frame for small batches, ramps up for large
+    const speed = Math.min(20, 0.8 + printVisible * 0.001);
     printVisible = Math.min(printQueue.length, printVisible + speed);
 
     // Commit revealed digits
