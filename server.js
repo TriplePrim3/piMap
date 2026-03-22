@@ -129,7 +129,12 @@ function serveStatic(req, res) {
       res.end('Not found');
       return;
     }
-    res.writeHead(200, { 'Content-Type': mime });
+    // No caching for HTML/CSS/JS so deploys take effect immediately
+    const noCache = ['.html', '.css', '.js'].includes(ext);
+    res.writeHead(200, {
+      'Content-Type': mime,
+      'Cache-Control': noCache ? 'no-cache, no-store, must-revalidate' : 'public, max-age=86400',
+    });
     res.end(data);
   });
 }
