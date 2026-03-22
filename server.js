@@ -195,7 +195,7 @@ function loadChunkMeta() {
   if (fs.existsSync(metaPath)) {
     chunkMeta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
     totalDigits = chunkMeta.totalDigits;
-    reportedDigits = Math.min(totalDigits, 1000000);
+    reportedDigits = totalDigits; // chunks = production, report real count
 
     chunkFiles = [];
     for (let i = 0; i < chunkMeta.chunkCount; i++) {
