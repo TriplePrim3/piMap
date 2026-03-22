@@ -61,17 +61,17 @@ const Sounds = (() => {
     const ac = getCtx();
     if (!ac) return;
     const t = ac.currentTime;
-    const freq = 800 + Math.random() * 400; // 800-1200 Hz — slight variation
+    const freq = 600 + Math.random() * 200; // 600-800 Hz — gentle variation
     const osc = ac.createOscillator();
     const gain = ac.createGain();
-    osc.type = 'square';
+    osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, t);
-    gain.gain.setValueAtTime(0.06, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+    gain.gain.setValueAtTime(0.02, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.025);
     osc.connect(gain);
     gain.connect(ac.destination);
     osc.start(t);
-    osc.stop(t + 0.035);
+    osc.stop(t + 0.03);
   }
 
   // No-op kept for backward compat — babble replaced by typewriter

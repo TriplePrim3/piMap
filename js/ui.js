@@ -135,7 +135,7 @@ const UI = (() => {
 
     let nodeIdx = 0;
     let charIdx = 0;
-    const speed = 25; // ms per character
+    const speed = 12; // ms per character
 
     _typewriterTimer = setInterval(() => {
       if (nodeIdx >= textNodes.length) {
@@ -531,7 +531,7 @@ const UI = (() => {
 
   const FEATURE_PROMPTS = [
     { achId: 'name_search', html: '<div class="bubble-title">Everything has a place in π 👀</div>Try searching any word or phrase — your name, a quote, anything. π has been holding onto it this whole time.' },
-    { achId: 'multi_part', html: '<div class="bubble-title">Go big or go home</div>Did you know <b>"Pi is the best number ever"</b> has a place in π? Every letter, scattered across infinity.<br><button onclick="var i=document.getElementById(\'searchInput\');i.value=\'Pi is the best number ever\';i.dispatchEvent(new Event(\'input\'));document.getElementById(\'mascotBubble\').classList.add(\'hidden\')" style="margin-top:6px;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Show me!</button>' },
+    { achId: 'multi_part', html: '<div class="bubble-title">Go big or go home</div>Try searching <b>"Pi is the best number ever"</b> and see what happens!<br><button onclick="var c=document.getElementById(\'chunkSearch\');if(c)c.checked=true;var i=document.getElementById(\'searchInput\');i.value=\'Pi is the best number ever\';i.dispatchEvent(new Event(\'input\'));document.getElementById(\'mascotBubble\').classList.add(\'hidden\')" style="margin-top:6px;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Show me!</button>' },
     { achId: 'cake_lie', html: '<div class="bubble-title">🍰 Don\'t tell anyone but...</div>There\'s a cake hiding at the very last digit. Scroll aaall the way down. I dare you.' },
     { achId: 'birthday', html: '<div class="bubble-title">🎂 Unfinished business</div>That cake isn\'t just decoration. Click it. Trust me, it gets weird.' },
     { achId: 'feynman', html: '<div class="bubble-title">Rumor has it...</div>Some say six 9s appear in a row somewhere in π. Sounds fake, right? Check the <b>Famous</b> tab and see for yourself.' },
