@@ -341,6 +341,23 @@ const UI = (() => {
   let navCount = parseInt(localStorage.getItem('pimap_navcount') || '0');
   let encodingsUsed = new Set(JSON.parse(localStorage.getItem('pimap_encodings') || '[]'));
 
+  const ACHIEVEMENT_QUIPS = {
+    cake_lie: 'You found the cake! Or did the cake find you? π works in mysterious ways.',
+    birthday: 'Your birthday lives in π forever. That\'s more permanent than a tattoo.',
+    name_search: 'You exist in π! Technically, so does everyone. But let\'s not ruin the moment.',
+    feynman: 'Six 9s in a row! Feynman would be proud. Or he\'d make a joke about it. Probably both.',
+    explorer: 'You\'ve been everywhere! Well, 10 places. In an infinite number, that\'s basically nowhere. Keep going!',
+    encoding: 'All three encodings unlocked! You now speak fluent π. Put that on your resume.',
+    expander: 'You pushed π past a million digits. It didn\'t need to go further, but you made it anyway. Respect.',
+    zoom_master: 'Zoom level: forensic. You could read π\'s fingerprints at this magnification.',
+    thats_deep: 'A million digits deep! Most people stop at 3.14. You\'re not most people.',
+    far_out: 'A billion digits in. At this depth, you\'re basically an archaeologist of infinity.',
+    both_sides: 'Light and dark — you\'ve seen π from both sides now. Very philosophical.',
+    multi_part: 'Scattered across π but reunited! Like a word puzzle written by the universe.',
+    shopaholic: 'Ooh, shopping! Nothing says "I love math" like putting it on a shirt.',
+    pi_owner: 'You actually bought it! You now officially own a piece of infinity. Frame that receipt.',
+  };
+
   function unlock(id) {
     if (unlockedSet.has(id)) return;
     unlockedSet.add(id);
@@ -356,6 +373,16 @@ const UI = (() => {
     toast.innerHTML = `<span class="toast-icon">${ach.icon}</span><div><div style="font-size:11px;opacity:0.6;text-transform:uppercase;letter-spacing:1px">Achievement Unlocked!</div>${ach.name}</div>`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 4000);
+
+    // Mascot celebration (delayed so it doesn't clash with other dialogue)
+    const quip = ACHIEVEMENT_QUIPS[id];
+    if (quip && !_bubbleSticky) {
+      setTimeout(() => {
+        if (!_bubbleSticky && document.getElementById('mascotBubble').classList.contains('hidden')) {
+          mascotSay(`<div class="bubble-title">${ach.icon} ${ach.name}</div>${quip}`, 7000);
+        }
+      }, 2000);
+    }
   }
 
   function trackNavigation() {
@@ -749,9 +776,9 @@ const UI = (() => {
 
     // Encoding info buttons
     const encExplain = {
-      alpha26: '<div class="bubble-title">Alpha-26</div>Each letter becomes 2 digits.<br><b>A=00, B=01, C=02, ... Z=25</b><br>So "HI" becomes <b>0708</b>.<br>Longer sequences, but every letter is the same width.',
-      compact: '<div class="bubble-title">Compact</div>A-J use 1 digit, K-Z use 2.<br><b>A=0, B=1, ... J=9, K=10, ... Z=25</b><br>So "HI" becomes <b>78</b>.<br>Shorter sequences, easier to find in π!',
-      t9: '<div class="bubble-title">T9 Keypad</div>Like old phone texting!<br><b>ABC=2, DEF=3, GHI=4, JKL=5, MNO=6, PQRS=7, TUV=8, WXYZ=9</b><br>So "HI" becomes <b>44</b>.<br>Shortest sequences, but different letters map to the same digit.',
+      alpha26: '<div class="bubble-title">Alpha-26</div>Every letter gets a number: A=00, B=01 ... Z=25.<br>Your name becomes a string of digits, and we hunt for that exact string in π.<br><b>Example:</b> "HI" → <b>07 08</b>',
+      compact: '<div class="bubble-title">Compact</div>Like Alpha-26 but shorter — A through J are single digits.<br>Fewer digits means easier to find in π!<br><b>Example:</b> "HI" → <b>78</b>',
+      t9: '<div class="bubble-title">T9 (old phone keypad)</div>Remember texting on flip phones? Same idea.<br>Each key covers 3-4 letters, so your word becomes a short number.<br><b>Example:</b> "HI" → <b>44</b>',
     };
     // Non-continuous toggle — re-trigger search on change
     const chunkBox = document.getElementById('chunkSearch');
