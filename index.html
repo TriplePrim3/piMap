@@ -69,6 +69,30 @@
         <button id="nextMatch" class="nav-btn" title="Next match">&#9660;</button>
       </div>
     </div>
+
+    <!-- Right-side top bar items -->
+    <div class="topbar-right">
+      <div id="famousPanel" class="famous-panel">
+        <button class="famous-panel-header" id="famousToggle">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>
+          <span>Famous in π</span>
+          <svg class="famous-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div id="famousPatterns" class="famous-list"></div>
+      </div>
+      <button id="achievementsBtn" class="achievements-btn" title="Achievements">
+        <span class="achievements-icon">🏆</span>
+        <span id="achievementsCount" class="achievements-count">0</span>
+      </button>
+      <button id="shopBtn" class="shop-open-btn" title="Shop — Your Place in π">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 01-8 0"/>
+        </svg>
+        <span>Shop</span>
+      </button>
+    </div>
   </header>
 
   <!-- Translation Display (floating below top bar) -->
@@ -120,16 +144,6 @@
   <!-- Minimap (bird's eye scale bar) -->
   <div id="minimapContainer">
     <canvas id="minimapCanvas"></canvas>
-  </div>
-
-  <!-- Famous Patterns Panel (right side, collapsible) -->
-  <div id="famousPanel" class="famous-panel">
-    <button class="famous-panel-header" id="famousToggle">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26"/></svg>
-      <span>Famous in π</span>
-      <svg class="famous-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-    </button>
-    <div id="famousPatterns" class="famous-list"></div>
   </div>
 
   <!-- Info Bar -->
@@ -190,21 +204,6 @@
       <button id="achievementsClose" class="achievements-close">&times;</button>
     </div>
     <div id="achievementsList" class="achievements-list"></div>
-  </div>
-  <!-- Top-right buttons (shop + achievements) -->
-  <div class="top-right-btns">
-    <button id="shopBtn" class="shop-open-btn" title="Shop — Your Place in π">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-        <line x1="3" y1="6" x2="21" y2="6"/>
-        <path d="M16 10a4 4 0 01-8 0"/>
-      </svg>
-      <span>Shop</span>
-    </button>
-    <button id="achievementsBtn" class="achievements-btn" title="Achievements">
-      <span class="achievements-icon">🏆</span>
-      <span id="achievementsCount" class="achievements-count">0</span>
-    </button>
   </div>
 
   <!-- Shop Modal -->

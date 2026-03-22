@@ -204,7 +204,7 @@ const UI = (() => {
 
     // Initial greeting
     setTimeout(() => {
-      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching your name, it's hiding somewhere in here.<br>Explore some famous findings in the panel on the left.<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
+      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching your name, it's hiding somewhere in here.<br>Check out Famous in π in the top bar.<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i>`, 12000);
     }, 1500);
   }
 
@@ -1875,8 +1875,8 @@ const UI = (() => {
     // Collapsible toggle
     const toggle = document.getElementById('famousToggle');
     if (toggle) {
-      // Start collapsed on mobile
-      if (window.innerWidth <= 768) panel.classList.add('collapsed');
+      // Start collapsed by default
+      panel.classList.add('collapsed');
       toggle.addEventListener('click', () => {
         panel.classList.toggle('collapsed');
       });
