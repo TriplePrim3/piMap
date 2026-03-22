@@ -969,7 +969,7 @@ const Shop = (() => {
           product = key;
           colorIdx = 0;
           selectedSize = PRODUCTS[key].hasBack ? 'M' : 'One Size';
-          _renderPreview();
+          _reRenderDesigns();
         });
         productPicker.appendChild(btn);
       }
