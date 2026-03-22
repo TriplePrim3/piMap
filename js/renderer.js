@@ -312,17 +312,17 @@ const Renderer = (() => {
     const dx = cx - mouseScreenX;
     const dy = cy - mouseScreenY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const repulseRadius = Math.max(150, cellPxH * 8);
+    const repulseRadius = Math.max(100, cellPxH * 5);
     let targetX = 0, targetY = 0;
     if (dist < repulseRadius && dist > 0.1) {
       const strength = 1 - dist / repulseRadius;
-      const push = strength * strength * 80;
+      const push = strength * strength * 18;
       targetX = (dx / dist) * push;
       targetY = (dy / dist) * push;
     }
 
     // Smooth interpolation (ease toward target)
-    const lerp = 0.15;
+    const lerp = 0.08;
     repelX += (targetX - repelX) * lerp;
     repelY += (targetY - repelY) * lerp;
 
