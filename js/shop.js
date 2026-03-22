@@ -15,6 +15,18 @@ const Shop = (() => {
   };
   let selectedPalette = 'vibgyor';
 
+  // Text color presets for print
+  const TEXT_COLORS = [
+    { name: 'None',   hex: null },
+    { name: 'White',  hex: '#ffffff' },
+    { name: 'Black',  hex: '#111111' },
+    { name: 'Gold',   hex: '#FFD700' },
+    { name: 'Silver', hex: '#C0C0C0' },
+    { name: 'Pink',   hex: '#ff6b9d' },
+    { name: 'Purple', hex: '#7c6ff7' },
+  ];
+  let textColorIdx = 2; // default black (will auto-set based on shirt color)
+
   // ── Product configs ──
 
   const PRODUCTS = {
@@ -64,6 +76,12 @@ const Shop = (() => {
   let shopEncoding = '';        // current encoding for shop designs: 'alpha26' | 'compact' | 't9' | 'digits'
 
   // ─── Public entry ───
+
+  // Auto-pick text color: black for light shirts, white for dark
+  function _autoTextColor() {
+    const col = _getColor();
+    textColorIdx = col.dark ? 1 : 2; // 1=White, 2=Black
+  }
 
   function _reRenderDesigns() {
     const designs = ['polygon', 'pimark', 'heatmap'];
@@ -122,8 +140,8 @@ const Shop = (() => {
     colorIdx = 0;
     selectedSize = 'M';
     designImages = {};
-    // Detect encoding from current search state
     shopEncoding = Search.getTextEncoding() || 'alpha26';
+    _autoTextColor();
 
     // Pre-fill search input
     const input = document.getElementById('shopSearchInput');
@@ -665,65 +683,48 @@ const Shop = (() => {
   }
 
   function _drawPrintText(ctx, size, type) {
-    // No text on any design — just the graphic
-    return;
-
+    // Only show text on spiral-based designs, and only if text color is set
+    if (type === 'pimark') return;
+    if (product === 'cap') return;
+    const tc = TEXT_COLORS[textColorIdx].hex;
+    if (!tc) return;
     const cx = size / 2;
-    const y = size * 0.84;
+    const y = size * 0.86;
 
-    // "Place in π" logo
     ctx.save();
     ctx.textBaseline = 'middle';
-    const logoSize = size * 0.028;
 
-    ctx.font = `700 ${logoSize}px system-ui`;
-    const pW = ctx.measureText('P').width;
-    ctx.font = `300 ${logoSize}px system-ui`;
-    const laceW = ctx.measureText('lace in ').width;
-    ctx.font = `700 ${logoSize * 1.15}px system-ui`;
-    const piW = ctx.measureText('π').width;
-    const totalW = pW + laceW + piW;
+    // "Your Place in π"
+    const titleSize = size * 0.042;
+    ctx.font = `300 ${titleSize}px system-ui`;
+    const partA = 'Your Place in ';
+    const wA = ctx.measureText(partA).width;
+    ctx.font = `700 ${titleSize * 1.15}px system-ui`;
+    const wPi = ctx.measureText('π').width;
+    const totalW = wA + wPi;
     let lx = cx - totalW / 2;
 
-    const isDark = _getColor().dark;
-    const textMain = isDark ? 'rgba(255,255,255,0.85)' : 'rgba(20,20,40,0.85)';
-    const textDim  = isDark ? 'rgba(255,255,255,0.4)'  : 'rgba(20,20,40,0.4)';
-    const laceColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(20,20,40,0.6)';
-
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#7c6ff7';
-    ctx.font = `700 ${logoSize}px system-ui`;
-    ctx.fillText('P', lx, y);
-    lx += pW;
-
-    ctx.fillStyle = laceColor;
-    ctx.font = `300 ${logoSize}px system-ui`;
-    ctx.fillText('lace in ', lx, y);
-    lx += laceW;
-
-    ctx.fillStyle = '#ff6b9d';
-    ctx.font = `700 ${logoSize * 1.15}px system-ui`;
+    ctx.fillStyle = tc;
+    ctx.globalAlpha = 1;
+    ctx.font = `300 ${titleSize}px system-ui`;
+    ctx.fillText(partA, lx, y);
+    lx += wA;
+    ctx.font = `700 ${titleSize * 1.15}px system-ui`;
     ctx.fillText('π', lx, y);
-    ctx.restore();
 
-    // Search term (small, elegant)
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = textMain;
-    ctx.font = `300 ${size * 0.022}px system-ui`;
-    ctx.fillText(capturedWord, cx, y + size * 0.04);
-
-    // Position subtitle
-    ctx.fillStyle = textDim;
-    ctx.font = `300 ${size * 0.015}px system-ui`;
-    let subtitle = '';
-    if (capturedChunks && capturedChunks.length > 0) {
-      const positions = capturedChunks.map(c => `#${c.pos.toLocaleString()}`).join(' · ');
-      subtitle = `${capturedChunks.length} parts — ${positions}`;
-    } else if (capturedSinglePos >= 0) {
-      subtitle = `digit #${capturedSinglePos.toLocaleString()}`;
+    // Search word underneath
+    if (capturedWord) {
+      const wordSize = size * 0.034;
+      ctx.textAlign = 'center';
+      ctx.font = `700 ${wordSize}px system-ui`;
+      ctx.fillStyle = tc;
+      ctx.globalAlpha = 0.75;
+      ctx.fillText(capturedWord, cx, y + size * 0.055);
     }
-    ctx.fillText(subtitle, cx, y + size * 0.07);
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   // ─── Vicinity strip ───
@@ -1029,8 +1030,42 @@ const Shop = (() => {
         btn.style.background = c.swatch;
         if (c.swatch === '#ffffff') btn.style.border = '1px solid var(--border)';
         btn.title = c.name;
-        btn.addEventListener('click', () => { colorIdx = i; _renderPreview(); });
+        btn.addEventListener('click', () => {
+          colorIdx = i;
+          _autoTextColor();
+          _reRenderDesigns();
+        });
         colorPicker.appendChild(btn);
+      });
+    }
+
+    // Text color picker (t-shirt only)
+    const textPicker = document.getElementById('textColorPicker');
+    const textRow = textPicker?.closest('.shop-option-row');
+    if (textPicker) {
+      if (!cfg.hasBack) { if (textRow) textRow.classList.add('hidden'); }
+      else { if (textRow) textRow.classList.remove('hidden'); }
+      textPicker.innerHTML = '';
+      TEXT_COLORS.forEach((c, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'shop-color-swatch' + (i === textColorIdx ? ' active' : '');
+        if (c.hex) {
+          btn.style.background = c.hex;
+          if (c.hex === '#ffffff') btn.style.border = '1px solid var(--border)';
+        } else {
+          // "None" — diagonal strike-through
+          btn.style.background = 'var(--bg-surface)';
+          btn.style.border = '1px solid var(--border)';
+          btn.style.position = 'relative';
+          btn.style.overflow = 'hidden';
+          btn.innerHTML = '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--text-dim)">✕</span>';
+        }
+        btn.title = c.name;
+        btn.addEventListener('click', () => {
+          textColorIdx = i;
+          _reRenderDesigns();
+        });
+        textPicker.appendChild(btn);
       });
     }
 
