@@ -1963,19 +1963,25 @@ html, body {
 }
 
 /* === Mobile Responsive === */
-/* === Mobile menu button (hidden on desktop) === */
+/* === Mobile menu button (hidden on desktop, fixed FAB on mobile) === */
 .mobile-menu-btn {
   display: none;
-  background: rgba(18, 18, 42, 0.85);
+  position: fixed;
+  bottom: 48px;
+  right: 14px;
+  z-index: 50;
+  background: rgba(18, 18, 42, 0.92);
+  backdrop-filter: blur(8px);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px;
+  border-radius: 50%;
+  padding: 12px;
   color: var(--text);
   cursor: pointer;
-  height: 42px;
-  width: 42px;
+  height: 50px;
+  width: 50px;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
 
 /* === Mobile drawer === */
@@ -2085,10 +2091,9 @@ html, body {
     display: none !important;
   }
 
-  /* Show mobile menu button */
+  /* Show mobile menu button (fixed FAB) */
   .mobile-menu-btn {
     display: flex;
-    margin-left: auto;
   }
 
   /* Mobile search overlay — triggered by search icon in drawer */
@@ -2184,20 +2189,52 @@ html, body {
     font-size: 18px;
   }
 
-  /* Famous panel inline in drawer — override desktop dropdown */
-  .famous-panel .famous-list {
+  /* Mobile overlay for Famous panel (triggered from drawer) */
+  .mobile-famous-overlay {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    top: auto;
-    bottom: 12px;
-    width: auto;
-    max-height: 60vh;
+    inset: 0;
     z-index: 310;
-    border-radius: var(--radius);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .mobile-famous-overlay.hidden { display: none; }
+  .mobile-famous-overlay .mobile-famous-sheet {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 0;
+    animation: slideUp 0.2s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  .mobile-famous-overlay .mobile-famous-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffe66d;
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-famous-overlay .mobile-famous-close {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 24px;
+    cursor: pointer;
   }
 
-  /* Achievements panel */
+  /* Achievements panel: bottom sheet on mobile */
   .achievements-panel {
     position: fixed;
     top: auto;

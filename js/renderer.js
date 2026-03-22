@@ -881,7 +881,11 @@ const Renderer = (() => {
     const minAngle = originVisible ? 0 : Math.max(0, (minR - offset) / b);
     const startIdx = originVisible ? 0 : Math.max(0, Math.floor(minAngle * minAngle / 5.5) - 100);
 
-    for (let cellIdx = startIdx; cellIdx < maxIdx; cellIdx++) {
+    // When very zoomed out, skip digits to avoid overlapping color mess
+    // Spiral arm spacing is constant, but digits per revolution increases
+    const stride = cellPxW < 2 ? Math.max(1, Math.floor(3 / Math.max(0.5, cellPxW))) : 1;
+
+    for (let cellIdx = startIdx; cellIdx < maxIdx; cellIdx += stride) {
       if (skipLast && cellIdx === effectiveLen - 1) continue;
       const pos = Layout.getPosition(cellIdx);
       const sx = (pos.x - camX) * zoom;

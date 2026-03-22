@@ -512,8 +512,7 @@ const UI = (() => {
           document.getElementById('shopBtn').click();
           break;
         case 'famous':
-          const panel = document.getElementById('famousPanel');
-          panel.classList.remove('collapsed');
+          _showMobileFamous();
           break;
         case 'achievements':
           document.getElementById('achievementsBtn').click();
@@ -545,6 +544,41 @@ const UI = (() => {
         document.body.classList.remove('mobile-search-active');
       }
     });
+
+    // Mobile famous overlay
+    const famousOverlay = document.getElementById('mobileFamousOverlay');
+    const famousClose = document.getElementById('mobileFamousClose');
+    if (famousOverlay && famousClose) {
+      famousClose.addEventListener('click', () => famousOverlay.classList.add('hidden'));
+      famousOverlay.addEventListener('click', (e) => {
+        if (e.target === famousOverlay) famousOverlay.classList.add('hidden');
+      });
+    }
+  }
+
+  function _showMobileFamous() {
+    const overlay = document.getElementById('mobileFamousOverlay');
+    const list = document.getElementById('mobileFamousList');
+    if (!overlay || !list) return;
+
+    // Copy the famous patterns content from the desktop panel
+    const desktopList = document.getElementById('famousPatterns');
+    if (desktopList) {
+      list.innerHTML = desktopList.innerHTML;
+      // Re-bind click handlers on the cloned items
+      list.querySelectorAll('.famous-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const pattern = item.dataset.pattern;
+          const pos = parseInt(item.dataset.pos);
+          if (pattern) {
+            overlay.classList.add('hidden');
+            document.getElementById('searchInput').value = pattern;
+            document.getElementById('searchInput').dispatchEvent(new Event('input'));
+          }
+        });
+      });
+    }
+    overlay.classList.remove('hidden');
   }
 
   function setupSearch() {
