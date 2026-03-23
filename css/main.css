@@ -2121,12 +2121,7 @@ html, body {
   color: var(--text-dim);
 }
 
-/* Hide minimap on landscape phones (short viewport) */
-@media (max-height: 500px) {
-  #minimapContainer { display: none; }
-}
-
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1200px) {
   /* Top bar: minimal on mobile */
   #topBar {
     height: 52px;
