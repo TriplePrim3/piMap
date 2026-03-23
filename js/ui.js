@@ -77,16 +77,16 @@ const UI = (() => {
   let cakeClickCount = 0;
 
   const CAKE_QUIPS = [
-    "There's definitely cake... it's just at the end of π. Keep going! 🍰",
-    "Oh there it goes again! The cake is always one step ahead...",
+    "There's definitely pie... it's just at the end of π. Keep going! 🍰",
+    "Oh there it goes again! The pie is always one step ahead...",
     "You almost had it! But π had other plans.",
-    "The cake isn't a lie — it's just... infinitely far away.",
-    "π keeps adding digits just to keep the cake out of reach.",
-    "At this rate, the cake will be stale by the time you get there.",
-    "Fun fact: the cake has been running since Archimedes first tried.",
-    "Maybe the real cake was the digits we computed along the way?",
-    "Still chasing cake? π respects the hustle.",
-    "Legend says if you reach the last digit of π, the cake is chocolate.",
+    "The pie isn't a lie — it's just... infinitely far away.",
+    "π keeps adding digits just to keep the pie out of reach.",
+    "At this rate, the pie will be cold by the time you get there.",
+    "Fun fact: the pie has been running since Archimedes first tried.",
+    "Maybe the real pie was the digits we computed along the way?",
+    "Still chasing pie? π respects the hustle.",
+    "Legend says if you reach the last digit of π, the pie is apple.",
   ];
 
   const MASCOT_TIPS = [
@@ -257,7 +257,7 @@ const UI = (() => {
       const famousHint = isMobile
         ? 'Tap <b>Famous</b> at the bottom to explore!'
         : 'Check out Famous in π in the top bar.';
-      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching any word or phrase — it has a place in here.<br>${famousHint}<br>There's also 🍰 cake at the end...<br><i style="opacity:0.6">if you can find it.</i><br><i style="opacity:0.4;font-size:11px">Long press me to mute if I'm too loud — I'll still talk, you just won't hear me.</i>`, 12000);
+      mascotSay(`<div class="bubble-title">Hey there!</div>These are the first million digits of π!<br>Try searching any word or phrase — it has a place in here.<br>${famousHint}<br>There's also 🍰 pie at the end...<br><i style="opacity:0.6">if you can find it.</i><br><i style="opacity:0.4;font-size:11px">Long press me to mute if I'm too loud — I'll still talk, you just won't hear me.</i>`, 12000);
     }, 1500);
   }
 
@@ -266,7 +266,7 @@ const UI = (() => {
   function askBirthday() {
     mascotSay(
       `<div class="bubble-title">🎂 When's your birthday?</div>`
-      + `Let me find it in π and leave you a cake there!`
+      + `Let me find it in π and leave you a pie there!`
       + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">Find it!</button></div>`,
       0
     );
@@ -320,7 +320,7 @@ const UI = (() => {
       mascotSay(
         `<div class="bubble-title">🎂 Happy birthday!</div>`
         + `Found <b>${found.label}</b> in π!<br>`
-        + `I left a cake there for you!`,
+        + `I left a pie there for you!`,
         8000
       );
       unlock('birthday');
@@ -344,8 +344,8 @@ const UI = (() => {
   // ─── Achievements ───
 
   const ACHIEVEMENTS = [
-    { id: 'cake_lie', icon: '🍰', name: 'The Cake Is a Lie', desc: 'Clicked the cake at the end of π' },
-    { id: 'birthday', icon: '🎂', name: 'The Cake Is Alive', desc: 'Find the cake in π' },
+    { id: 'cake_lie', icon: '🍰', name: 'The Cake Is a Lie', desc: 'Clicked the pie at the end of π' },
+    { id: 'birthday', icon: '🎂', name: 'The Cake Is Alive', desc: 'Find the pie in π' },
     { id: 'name_search', icon: '🧘', name: 'Self Discovery', desc: 'Searched a word or phrase in π' },
     { id: 'feynman', icon: '🎯', name: 'Feynman Fan', desc: 'Visited the Feynman Point' },
     { id: 'explorer', icon: '🧭', name: 'Explorer', desc: 'Navigated to 10 different positions' },
@@ -365,7 +365,7 @@ const UI = (() => {
   let encodingsUsed = new Set(JSON.parse(localStorage.getItem('pimap_encodings') || '[]'));
 
   const ACHIEVEMENT_QUIPS = {
-    cake_lie: 'You found the cake! Or did the cake find you? π works in mysterious ways.',
+    cake_lie: 'You found the pie! Or did the pie find you? π works in mysterious ways.',
     birthday: 'Your birthday lives in π forever. That\'s more permanent than a tattoo.',
     name_search: 'Your words have a place in π! Everything you could ever say is hiding in there somewhere.',
     feynman: 'Six 9s in a row! Feynman would be proud. Or he\'d make a joke about it. Probably both.',
@@ -556,8 +556,8 @@ const UI = (() => {
   const FEATURE_PROMPTS = [
     { achId: 'name_search', html: '<div class="bubble-title">Everything has a place in π 👀</div>Try searching any word or phrase — your name, a quote, anything. π has been holding onto it this whole time.' },
     { achId: 'multi_part', html: '<div class="bubble-title">Go big or go home</div>Try searching <b>"Pi is the best number ever"</b> and see what happens!<br><button onclick="var c=document.getElementById(\'chunkSearch\');if(c)c.checked=true;var i=document.getElementById(\'searchInput\');i.value=\'Pi is the best number ever\';i.dispatchEvent(new Event(\'input\'));document.getElementById(\'mascotBubble\').classList.add(\'hidden\')" style="margin-top:6px;padding:4px 12px;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Show me!</button>' },
-    { achId: 'cake_lie', html: '<div class="bubble-title">🍰 Don\'t tell anyone but...</div>There\'s a cake hiding at the very last digit. Scroll aaall the way down. I dare you.' },
-    { achId: 'birthday', html: '<div class="bubble-title">🎂 Unfinished business</div>That cake isn\'t just decoration. Click it. Trust me, it gets weird.' },
+    { achId: 'cake_lie', html: '<div class="bubble-title">🍰 Don\'t tell anyone but...</div>There\'s a pie hiding at the very last digit. Scroll aaall the way down. I dare you.' },
+    { achId: 'birthday', html: '<div class="bubble-title">🎂 Unfinished business</div>That pie isn\'t just decoration. Click it. Trust me, it gets weird.' },
     { achId: 'feynman', html: '<div class="bubble-title">Rumor has it...</div>Some say six 9s appear in a row somewhere in π. Sounds fake, right? Check the <b>Famous</b> tab and see for yourself.' },
     { achId: 'encoding', html: '<div class="bubble-title">🔣 Speak π\'s language</div>There are 3 secret encodings hiding words in plain sight. You\'ve only tried... not all of them. Fix that.' },
     { achId: 'zoom_master', html: '<div class="bubble-title">🔬 Enhance!</div>Zoom in. No, more. Keep going. There\'s a whole world in there if you squint hard enough.' },
@@ -2074,7 +2074,7 @@ const UI = (() => {
         const color = colors ? colors[Number(d)] : 'var(--accent)';
         let html = `<span class="tt-digit" style="color:${color}">${d}</span><span class="tt-pos">digit #${idx.toLocaleString()}</span>`;
         if (isLastDigit) {
-          html += `<div class="tt-note">\uD83C\uDF70 The cake is at the end of \u03C0</div>`;
+          html += `<div class="tt-note">\uD83C\uDF70 The pie is at the end of \u03C0</div>`;
         }
         tooltip.innerHTML = html;
         tooltip.classList.remove('hidden');
@@ -2105,8 +2105,8 @@ const UI = (() => {
             if (cakeClickCount === 1) {
               // First click — the realization
               mascotSay(
-                `<div class="bubble-title">🍰 The Cake</div>`
-                + `Oh that's right... π has no end.<br>Does that mean the cake is a lie?<br>`
+                `<div class="bubble-title">🍰 The Pie</div>`
+                + `Oh that's right... π has no end.<br>Does that mean the pie is a lie?<br>`
                 + `<i style="opacity:0.6">There's got to be another way to get it.</i>`,
                 0
               );
@@ -2114,7 +2114,7 @@ const UI = (() => {
               // Second click — offer birthday (sticky — stays until submitted)
               mascotSay(
                 `<div class="bubble-title">🍰 Wait...</div>`
-                + `What if the cake comes to you?<br>Tell me your birthday and I'll find it a place in π!`
+                + `What if the pie comes to you?<br>Tell me your birthday and I'll find it a place in π!`
                 + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">🎂 Find my birthday!</button></div>`,
                 0,
                 true
@@ -2128,7 +2128,7 @@ const UI = (() => {
               }, 50);
             } else {
               const quip = CAKE_QUIPS[cakeClickCount % CAKE_QUIPS.length];
-              mascotSay(`<div class="bubble-title">🍰 The Cake</div>${quip}`, 6000);
+              mascotSay(`<div class="bubble-title">🍰 The Pie</div>${quip}`, 6000);
             }
           }
         }
@@ -2214,15 +2214,15 @@ const UI = (() => {
             cakeClickCount++;
             if (cakeClickCount === 1) {
               mascotSay(
-                `<div class="bubble-title">🍰 The Cake</div>`
-                + `Oh that's right... π has no end.<br>Does that mean the cake is a lie?<br>`
+                `<div class="bubble-title">🍰 The Pie</div>`
+                + `Oh that's right... π has no end.<br>Does that mean the pie is a lie?<br>`
                 + `<i style="opacity:0.6">There's got to be another way to get it.</i>`,
                 0
               );
             } else if (cakeClickCount === 2) {
               mascotSay(
                 `<div class="bubble-title">🍰 Wait...</div>`
-                + `What if the cake comes to you?<br>Tell me your birthday and I'll find it a place in π!`
+                + `What if the pie comes to you?<br>Tell me your birthday and I'll find it a place in π!`
                 + `<div class="bday-input"><input type="date" id="bdayPicker"><button id="bdayGo">🎂 Find my birthday!</button></div>`,
                 0,
                 true
@@ -2236,7 +2236,7 @@ const UI = (() => {
               }, 50);
             } else {
               const quip = CAKE_QUIPS[cakeClickCount % CAKE_QUIPS.length];
-              mascotSay(`<div class="bubble-title">🍰 The Cake</div>${quip}`, 6000);
+              mascotSay(`<div class="bubble-title">🍰 The Pie</div>${quip}`, 6000);
             }
           }
         }
