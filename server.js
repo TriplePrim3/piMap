@@ -366,7 +366,10 @@ function handlePiSearch(query, pairAligned, stream, res) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',        // disable nginx proxy buffering
+      'Content-Encoding': 'identity',    // prevent compression buffering
     });
+    res.flushHeaders();
 
     const fail = buildFailure(query);
     const step = chunkMeta.chunkSize - chunkMeta.overlap;
@@ -420,8 +423,8 @@ function handlePiSearch(query, pairAligned, stream, res) {
 
       chunkIndex++;
 
-      // Send progress every 50 chunks (~50M digits)
-      if (chunkIndex % 50 === 0 || results.length > 0) {
+      // Send progress every 10 chunks (~10M digits)
+      if (chunkIndex % 10 === 0 || results.length > 0) {
         const progress = JSON.stringify({
           type: 'progress',
           searched: chunkIndex * chunkMeta.chunkSize,
