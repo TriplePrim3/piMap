@@ -1199,22 +1199,34 @@ const Shop = (() => {
 
     cartItem._uploaded = false;
     cartItem._uploadFailed = false;
+    cartItem._uploadPct = 0;
 
-    cartItem._uploadReady = fetch('/api/upload-design', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, designs }),
-    }).then(async (res) => {
-      if (!res.ok) throw new Error('Design upload failed');
-      const data = await res.json();
-      cartItem._designUrls = { front: data.urls.front, ...(data.urls.back && { back: data.urls.back }) };
-      cartItem._mockupUrl = data.urls.mockup || null;
-      cartItem._uploaded = true;
-      // Free memory — hi-res data no longer needed
-      cartItem.frontHires = null;
-      cartItem.backHires = null;
-      cartItem.mockupImg = null;
-      _renderCart();
+    const payload = JSON.stringify({ orderId, designs });
+    cartItem._uploadReady = new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          cartItem._uploadPct = Math.round((e.loaded / e.total) * 100);
+          _renderCart();
+        }
+      });
+      xhr.addEventListener('load', () => {
+        if (xhr.status !== 200) { reject(new Error('Design upload failed')); return; }
+        const data = JSON.parse(xhr.responseText);
+        cartItem._designUrls = { front: data.urls.front, ...(data.urls.back && { back: data.urls.back }) };
+        cartItem._mockupUrl = data.urls.mockup || null;
+        cartItem._uploaded = true;
+        cartItem._uploadPct = 100;
+        cartItem.frontHires = null;
+        cartItem.backHires = null;
+        cartItem.mockupImg = null;
+        _renderCart();
+        resolve();
+      });
+      xhr.addEventListener('error', () => reject(new Error('Network error')));
+      xhr.open('POST', '/api/upload-design');
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(payload);
     }).catch(err => {
       console.warn('Background upload failed, will retry at checkout:', err);
       cartItem._designUrls = null;
@@ -1270,7 +1282,7 @@ const Shop = (() => {
         ? '<span class="cart-item-status ready">Ready to print</span>'
         : item._uploadFailed
           ? '<span class="cart-item-status failed">Upload failed — will retry at checkout</span>'
-          : `<span class="cart-item-status uploading"><span class="cart-spinner"></span>${uploadMsg}</span>`;
+          : `<span class="cart-item-status uploading"><span class="cart-spinner"></span>${uploadMsg} ${item._uploadPct}%</span>`;
       row.innerHTML = `
         <div class="cart-item-thumb" style="background:${item.colorSwatch};${item.colorSwatch === '#ffffff' ? 'border:1px solid var(--border)' : ''}">
           <img src="${item.frontImg}" class="cart-item-img" alt="Front">
