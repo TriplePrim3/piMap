@@ -90,9 +90,30 @@ const PRINTFUL_PRODUCTS = {
     },
     placements: { front: 'embroidery_front' },
   },
+  mug: {
+    productId: 19, // White Glossy Mug 11oz
+    variants: {
+      'White-11oz': 1320,
+    },
+    placements: { front: 'default' },
+  },
+  sticker: {
+    productId: 358, // Kiss-Cut Stickers
+    variants: {
+      'White-3×3': 10163,
+    },
+    placements: { front: 'default' },
+  },
 };
 
-const PRICE_CENTS = 3141; // $31.41
+// Pricing: multiples of π
+const PI = Math.PI;
+const PRODUCT_PRICES = {
+  tshirt:  Math.round(10 * PI * 100), // 10π = $31.42
+  cap:     Math.round(10 * PI * 100), // 10π = $31.42
+  mug:     Math.round(6 * PI * 100),  //  6π = $18.85
+  sticker: Math.round(3 * PI * 100),  //  3π = $9.42
+};
 
 // Shipping rate tiers (cents) — based on Printful rates + small handling buffer
 // Printful fulfillment: 2-5 days. Delivery on top of that.
@@ -602,7 +623,7 @@ async function handleCheckout(req, res) {
         price_data: {
           currency: 'usd',
           product_data: productData,
-          unit_amount: PRICE_CENTS,
+          unit_amount: PRODUCT_PRICES[item.product] || PRODUCT_PRICES.tshirt,
         },
         quantity: 1,
       };

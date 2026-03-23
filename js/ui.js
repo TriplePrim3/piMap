@@ -1047,7 +1047,7 @@ const UI = (() => {
       navigateToMatch(results[0], digitPatternLen);
       const pos = results[0];
       const count = results.length;
-      const makeBtn = `<br><button class="mascot-action-btn" id="makeItMineLocal">Wear it</button> ${_shareBtn('shareLocal')}`;
+      const makeBtn = `<br><button class="mascot-action-btn" id="makeItMineLocal">Make it mine</button> ${_shareBtn('shareLocal')}`;
       if (converted.mode === 'digits') {
         mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
       } else {
@@ -1178,11 +1178,11 @@ const UI = (() => {
       `<div class="bubble-title">Found in ${chunks.length} parts!</div>`
       + `"<b>${origWord || word}</b>" is too long to find in one go, but I found it in parts:<br>`
       + chunkHtml
-      + `<br><button class="mascot-action-btn" id="makeItMineBtn">Wear it</button>`,
+      + `<br><button class="mascot-action-btn" id="makeItMineBtn">Make it mine</button>`,
       0
     );
 
-    // Make chunk lines and "Wear it" clickable
+    // Make chunk lines and "Make it mine" clickable
     setTimeout(() => {
       const bubble = document.getElementById('mascotBubble');
       bubble.querySelectorAll('[data-chunk]').forEach(el => {
@@ -1437,9 +1437,9 @@ const UI = (() => {
         }
       }
 
-      // "Wear it" + "Share" for single result
+      // "Make it mine" + "Share" for single result
       if (best) {
-        mascotHtml += `<br><button class="mascot-action-btn" id="makeItMineApi">Wear it</button> ${_shareBtn('shareMulti')}`;
+        mascotHtml += `<br><button class="mascot-action-btn" id="makeItMineApi">Make it mine</button> ${_shareBtn('shareMulti')}`;
       }
 
       mascotSay(mascotHtml, 0);

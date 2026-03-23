@@ -1707,6 +1707,13 @@ html, body {
   color: #34d399;
   white-space: nowrap;
   flex-shrink: 0;
+  text-align: right;
+}
+.cart-pi-price {
+  display: block;
+  font-size: 11px;
+  color: #7c6ff7;
+  font-weight: 600;
 }
 .cart-item-remove {
   background: none;

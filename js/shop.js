@@ -37,6 +37,18 @@ const Shop = (() => {
   ];
   let fontIdx = 0;
 
+  // ── Pricing: multiples of π ──
+  const PI = Math.PI;
+  const PRICES = {
+    tshirt: { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
+    cap:    { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
+    mug:    { mult: 6,  cents: Math.round(6 * PI * 100),  label: '6π' },
+    sticker:{ mult: 3,  cents: Math.round(3 * PI * 100),  label: '3π' },
+  };
+  function _price(productKey) { return PRICES[productKey] || PRICES.tshirt; }
+  function _priceDollars(productKey) { return (_price(productKey).cents / 100).toFixed(2); }
+  function _priceLabel(productKey) { return `${_price(productKey).label} ($${_priceDollars(productKey)})`; }
+
   // ── Product configs ──
 
   const PRODUCTS = {
@@ -57,16 +69,36 @@ const Shop = (() => {
     cap: {
       label: 'Cap',
       colors: [
-        // Cap mockup 5111×5111, 2×3 grid. Front views are top row.
         { name: 'White', swatch: '#ffffff', src: 'mockups/cap-mockup.jpg', dark: false,
           cropOverride: { x: 0.02, y: 0.02, w: 0.46, h: 0.31 } },
         { name: 'Black', swatch: '#1a1a1a', src: 'mockups/cap-mockup.jpg', dark: true,
           cropOverride: { x: 0.52, y: 0.02, w: 0.46, h: 0.31 } },
       ],
-      frontCrop: { x: 0.02, y: 0.02, w: 0.46, h: 0.31 }, // white default
+      frontCrop: { x: 0.02, y: 0.02, w: 0.46, h: 0.31 },
       backCrop: null,
-      // Print zone on cap front panel
       frontPrint: { x: 0.28, y: 0.12, w: 0.44, h: 0.44 },
+      backPrint: null,
+      hasBack: false,
+    },
+    mug: {
+      label: 'Mug',
+      colors: [
+        { name: 'White', swatch: '#ffffff', src: 'mockups/mug-white.jpg', dark: false },
+      ],
+      frontCrop: { x: 0.05, y: 0.05, w: 0.90, h: 0.90 },
+      backCrop: null,
+      frontPrint: { x: 0.15, y: 0.20, w: 0.70, h: 0.55 },
+      backPrint: null,
+      hasBack: false,
+    },
+    sticker: {
+      label: 'Sticker',
+      colors: [
+        { name: 'White', swatch: '#ffffff', src: 'mockups/sticker-white.jpg', dark: false },
+      ],
+      frontCrop: { x: 0.05, y: 0.05, w: 0.90, h: 0.90 },
+      backCrop: null,
+      frontPrint: { x: 0.10, y: 0.10, w: 0.80, h: 0.80 },
       backPrint: null,
       hasBack: false,
     },
@@ -996,6 +1028,10 @@ const Shop = (() => {
     const backFrame = document.getElementById('shopFrameBack');
     if (!frameFront) return;
 
+    // Update price tag
+    const priceTag = document.getElementById('shopPriceTag');
+    if (priceTag) priceTag.textContent = `${_price(product).label} — $${_priceDollars(product)}`;
+
     // Product tabs
     const productPicker = document.getElementById('productPicker');
     if (productPicker) {
@@ -1007,7 +1043,7 @@ const Shop = (() => {
         btn.addEventListener('click', () => {
           product = key;
           colorIdx = 0;
-          selectedSize = PRODUCTS[key].hasBack ? 'M' : 'One Size';
+          selectedSize = key === 'tshirt' ? 'M' : key === 'mug' ? '11oz' : key === 'sticker' ? '3×3' : 'One Size';
           _reRenderDesigns();
         });
         productPicker.appendChild(btn);
@@ -1193,7 +1229,10 @@ const Shop = (() => {
     // Size picker
     const sizePicker = document.getElementById('sizePicker');
     if (sizePicker) {
-      const sizes = cfg.hasBack ? ['XS','S','M','L','XL','XXL'] : ['One Size'];
+      const sizes = product === 'tshirt' ? ['XS','S','M','L','XL','XXL']
+        : product === 'mug' ? ['11oz']
+        : product === 'sticker' ? ['3×3']
+        : ['One Size'];
       sizePicker.innerHTML = '';
       sizes.forEach(s => {
         const btn = document.createElement('button');
@@ -1329,7 +1368,9 @@ const Shop = (() => {
     _renderCart();
   }
 
-  const PRICE = 31.41;
+  function _cartTotal() {
+    return cart.reduce((sum, item) => sum + _price(item.product).cents, 0);
+  }
 
   function _renderCart() {
     const cartEl = document.getElementById('shopCart');
@@ -1343,9 +1384,9 @@ const Shop = (() => {
     countEl.textContent = cart.length;
     checkoutBtn.disabled = cart.length === 0;
 
-    const total = cart.length * PRICE;
+    const totalCents = _cartTotal();
     checkoutBtn.textContent = cart.length > 0
-      ? `Checkout — $${total.toFixed(2)}`
+      ? `Checkout — $${(totalCents / 100).toFixed(2)}`
       : 'Checkout';
 
     itemsEl.innerHTML = '';
@@ -1378,7 +1419,7 @@ const Shop = (() => {
           <div class="cart-item-detail">${item.productLabel} · ${item.colorName} · ${item.size}</div>
           ${statusHtml}
         </div>
-        <div class="cart-item-price">$${PRICE.toFixed(2)}</div>
+        <div class="cart-item-price"><span class="cart-pi-price">${_price(item.product).label}</span> $${_priceDollars(item.product)}</div>
         <button class="cart-item-remove" data-idx="${i}">&times;</button>
       `;
       row.querySelector('.cart-item-remove').addEventListener('click', () => removeFromCart(i));
@@ -1446,8 +1487,7 @@ const Shop = (() => {
       alert('Checkout failed: ' + err.message);
       if (checkoutBtn) {
         checkoutBtn.disabled = false;
-        const total = cart.length * PRICE;
-        checkoutBtn.textContent = `Checkout — $${total.toFixed(2)}`;
+        checkoutBtn.textContent = `Checkout — $${(_cartTotal() / 100).toFixed(2)}`;
       }
     }
   }
