@@ -94,12 +94,51 @@ const PRINTFUL_PRODUCTS = {
 
 const PRICE_CENTS = 3141; // $31.41
 
-// Shipping rate tiers (cents) — covers Printful shipping + small buffer
+// Shipping rate tiers (cents) — based on Printful rates + small handling buffer
+// Printful fulfillment: 2-5 days. Delivery on top of that.
+// Rates use shirt pricing (slightly higher than caps).
+// Stripe allows max 5 shipping_options, so we consolidate into 5 tiers.
 const SHIPPING_RATES = [
-  { id: 'ship_us',    name: 'US Standard',      amount: 499,  delivery: '5-8 business days',  countries: ['US'] },
-  { id: 'ship_ca',    name: 'Canada Standard',   amount: 699,  delivery: '8-14 business days', countries: ['CA'] },
-  { id: 'ship_eu',    name: 'Europe Standard',   amount: 749,  delivery: '8-16 business days', countries: ['GB','DE','FR'] },
-  { id: 'ship_intl',  name: 'International',     amount: 999,  delivery: '10-20 business days', countries: ['AU','IN','JP'] },
+  {
+    id: 'ship_us', name: 'US Standard',
+    amount: 499, additional: 249,     // Printful: $4.75 + $2.20
+    delivery: '5-9 business days',
+    countries: ['US'],
+  },
+  {
+    id: 'ship_eu', name: 'Europe & UK',
+    amount: 549, additional: 199,     // Printful: $4.59-$4.79 + $1.45-$1.50
+    delivery: '7-25 business days',
+    countries: [
+      'GB','AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR',
+      'HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK',
+      'SI','ES','SE',
+    ],
+  },
+  {
+    id: 'ship_ca_aunz', name: 'Canada / Australia / NZ',
+    amount: 849, additional: 249,     // Printful: $7.69-$8.29 + $1.40-$1.95
+    delivery: '7-25 business days',
+    countries: ['CA','AU','NZ'],
+  },
+  {
+    id: 'ship_asia_latam', name: 'Japan / Brazil / Asia',
+    amount: 549, additional: 299,     // Printful: $4.49-$4.75 + $2.00-$2.50
+    delivery: '7-25 business days',
+    countries: ['JP','BR','KR','SG','MY','TH','PH','ID','TW','HK','IN'],
+  },
+  {
+    id: 'ship_world', name: 'Rest of World',
+    amount: 1249, additional: 649,    // Printful: $9.99-$11.99 + $1.10-$6.00
+    delivery: '7-25 business days',
+    countries: [
+      'CH','NO','IS','LI',           // EFTA
+      'MX','CL','CO','AR','PE',      // Latin America
+      'IL','AE','SA','TR',           // Middle East
+      'ZA','NG','EG',               // Africa
+      'UA','RS','BA','ME','MK','AL','MD','GE','KZ', // Eastern Europe / Central Asia
+    ],
+  },
 ];
 
 const MIME = {
@@ -569,18 +608,22 @@ async function handleCheckout(req, res) {
       };
     });
 
-    // Build Stripe shipping options from rate tiers
-    const shippingOptions = SHIPPING_RATES.map(r => ({
-      shipping_rate_data: {
-        type: 'fixed_amount',
-        fixed_amount: { amount: r.amount, currency: 'usd' },
-        display_name: r.name,
-        delivery_estimate: {
-          minimum: { unit: 'business_day', value: parseInt(r.delivery) },
-          maximum: { unit: 'business_day', value: parseInt(r.delivery.split('-')[1]) },
+    // Build Stripe shipping options — first item + additional items
+    const itemCount = items.length;
+    const shippingOptions = SHIPPING_RATES.map(r => {
+      const total = r.amount + (itemCount > 1 ? r.additional * (itemCount - 1) : 0);
+      return {
+        shipping_rate_data: {
+          type: 'fixed_amount',
+          fixed_amount: { amount: total, currency: 'usd' },
+          display_name: r.name,
+          delivery_estimate: {
+            minimum: { unit: 'business_day', value: parseInt(r.delivery) },
+            maximum: { unit: 'business_day', value: parseInt(r.delivery.split('-')[1]) },
+          },
         },
-      },
-    }));
+      };
+    });
 
     const allCountries = [...new Set(SHIPPING_RATES.flatMap(r => r.countries))];
 
