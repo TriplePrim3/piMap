@@ -1171,7 +1171,7 @@ const Shop = (() => {
     // Capture the mockup preview (design on shirt) for Stripe checkout image
     const frameFront = document.getElementById('frameFront');
     const mockupCanvas = frameFront && frameFront.querySelector('canvas');
-    const mockupImg = mockupCanvas ? mockupCanvas.toDataURL('image/jpeg', 0.85) : null;
+    const mockupImg = mockupCanvas ? mockupCanvas.toDataURL('image/jpeg', 0.7) : null;
 
     cart.push({
       product,
@@ -1251,59 +1251,33 @@ const Shop = (() => {
     }
 
     try {
-      // 1. Upload high-res designs for each cart item (one file at a time)
-      const items = [];
-      for (let i = 0; i < cart.length; i++) {
-        const item = cart[i];
+      // 1. Upload all designs in parallel (batch front+back+mockup per item)
+      const uploadPromises = cart.map((item, i) => {
         const orderId = `order_${Date.now()}_${i}`;
-        const designUrls = {};
+        const designs = { front: item.frontHires };
+        if (item.backHires) designs.back = item.backHires;
+        if (item.mockupImg) designs.mockup = item.mockupImg;
 
-        // Upload front
-        const frontRes = await fetch('/api/upload-design', {
+        return fetch('/api/upload-design', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, designs: { front: item.frontHires } }),
+          body: JSON.stringify({ orderId, designs }),
+        }).then(async (res) => {
+          if (!res.ok) throw new Error('Design upload failed');
+          const data = await res.json();
+          return {
+            product: item.product,
+            productLabel: item.productLabel,
+            word: item.word,
+            size: item.size,
+            colorName: item.colorName,
+            designUrls: { front: data.urls.front, ...(data.urls.back && { back: data.urls.back }) },
+            mockupUrl: data.urls.mockup || null,
+          };
         });
-        if (!frontRes.ok) throw new Error('Front design upload failed');
-        const frontData = await frontRes.json();
-        designUrls.front = frontData.urls.front;
+      });
 
-        // Upload back if exists
-        if (item.backHires) {
-          const backRes = await fetch('/api/upload-design', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId, designs: { back: item.backHires } }),
-          });
-          if (!backRes.ok) throw new Error('Back design upload failed');
-          const backData = await backRes.json();
-          designUrls.back = backData.urls.back;
-        }
-
-        // Upload mockup preview (design on shirt) for Stripe checkout display
-        let mockupUrl = null;
-        if (item.mockupImg) {
-          const mockRes = await fetch('/api/upload-design', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId, designs: { mockup: item.mockupImg } }),
-          });
-          if (mockRes.ok) {
-            const mockData = await mockRes.json();
-            mockupUrl = mockData.urls.mockup;
-          }
-        }
-
-        items.push({
-          product: item.product,
-          productLabel: item.productLabel,
-          word: item.word,
-          size: item.size,
-          colorName: item.colorName,
-          designUrls,
-          mockupUrl,
-        });
-      }
+      const items = await Promise.all(uploadPromises);
 
       // 2. Create Stripe checkout session
       const checkoutRes = await fetch('/api/checkout', {
