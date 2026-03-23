@@ -1232,6 +1232,9 @@ const UI = (() => {
     const ctxPanel = document.getElementById('apiContextPanel');
     const modeLabels = { alpha26: 'Alpha-26', compact: 'Compact', t9: 'T9' };
 
+    // Cancel any in-flight searches before starting new ones
+    PiApi.cancel();
+
     banner.classList.remove('hidden');
     banner.classList.add('loading');
     ctxPanel.classList.add('hidden');

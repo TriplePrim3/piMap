@@ -1,5 +1,6 @@
 const PiApi = (() => {
   let lastAbort = null;
+  let activeStreams = [];
   let serverStatus = null;
 
   async function checkStatus() {
@@ -28,13 +29,15 @@ const PiApi = (() => {
   }
 
   // Streaming search with progress callbacks
+  // Uses its own AbortController so parallel calls don't cancel each other
   async function searchStream(digitQuery, pairAligned, onProgress) {
-    if (lastAbort) lastAbort.abort();
-    lastAbort = new AbortController();
+    const abort = new AbortController();
+    // Track all active streams so cancel() can stop them all
+    activeStreams.push(abort);
 
     const aligned = pairAligned ? '1' : '0';
     const url = `/api/pisearch?q=${encodeURIComponent(digitQuery)}&aligned=${aligned}&stream=1`;
-    const resp = await fetch(url, { signal: lastAbort.signal });
+    const resp = await fetch(url, { signal: abort.signal });
     if (!resp.ok) {
       const err = await resp.text().catch(() => '');
       throw new Error(err || `API error: ${resp.status}`);
@@ -67,8 +70,10 @@ const PiApi = (() => {
       }
     }
 
+    // Remove this stream from active list
+    activeStreams = activeStreams.filter(a => a !== abort);
+
     if (!finalResult) {
-      // SSE parsing may have missed the result — check status for totalDigits
       const status = serverStatus || await checkStatus();
       return { found: false, results: [], count: 0, totalDigits: status?.totalDigits || 0, elapsed: 0 };
     }
@@ -81,6 +86,8 @@ const PiApi = (() => {
 
   function cancel() {
     if (lastAbort) lastAbort.abort();
+    activeStreams.forEach(a => a.abort());
+    activeStreams = [];
   }
 
   return { search, searchStream, checkStatus, getStatus, cancel };
