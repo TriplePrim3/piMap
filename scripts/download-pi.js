@@ -18,9 +18,14 @@ const http = require('http');
 
 const CHUNK_SIZE = 1_000_000;  // 1M digits per chunk
 const OVERLAP = 50;            // overlap >= max query length
-const CHUNKS_DIR = path.join(__dirname, '..', 'data', 'pi-chunks');
+const BASE_DIR = process.env.PERSIST_DIR
+  ? process.env.PERSIST_DIR
+  : path.join(__dirname, '..', 'data');
+const CHUNKS_DIR = process.env.PERSIST_DIR
+  ? path.join(process.env.PERSIST_DIR, 'pi-chunks')
+  : path.join(__dirname, '..', 'data', 'pi-chunks');
 const PI_TXT = path.join(__dirname, '..', 'data', 'pi.txt');
-const RAW_FILE = path.join(__dirname, '..', 'data', 'pi-billion-raw.txt');
+const RAW_FILE = path.join(BASE_DIR, 'pi-billion-raw.txt');
 
 const MIT_URL = 'https://stuff.mit.edu/afs/sipb/contrib/pi/pi-billion.txt';
 

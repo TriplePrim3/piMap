@@ -17,7 +17,10 @@ function getStripe() {
 
 const PORT = process.env.PORT || 8080;
 const STATIC_DIR = __dirname;
-const CHUNKS_DIR = path.join(__dirname, 'data', 'pi-chunks');
+// Prefer persistent volume for chunks so they survive redeploys
+const CHUNKS_DIR = process.env.PERSIST_DIR
+  ? path.join(process.env.PERSIST_DIR, 'pi-chunks')
+  : path.join(__dirname, 'data', 'pi-chunks');
 const PI_TXT = path.join(__dirname, 'data', 'pi.txt');
 
 // Persistent data directory — set PERSIST_DIR to a Railway Volume mount for durability
