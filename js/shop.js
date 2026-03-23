@@ -1070,35 +1070,61 @@ const Shop = (() => {
 
     // Front frame
     if (product === 'mug') {
-      // Mug: show actual mockup photos (polygon side + π side)
+      // Mug: overlay polygon design on mockup photos
       const col = _getColor();
       labelLeft.textContent = 'POLYGON SIDE';
       labelRight.textContent = 'π SIDE';
       if (backFrame) backFrame.classList.remove('hidden');
 
-      function _loadMugSide(container, src) {
-        const cached = _mockupCache[src];
-        function render(img) {
+      // Polygon side — composite design onto mockup
+      function _compositeMugSide(container, mockupSrc, designDataUrl) {
+        const cached = _mockupCache[mockupSrc];
+        function render(mockupImg) {
           const canvas = document.createElement('canvas');
-          canvas.width = 320;
-          canvas.height = 320;
+          const sz = 320;
+          canvas.width = sz; canvas.height = sz;
           const ctx = canvas.getContext('2d');
-          const scale = Math.min(320 / img.width, 320 / img.height);
-          const w = img.width * scale, h = img.height * scale;
-          ctx.drawImage(img, (320 - w) / 2, (320 - h) / 2, w, h);
-          canvas.className = 'mockup-canvas';
-          container.innerHTML = '';
-          container.appendChild(canvas);
+          const scale = Math.min(sz / mockupImg.width, sz / mockupImg.height);
+          const w = mockupImg.width * scale, h = mockupImg.height * scale;
+          const ox = (sz - w) / 2, oy = (sz - h) / 2;
+          ctx.drawImage(mockupImg, ox, oy, w, h);
+
+          if (designDataUrl) {
+            const dImg = new Image();
+            dImg.onload = () => {
+              // Print zone on mug — centered circle area
+              const px = ox + w * 0.22, py = oy + h * 0.18;
+              const pw = w * 0.48, ph = h * 0.58;
+              if (col.dark) {
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = 0.85;
+              } else {
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.globalAlpha = 0.95;
+              }
+              ctx.drawImage(dImg, px, py, pw, ph);
+              ctx.globalCompositeOperation = 'source-over';
+              ctx.globalAlpha = 1;
+              canvas.className = 'mockup-canvas';
+              container.innerHTML = '';
+              container.appendChild(canvas);
+            };
+            dImg.src = designDataUrl;
+          } else {
+            canvas.className = 'mockup-canvas';
+            container.innerHTML = '';
+            container.appendChild(canvas);
+          }
         }
         if (cached) { render(cached); }
         else {
           const img = new Image();
-          img.onload = () => { _mockupCache[src] = img; render(img); };
-          img.src = src;
+          img.onload = () => { _mockupCache[mockupSrc] = img; render(img); };
+          img.src = mockupSrc;
         }
       }
-      _loadMugSide(frameFront, col.mugFront);
-      _loadMugSide(frameBack, col.mugBack);
+      _compositeMugSide(frameFront, col.mugFront, designImages['polygon']);
+      _compositeMugSide(frameBack, col.mugBack, null); // π side already has design baked in
     } else if (product === 'sticker') {
       // Sticker: render polygon design directly
       labelLeft.textContent = 'STICKER';
