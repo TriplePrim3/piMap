@@ -94,6 +94,14 @@ const PRINTFUL_PRODUCTS = {
 
 const PRICE_CENTS = 3141; // $31.41
 
+// Shipping rate tiers (cents) — covers Printful shipping + small buffer
+const SHIPPING_RATES = [
+  { id: 'ship_us',    name: 'US Standard',      amount: 499,  delivery: '5-8 business days',  countries: ['US'] },
+  { id: 'ship_ca',    name: 'Canada Standard',   amount: 699,  delivery: '8-14 business days', countries: ['CA'] },
+  { id: 'ship_eu',    name: 'Europe Standard',   amount: 749,  delivery: '8-16 business days', countries: ['GB','DE','FR'] },
+  { id: 'ship_intl',  name: 'International',     amount: 999,  delivery: '10-20 business days', countries: ['AU','IN','JP'] },
+];
+
 const MIME = {
   '.html': 'text/html',
   '.css': 'text/css',
@@ -561,14 +569,30 @@ async function handleCheckout(req, res) {
       };
     });
 
+    // Build Stripe shipping options from rate tiers
+    const shippingOptions = SHIPPING_RATES.map(r => ({
+      shipping_rate_data: {
+        type: 'fixed_amount',
+        fixed_amount: { amount: r.amount, currency: 'usd' },
+        display_name: r.name,
+        delivery_estimate: {
+          minimum: { unit: 'business_day', value: parseInt(r.delivery) },
+          maximum: { unit: 'business_day', value: parseInt(r.delivery.split('-')[1]) },
+        },
+      },
+    }));
+
+    const allCountries = [...new Set(SHIPPING_RATES.flatMap(r => r.countries))];
+
     const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
       customer_creation: 'always',
       shipping_address_collection: {
-        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'IN', 'JP'],
+        allowed_countries: allCountries,
       },
+      shipping_options: shippingOptions,
       metadata: { order_id: orderId },
       success_url: `${siteUrl}?checkout=success`,
       cancel_url: `${siteUrl}?checkout=cancel`,
