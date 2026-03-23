@@ -570,10 +570,14 @@ async function handleCheckout(req, res) {
     };
     saveOrder(order);
 
+    // Tax codes: apparel (tshirt/cap), home accessories (mug), paper goods (sticker)
+    const TAX_CODES = { tshirt: 'txcd_30011000', cap: 'txcd_30011000', mug: 'txcd_35010000', sticker: 'txcd_38000000' };
+
     const lineItems = items.map(item => {
       const productData = {
         name: `${item.productLabel} — "${item.word}"`,
         description: `${item.colorName}, ${item.size} | Your Place in π`,
+        tax_code: TAX_CODES[item.product] || TAX_CODES.tshirt,
       };
       if (item.mockupUrl) {
         productData.images = [siteUrl + item.mockupUrl];
@@ -585,6 +589,7 @@ async function handleCheckout(req, res) {
           currency: 'usd',
           product_data: productData,
           unit_amount: PRODUCT_PRICES[item.product] || PRODUCT_PRICES.tshirt,
+          tax_behavior: 'exclusive',
         },
         quantity: 1,
       };
@@ -598,6 +603,7 @@ async function handleCheckout(req, res) {
       payment_method_types: ['card'],
       line_items: lineItems,
       mode: 'payment',
+      automatic_tax: { enabled: true },
       customer_creation: 'always',
       shipping_address_collection: {
         allowed_countries: ['US','CA','GB','AU','NZ','JP','BR','KR','SG','MY','TH','PH','ID','TW','HK','IN',
@@ -609,6 +615,7 @@ async function handleCheckout(req, res) {
         shipping_rate_data: {
           type: 'fixed_amount',
           fixed_amount: { amount: shippingTotal, currency: 'usd' },
+          tax_behavior: 'exclusive',
           display_name: 'Standard Shipping',
           delivery_estimate: {
             minimum: { unit: 'business_day', value: 5 },
