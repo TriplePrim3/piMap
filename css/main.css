@@ -2340,9 +2340,7 @@ html, body {
     font-size: 10px;
   }
   /* Hide mascot bubble when API banner is showing */
-  .api-banner:not(.hidden) ~ .pi-mascot .mascot-bubble {
-    display: none;
-  }
+  /* Mascot bubble now visible during extended search */
 
   /* Shop modal: full screen scrollable on mobile with safe padding */
   .shop-modal {
