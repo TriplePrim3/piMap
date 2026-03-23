@@ -83,13 +83,17 @@ const Shop = (() => {
     mug: {
       label: 'Mug',
       colors: [
-        { name: 'White', swatch: '#ffffff', src: 'mockups/mug-white.jpg', dark: false },
+        { name: 'White', swatch: '#ffffff', dark: false,
+          mugFront: 'mockups/mug-white-polygon.png', mugBack: 'mockups/mug-white-pi.png' },
+        { name: 'Black', swatch: '#1a1a1a', dark: true,
+          mugFront: 'mockups/mug-black-polygon.png', mugBack: 'mockups/mug-black-pi.png' },
       ],
-      frontCrop: { x: 0.05, y: 0.05, w: 0.90, h: 0.90 },
+      frontCrop: null,
       backCrop: null,
-      frontPrint: { x: 0.15, y: 0.20, w: 0.70, h: 0.55 },
+      frontPrint: null,
       backPrint: null,
       hasBack: false,
+      isMug: true,
     },
     sticker: {
       label: 'Sticker',
@@ -1052,38 +1056,67 @@ const Shop = (() => {
 
     // Show/hide back frame & tshirt-only controls
     const backDesignGroup = document.getElementById('backDesignGroup');
-    if (cfg.hasBack) {
+    const showBack = cfg.hasBack || product === 'mug';
+    if (showBack) {
       if (backFrame) backFrame.classList.remove('hidden');
-      if (backDesignGroup) backDesignGroup.classList.remove('hidden');
     } else {
       if (backFrame) backFrame.classList.add('hidden');
+    }
+    if (cfg.hasBack) {
+      if (backDesignGroup) backDesignGroup.classList.remove('hidden');
+    } else {
       if (backDesignGroup) backDesignGroup.classList.add('hidden');
     }
 
     // Front frame
-    if (product === 'sticker' || product === 'mug') {
-      // Sticker/mug: render design directly (no mockup overlay)
-      labelLeft.textContent = product === 'sticker' ? 'STICKER' : 'MUG';
-      const designKey = 'polygon'; // stickers always use polygon
-      const dataUrl = designImages[designKey];
+    if (product === 'mug') {
+      // Mug: show actual mockup photos (polygon side + π side)
+      const col = _getColor();
+      labelLeft.textContent = 'POLYGON SIDE';
+      labelRight.textContent = 'π SIDE';
+      if (backFrame) backFrame.classList.remove('hidden');
+
+      function _loadMugSide(container, src) {
+        const cached = _mockupCache[src];
+        function render(img) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 320;
+          canvas.height = 320;
+          const ctx = canvas.getContext('2d');
+          const scale = Math.min(320 / img.width, 320 / img.height);
+          const w = img.width * scale, h = img.height * scale;
+          ctx.drawImage(img, (320 - w) / 2, (320 - h) / 2, w, h);
+          canvas.className = 'mockup-canvas';
+          container.innerHTML = '';
+          container.appendChild(canvas);
+        }
+        if (cached) { render(cached); }
+        else {
+          const img = new Image();
+          img.onload = () => { _mockupCache[src] = img; render(img); };
+          img.src = src;
+        }
+      }
+      _loadMugSide(frameFront, col.mugFront);
+      _loadMugSide(frameBack, col.mugBack);
+    } else if (product === 'sticker') {
+      // Sticker: render polygon design directly
+      labelLeft.textContent = 'STICKER';
+      const dataUrl = designImages['polygon'];
       if (dataUrl) {
         const img = new Image();
         img.onload = () => {
+          const sz = 300;
           const canvas = document.createElement('canvas');
-          const sz = product === 'sticker' ? 300 : 320;
-          canvas.width = sz;
-          canvas.height = sz;
+          canvas.width = sz; canvas.height = sz;
           const ctx = canvas.getContext('2d');
-          // White background for mug, rounded for sticker
-          if (product === 'sticker') {
-            ctx.beginPath();
-            const r = sz * 0.08;
-            ctx.moveTo(r, 0); ctx.lineTo(sz - r, 0); ctx.quadraticCurveTo(sz, 0, sz, r);
-            ctx.lineTo(sz, sz - r); ctx.quadraticCurveTo(sz, sz, sz - r, sz);
-            ctx.lineTo(r, sz); ctx.quadraticCurveTo(0, sz, 0, sz - r);
-            ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
-            ctx.closePath(); ctx.clip();
-          }
+          ctx.beginPath();
+          const r = sz * 0.08;
+          ctx.moveTo(r, 0); ctx.lineTo(sz - r, 0); ctx.quadraticCurveTo(sz, 0, sz, r);
+          ctx.lineTo(sz, sz - r); ctx.quadraticCurveTo(sz, sz, sz - r, sz);
+          ctx.lineTo(r, sz); ctx.quadraticCurveTo(0, sz, 0, sz - r);
+          ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+          ctx.closePath(); ctx.clip();
           ctx.fillStyle = '#ffffff';
           ctx.fillRect(0, 0, sz, sz);
           const pad = sz * 0.05;

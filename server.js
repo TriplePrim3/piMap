@@ -91,9 +91,10 @@ const PRINTFUL_PRODUCTS = {
     placements: { front: 'embroidery_front' },
   },
   mug: {
-    productId: 19, // White Glossy Mug 11oz
+    productId: 19, // Glossy Mug 11oz
     variants: {
       'White-11oz': 1320,
+      'Black-11oz': 4830,
     },
     placements: { front: 'default' },
   },
