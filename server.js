@@ -112,7 +112,7 @@ const PI = Math.PI;
 const PRODUCT_PRICES = {
   tshirt:  Math.round(10 * PI * 100), // 10π = $31.42
   cap:     Math.round(10 * PI * 100), // 10π = $31.42
-  mug:     Math.round(6 * PI * 100),  //  6π = $18.85
+  mug:     Math.round(10 * PI * 100), // 10π = $31.42
   sticker: Math.round(3 * PI * 100),  //  3π = $9.42
 };
 

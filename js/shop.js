@@ -42,7 +42,7 @@ const Shop = (() => {
   const PRICES = {
     tshirt: { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
     cap:    { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
-    mug:    { mult: 6,  cents: Math.round(6 * PI * 100),  label: '6π' },
+    mug:    { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
     sticker:{ mult: 3,  cents: Math.round(3 * PI * 100),  label: '3π' },
   };
   function _price(productKey) { return PRICES[productKey] || PRICES.tshirt; }
