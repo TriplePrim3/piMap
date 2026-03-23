@@ -2121,6 +2121,11 @@ html, body {
   color: var(--text-dim);
 }
 
+/* Hide minimap on landscape phones (short viewport) */
+@media (max-height: 500px) {
+  #minimapContainer { display: none; }
+}
+
 @media (max-width: 768px) {
   /* Top bar: minimal on mobile */
   #topBar {
@@ -2219,7 +2224,7 @@ html, body {
     display: none;
   }
 
-  /* Minimap: hide on mobile */
+  /* Minimap: hide on mobile portrait */
   #minimapContainer {
     display: none;
   }
