@@ -347,22 +347,112 @@ function handlePiDigits(offsetStr, countStr, res) {
 
 // ─── API handler ───
 
-function handlePiSearch(query, pairAligned, res) {
+function handlePiSearch(query, pairAligned, stream, res) {
   if (!query || !/^\d+$/.test(query)) {
     res.writeHead(400, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Query must be digits only' }));
     return;
   }
 
-  const result = searchChunks(query, pairAligned);
-  if (!result) {
+  if (!chunkMeta || chunkFiles.length === 0) {
     res.writeHead(503, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'No pi data loaded. Run: node scripts/download-pi.js' }));
+    res.end(JSON.stringify({ error: 'No pi data loaded.' }));
     return;
   }
 
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify(result));
+  if (stream) {
+    // SSE streaming search with progress updates
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+
+    const fail = buildFailure(query);
+    const step = chunkMeta.chunkSize - chunkMeta.overlap;
+    const results = [];
+    const maxResults = 10;
+    const seen = new Set();
+    const startTime = Date.now();
+    let chunkIndex = 0;
+    const total = chunkFiles.length;
+    let aborted = false;
+
+    res.on('close', () => { aborted = true; });
+
+    function searchNextChunk() {
+      if (aborted || chunkIndex >= total || results.length >= maxResults) {
+        // Done — send final result
+        const elapsed = Date.now() - startTime;
+        const data = JSON.stringify({
+          type: 'result',
+          found: results.length > 0,
+          results,
+          count: results.length,
+          totalDigits,
+          elapsed,
+          searched: chunkIndex * chunkMeta.chunkSize,
+        });
+        res.write(`data: ${data}\n\n`);
+        res.end();
+        return;
+      }
+
+      const cf = chunkFiles[chunkIndex];
+      const chunkData = cf.preloaded || fs.readFileSync(cf.path, 'utf8');
+      const chunkOffset = cf.index * step;
+      const localMatches = kmpSearch(chunkData, query, fail, maxResults * 2);
+
+      for (const localPos of localMatches) {
+        const globalPos = chunkOffset + localPos;
+        if (seen.has(globalPos)) continue;
+        seen.add(globalPos);
+        if (pairAligned && globalPos >= 1 && (globalPos - 1) % 2 !== 0) continue;
+
+        const beforeStart = Math.max(0, localPos - 20);
+        results.push({
+          position: globalPos,
+          before: chunkData.slice(beforeStart, localPos),
+          after: chunkData.slice(localPos + query.length, Math.min(chunkData.length, localPos + query.length + 20)),
+        });
+        if (results.length >= maxResults) break;
+      }
+
+      chunkIndex++;
+
+      // Send progress every 50 chunks (~50M digits)
+      if (chunkIndex % 50 === 0 || results.length > 0) {
+        const progress = JSON.stringify({
+          type: 'progress',
+          searched: chunkIndex * chunkMeta.chunkSize,
+          totalDigits,
+          found: results.length,
+          elapsed: Date.now() - startTime,
+        });
+        res.write(`data: ${progress}\n\n`);
+      }
+
+      // If we found results, finish immediately
+      if (results.length >= maxResults) {
+        searchNextChunk(); return;
+      }
+
+      // Yield to event loop so the server stays responsive
+      setImmediate(searchNextChunk);
+    }
+
+    searchNextChunk();
+  } else {
+    // Non-streaming search (original)
+    const result = searchChunks(query, pairAligned);
+    if (!result) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'No pi data loaded.' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(result));
+  }
 }
 
 // ─── Read POST body ───
@@ -746,7 +836,8 @@ const server = http.createServer((req, res) => {
   if (parsed.pathname === '/api/pisearch') {
     const q = parsed.query.q;
     const pairAligned = parsed.query.aligned === '1';
-    handlePiSearch(q, pairAligned, res);
+    const stream = parsed.query.stream === '1';
+    handlePiSearch(q, pairAligned, stream, res);
     return;
   }
 

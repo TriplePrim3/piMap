@@ -1248,8 +1248,25 @@ const UI = (() => {
       const conv = Search.convertWithMode(query, mode);
       if (!conv.digitQuery || conv.digitQuery.length < 1) continue;
 
+      // Skip full billion-digit scan for sequences 12+ digits — virtually impossible to find
+      if (conv.digitQuery.length >= 12) {
+        notFound.push({
+          mode,
+          label: modeLabels[mode],
+          digitStr: conv.digitQuery,
+          totalDigits: apiTotalDigits,
+          skipped: true,
+        });
+        continue;
+      }
+
       try {
-        const result = await PiApi.search(conv.digitQuery, false);
+        detail.textContent = `Searching ${modeLabels[mode]} (${conv.digitQuery.length} digits)...`;
+        const result = await PiApi.searchStream(conv.digitQuery, false, (progress) => {
+          const searched = _compactDigits(progress.searched);
+          const total = _compactDigits(progress.totalDigits);
+          detail.textContent = `${modeLabels[mode]}: scanned ${searched} of ${total}...`;
+        });
         apiTotalDigits = result.totalDigits || apiTotalDigits;
         if (result.found && result.results.length > 0) {
           const pos = result.results[0].position;
@@ -1304,8 +1321,11 @@ const UI = (() => {
       }
       for (const nf of notFound) {
         const color = ENC_COLORS[nf.mode] || '#ccc';
+        const reason = nf.skipped
+          ? `${nf.digitStr.length} digits — too long to find`
+          : `beyond ${_displayTotalCompact(nf.totalDigits)} digits`;
         detailHtml += `<div style="margin:2px 0;opacity:0.5">`
-          + `<span style="color:${color}">&#9679;</span> ${nf.label}: beyond ${_displayTotalCompact(nf.totalDigits)} digits</div>`;
+          + `<span style="color:${color}">&#9679;</span> ${nf.label}: ${reason}</div>`;
       }
       detail.innerHTML = detailHtml;
 
@@ -1425,6 +1445,13 @@ const UI = (() => {
     }
   }
 
+  function _compactDigits(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(0) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+    return n.toString();
+  }
+
   async function searchPiApi(query, converted) {
     const banner = document.getElementById('apiResultBanner');
     const icon = document.getElementById('apiResultIcon');
@@ -1435,18 +1462,40 @@ const UI = (() => {
     const digitStr = converted.digitQuery;
     const word = query.replace(/[^a-zA-Z]/g, '').toUpperCase();
     const pairAligned = false;
+    const label = word || digitStr;
+
+    // Auto multi-part for long digit strings (9+ digits are very unlikely to be found)
+    if (digitStr.length >= 9 && word) {
+      mascotSay(`<div class="bubble-title">Smart move!</div>"<b>${label}</b>" is ${digitStr.length} digits long — searching as multi-part for better results.`, 6000);
+      const digits = App.getDigits();
+      if (digits) {
+        const breaks = Search.letterBreaks(query, converted.mode);
+        const chunks = Search.findChunked(digits, digitStr, breaks);
+        if (chunks.length > 1) {
+          showChunkedResults(query, converted, chunks, label);
+          return;
+        }
+      }
+    }
 
     // Show loading state
     banner.classList.remove('hidden');
     banner.classList.add('loading');
     ctxPanel.classList.add('hidden');
     icon.textContent = '';
-    title.textContent = `Searching extended \u03C0 digits for "${word || digitStr}"...`;
-    detail.textContent = 'Scanning digit chunks with KMP...';
-    mascotSay(`<div class="bubble-title">Hang on...</div>Digging deeper for "<b>${word || digitStr}</b>"...`, 0);
+    title.textContent = `Searching \u03C0 for "${label}"...`;
+    detail.textContent = 'Scanning digits...';
+    mascotSay(`<div class="bubble-title">Hang on...</div>Digging deeper for "<b>${label}</b>"...`, 0);
 
     try {
-      const result = await PiApi.search(digitStr, pairAligned);
+      const result = await PiApi.searchStream(digitStr, pairAligned, (progress) => {
+        const searched = _compactDigits(progress.searched);
+        const total = _compactDigits(progress.totalDigits);
+        detail.textContent = `Searched ${searched} of ${total} digits...`;
+        if (progress.searched >= 1e8 && digitStr.length >= 7 && progress.found === 0) {
+          mascotSay(`<div class="bubble-title">Still looking...</div>Scanned ${searched} digits so far. Sequences over 9 digits are super rare — try multi-part search for better results!`, 0);
+        }
+      });
 
       banner.classList.remove('loading');
 
@@ -1457,7 +1506,6 @@ const UI = (() => {
         const totalFormatted = _displayTotal(result.totalDigits);
 
         icon.textContent = '\u{1F3AF}';
-        const label = word || digitStr;
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`
           + `<span class="api-position">digit #${posFormatted}</span>`;
         mascotSay(`<div class="bubble-title">Found it!</div>"<b>${label}</b>" is ${_posWords(pos)}! ${_posReaction(pos)}`, 8000);
@@ -1472,20 +1520,16 @@ const UI = (() => {
           + `<span class="ellipsis">${after}...</span>`
           + ` <span style="opacity:0.5">(${result.elapsed}ms, ${totalFormatted} digits)</span>`;
 
-        // Show expanded context panel in the banner itself
         showApiContextPanel(pos, digitStr.length, digitStr, label, result.totalDigits);
-
         Minimap.setApiMarker(pos, label);
       } else {
         const totalFormatted = _displayTotal(result.totalDigits || 0);
         icon.textContent = '\u{1F50D}';
-        title.textContent = `"${word || digitStr}" not found in ${totalFormatted} digits of \u03C0`;
-        detail.textContent = `Sequence "${digitStr}" doesn't appear in the available digits. Download more with: node scripts/download-pi.js`;
-        let apiNotFoundMsg = `"<b>${word || digitStr}</b>" is hiding beyond ${totalFormatted} digits! That's seriously far out.`;
+        title.textContent = `"${label}" not found in ${totalFormatted} digits of \u03C0`;
+        detail.textContent = `Searched all ${totalFormatted} digits in ${result.elapsed}ms.`;
+        let apiNotFoundMsg = `"<b>${label}</b>" is hiding beyond ${totalFormatted} digits!`;
         if (word) {
-          const curEnc = converted.mode;
-          const altEnc = curEnc === 't9' ? 'Compact' : curEnc === 'compact' ? 'T9' : 'Compact or T9';
-          apiNotFoundMsg += `<br><i style="opacity:0.7">Try <b>${altEnc}</b> encoding for a shorter sequence!</i>`;
+          apiNotFoundMsg += `<br><i style="opacity:0.7">Try enabling <b>multi-part search</b> to find each part separately!</i>`;
         }
         mascotSay(`<div class="bubble-title">Whoa!</div>${apiNotFoundMsg}`, 8000);
         const total = result.totalDigits || 0;
@@ -1501,7 +1545,7 @@ const UI = (() => {
       icon.textContent = '\u{26A0}\u{FE0F}';
       title.textContent = 'Search server not running';
       detail.textContent = 'Start it with: node server.js';
-      mascotSay(`<div class="bubble-title">Oops! ⚠️</div>The search server isn't running. Start it with <b>node server.js</b>`, 8000);
+      mascotSay(`<div class="bubble-title">Oops!</div>The search server isn't running.`, 8000);
     }
   }
 
