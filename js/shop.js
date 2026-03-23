@@ -83,16 +83,18 @@ const Shop = (() => {
     mug: {
       label: 'Mug',
       colors: [
-        { name: 'White', swatch: '#ffffff', dark: false,
-          mugFront: 'mockups/mug-white-polygon.png', mugBack: 'mockups/mug-white-pi.png' },
-        { name: 'Black', swatch: '#1a1a1a', dark: true,
-          mugFront: 'mockups/mug-black-polygon.png', mugBack: 'mockups/mug-black-pi.png' },
+        { name: 'White', swatch: '#ffffff', src: 'mockups/mug-white-polygon.png', dark: false,
+          backSrc: 'mockups/mug-white-pi.png' },
+        { name: 'Black', swatch: '#1a1a1a', src: 'mockups/mug-black-polygon.png?v=2', dark: true,
+          backSrc: 'mockups/mug-black-pi.png',
+          printOverride: { x: 0.18, y: 0.32, w: 0.40, h: 0.55 } },
       ],
-      frontCrop: null,
-      backCrop: null,
-      frontPrint: null,
+      frontCrop: { x: 0, y: 0, w: 1, h: 1 },
+      backCrop:  { x: 0, y: 0, w: 1, h: 1 },
+      // Print zone centered on the gray circle
+      frontPrint: { x: 0.20, y: 0.30, w: 0.40, h: 0.55 },
       backPrint: null,
-      hasBack: false,
+      hasBack: true,
       isMug: true,
     },
     sticker: {
@@ -130,7 +132,7 @@ const Shop = (() => {
   }
 
   function _reRenderDesigns() {
-    const designs = ['polygon', 'pimark', 'heatmap'];
+    const designs = ['polygon', 'polygon-lines', 'pimark', 'heatmap'];
     for (const d of designs) {
       try { designImages[d] = _renderDesign(d, PREVIEW_SIZE); } catch (e) { console.error(e); }
     }
@@ -164,7 +166,7 @@ const Shop = (() => {
 
     // Re-render all designs
     designImages = {};
-    const designs = ['polygon', 'pimark', 'heatmap'];
+    const designs = ['polygon', 'polygon-lines', 'pimark', 'heatmap'];
     let i = 0;
     function renderNext() {
       if (i >= designs.length) return;
@@ -206,7 +208,7 @@ const Shop = (() => {
     showPreview();
 
     // Render designs in background, yielding between each to keep UI responsive
-    const designs = ['polygon', 'pimark', 'heatmap'];
+    const designs = ['polygon', 'polygon-lines', 'pimark', 'heatmap'];
     let i = 0;
     function renderNext() {
       if (i >= designs.length) return;
@@ -232,6 +234,7 @@ const Shop = (() => {
     ctx.clearRect(0, 0, size, size);
 
     if (type === 'polygon') _renderPolygon(ctx, size);
+    else if (type === 'polygon-lines') _renderPolygon(ctx, size, true);
     else if (type === 'heatmap') _renderHeatmap(ctx, size);
     else if (type === 'pimark') _renderPiMark(ctx, size);
 
@@ -306,14 +309,16 @@ const Shop = (() => {
       imgSize, imgSize);
   }
 
-  function _renderPolygon(ctx, size) {
+  function _renderPolygon(ctx, size, linesOnly) {
     const t = _getSpiralTransform(size);
     if (!t) return;
 
-    if (_spiralBgLoaded) {
-      _drawSpiralBg(ctx, t, size);
-    } else {
-      _drawSpiralDots(ctx, t);
+    if (!linesOnly) {
+      if (_spiralBgLoaded) {
+        _drawSpiralBg(ctx, t, size);
+      } else {
+        _drawSpiralDots(ctx, t);
+      }
     }
 
     if (capturedChunks && capturedChunks.length > 0) {
@@ -922,9 +927,10 @@ const Shop = (() => {
   // Cache loaded mockup images to avoid reloading on every preview update
   const _mockupCache = {};
 
-  function _compositeFrame(container, cropRegion, printZone, designDataUrl, colorObj) {
+  function _compositeFrame(container, cropRegion, printZone, designDataUrl, colorObj, srcOverride) {
     const col = colorObj || _getColor();
     const crop = col.cropOverride || cropRegion;
+    const print = col.printOverride || printZone;
 
     function _doComposite(img) {
       const srcX = crop.x * img.width;
@@ -951,31 +957,46 @@ const Shop = (() => {
 
       const dImg = new Image();
       dImg.onload = () => {
-        const px = printZone.x * outW;
-        const py = printZone.y * outH;
-        const pw = printZone.w * outW;
-        const ph = printZone.h * outH;
+        const px = print.x * outW;
+        const py = print.y * outH;
+        const pw = print.w * outW;
+        const ph = print.h * outH;
+
+        function drawDesign() {
+          if (product === 'mug') {
+            // Barrel warp for cylindrical mug surface
+            const slices = 50, curve = 0.12;
+            for (let i = 0; i < slices; i++) {
+              const t = i / slices;
+              const yOff = curve * Math.pow((t - 0.5) * 2, 2) * ph;
+              ctx.drawImage(dImg,
+                t * dImg.width, 0, dImg.width / slices, dImg.height,
+                px + t * pw, py + yOff / 2, pw / slices + 1, ph - yOff);
+            }
+          } else {
+            ctx.drawImage(dImg, px, py, pw, ph);
+          }
+        }
 
         if (col.dark) {
           ctx.globalCompositeOperation = 'screen';
           ctx.globalAlpha = 0.9;
-          ctx.drawImage(dImg, px, py, pw, ph);
+          drawDesign();
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 0.25;
-          ctx.drawImage(dImg, px, py, pw, ph);
+          drawDesign();
         } else {
           ctx.globalCompositeOperation = 'multiply';
           ctx.globalAlpha = 1;
-          ctx.drawImage(dImg, px, py, pw, ph);
+          drawDesign();
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 0.55;
-          ctx.drawImage(dImg, px, py, pw, ph);
+          drawDesign();
         }
 
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
 
-        // Swap in the finished canvas without flashing
         canvas.className = 'mockup-canvas';
         container.innerHTML = '';
         container.appendChild(canvas);
@@ -984,15 +1005,16 @@ const Shop = (() => {
     }
 
     // Use cached mockup image if available
-    if (_mockupCache[col.src]) {
-      _doComposite(_mockupCache[col.src]);
+    const mockupSrc = srcOverride || col.src;
+    if (_mockupCache[mockupSrc]) {
+      _doComposite(_mockupCache[mockupSrc]);
     } else {
       const img = new Image();
       img.onload = () => {
-        _mockupCache[col.src] = img;
+        _mockupCache[mockupSrc] = img;
         _doComposite(img);
       };
-      img.src = col.src;
+      img.src = mockupSrc;
     }
   }
 
@@ -1056,100 +1078,35 @@ const Shop = (() => {
 
     // Show/hide back frame & tshirt-only controls
     const backDesignGroup = document.getElementById('backDesignGroup');
-    const showBack = cfg.hasBack || product === 'mug';
+    const showBack = cfg.hasBack;
     if (showBack) {
       if (backFrame) backFrame.classList.remove('hidden');
     } else {
       if (backFrame) backFrame.classList.add('hidden');
     }
-    if (cfg.hasBack) {
+    // Back design picker only for t-shirt (mug back is fixed pi mockup)
+    if (cfg.hasBack && product !== 'mug') {
       if (backDesignGroup) backDesignGroup.classList.remove('hidden');
     } else {
       if (backDesignGroup) backDesignGroup.classList.add('hidden');
     }
 
+    // Flip button: only for t-shirt (not mug — back is static)
+    const flipBtn = document.getElementById('shopFlip');
+    if (flipBtn) flipBtn.classList.toggle('hidden', product !== 'tshirt');
+
     // Front frame
     if (product === 'mug') {
-      // Mug: overlay polygon design on mockup photos
+      // Mug FRONT: composite polygon lines onto blank mockup with barrel warp
+      labelLeft.textContent = 'FRONT';
+      labelRight.textContent = 'BACK';
+      _compositeFrame(frameFront, cfg.frontCrop, cfg.frontPrint, designImages['polygon-lines']);
+      // Mug BACK: show the pi digits mockup as-is (design baked into photo)
       const col = _getColor();
-      labelLeft.textContent = 'POLYGON SIDE';
-      labelRight.textContent = 'π SIDE';
-      if (backFrame) backFrame.classList.remove('hidden');
-
-      // Polygon side — composite design onto mockup
-      function _compositeMugSide(container, mockupSrc, designDataUrl) {
-        const cached = _mockupCache[mockupSrc];
-        function render(mockupImg) {
-          const canvas = document.createElement('canvas');
-          const sz = 320;
-          canvas.width = sz; canvas.height = sz;
-          const ctx = canvas.getContext('2d');
-          const scale = Math.min(sz / mockupImg.width, sz / mockupImg.height);
-          const w = mockupImg.width * scale, h = mockupImg.height * scale;
-          const ox = (sz - w) / 2, oy = (sz - h) / 2;
-          ctx.drawImage(mockupImg, ox, oy, w, h);
-
-          if (designDataUrl) {
-            const dImg = new Image();
-            dImg.onload = () => {
-              // Print zone on mug
-              const px = ox + w * 0.22, py = oy + h * 0.18;
-              const pw = w * 0.48, ph = h * 0.58;
-
-              if (col.dark) {
-                ctx.globalCompositeOperation = 'screen';
-                ctx.globalAlpha = 0.85;
-              } else {
-                ctx.globalCompositeOperation = 'multiply';
-                ctx.globalAlpha = 0.95;
-              }
-
-              // Cylindrical warp — draw in vertical slices that follow barrel curve
-              const slices = 40;
-              const curve = 0.15; // how much barrel distortion
-              for (let i = 0; i < slices; i++) {
-                const t = i / slices;         // 0..1 across the width
-                const tNext = (i + 1) / slices;
-                const mid = 0.5;
-                // Barrel curve: edges compress, center expands
-                const yOff = curve * Math.pow((t - mid) * 2, 2) * ph;
-                const yOffNext = curve * Math.pow((tNext - mid) * 2, 2) * ph;
-                const sliceH = ph - yOff;
-                const sliceHNext = ph - yOffNext;
-
-                const sx = t * dImg.width;
-                const sw = dImg.width / slices;
-                const dx = px + t * pw;
-                const dw = pw / slices + 1; // +1 to avoid gaps
-
-                ctx.drawImage(dImg,
-                  sx, 0, sw, dImg.height,
-                  dx, py + yOff / 2, dw, sliceH
-                );
-              }
-
-              ctx.globalCompositeOperation = 'source-over';
-              ctx.globalAlpha = 1;
-              canvas.className = 'mockup-canvas';
-              container.innerHTML = '';
-              container.appendChild(canvas);
-            };
-            dImg.src = designDataUrl;
-          } else {
-            canvas.className = 'mockup-canvas';
-            container.innerHTML = '';
-            container.appendChild(canvas);
-          }
-        }
-        if (cached) { render(cached); }
-        else {
-          const img = new Image();
-          img.onload = () => { _mockupCache[mockupSrc] = img; render(img); };
-          img.src = mockupSrc;
-        }
+      const backSrc = col.backSrc;
+      if (backSrc) {
+        _compositeFrame(frameBack, cfg.backCrop, null, null, col, backSrc);
       }
-      _compositeMugSide(frameFront, col.mugFront, designImages['polygon']);
-      _compositeMugSide(frameBack, col.mugBack, null); // π side already has design baked in
     } else if (product === 'sticker') {
       // Sticker: render polygon design directly
       labelLeft.textContent = 'STICKER';
@@ -1194,18 +1151,18 @@ const Shop = (() => {
     }
 
     // Pi vicinity strip — show what digits fill the π (not for sticker)
-    if (product === 'sticker' || product === 'mug') {
+    if (product === 'sticker') {
       const strip = document.getElementById('piVicinityStrip');
       if (strip) strip.classList.add('hidden');
     } else {
       _renderVicinityStrip();
     }
 
-    // Back design picker (t-shirt only)
+    // Back design picker (t-shirt only, not mug)
     const picker = document.getElementById('backDesignPicker');
     if (picker) {
       picker.innerHTML = '';
-      if (cfg.hasBack) {
+      if (cfg.hasBack && product !== 'mug') {
         for (const d of ['polygon', 'heatmap']) {
           const btn = document.createElement('button');
           btn.className = 'shop-pill' + (d === backDesign ? ' active' : '');
