@@ -1241,28 +1241,47 @@ const UI = (() => {
     mascotSay(`<div class="bubble-title">Hang on...</div>Searching for "<b>${word}</b>" across all encodings...`, 0);
 
     const found = [];
-    const notFound = []; // encodings beyond the API corpus
+    const notFound = [];
     let apiTotalDigits = 1e12;
 
+    // Build search tasks for all encodings
+    const tasks = [];
     for (const mode of modes) {
       const conv = Search.convertWithMode(query, mode);
       if (!conv.digitQuery || conv.digitQuery.length < 1) continue;
+      tasks.push({ mode, conv, label: modeLabels[mode], searched: 0, total: 0, hits: 0, done: false });
+    }
 
-      try {
-        detail.textContent = `Searching ${modeLabels[mode]} (${conv.digitQuery.length} digits)...`;
-        const result = await PiApi.searchStream(conv.digitQuery, false, (progress) => {
-          const searched = _compactDigits(progress.searched);
-          const total = _compactDigits(progress.totalDigits);
-          detail.textContent = `${modeLabels[mode]}: scanned ${searched} of ${total}...`;
-        });
+    function updateProgressDisplay() {
+      const lines = tasks.map(t => {
+        const color = ENC_COLORS[t.mode] || '#ccc';
+        const pct = t.total > 0 ? Math.round((t.searched / t.total) * 100) : 0;
+        const status = t.done
+          ? (t.hits > 0 ? `<b>${t.hits} found</b>` : 'not found')
+          : `${_compactDigits(t.searched)} / ${_compactDigits(t.total)} (${pct}%)`;
+        const hitBadge = !t.done && t.hits > 0 ? ` — <b>${t.hits} hit${t.hits > 1 ? 's' : ''}</b>` : '';
+        return `<span style="color:${color}">&#9679;</span> ${t.label}: ${status}${hitBadge}`;
+      });
+      detail.innerHTML = lines.join('<br>');
+    }
+
+    // Run all encoding searches in parallel
+    const promises = tasks.map(t =>
+      PiApi.searchStream(t.conv.digitQuery, false, (progress) => {
+        t.searched = progress.searched;
+        t.total = progress.totalDigits;
+        t.hits = progress.found || 0;
+        updateProgressDisplay();
+      }).then(result => {
+        t.done = true;
+        t.searched = t.total;
         apiTotalDigits = result.totalDigits || apiTotalDigits;
         if (result.found && result.results.length > 0) {
-          const pos = result.results[0].position;
           found.push({
-            mode,
-            label: modeLabels[mode],
-            digitStr: conv.digitQuery,
-            pos,
+            mode: t.mode,
+            label: t.label,
+            digitStr: t.conv.digitQuery,
+            pos: result.results[0].position,
             before: result.results[0].before || '',
             after: result.results[0].after || '',
             totalDigits: result.totalDigits,
@@ -1270,15 +1289,24 @@ const UI = (() => {
           });
         } else {
           notFound.push({
-            mode,
-            label: modeLabels[mode],
-            digitStr: conv.digitQuery,
+            mode: t.mode,
+            label: t.label,
+            digitStr: t.conv.digitQuery,
             totalDigits: result.totalDigits || apiTotalDigits,
           });
         }
-      } catch (e) {
-        if (e.name === 'AbortError') { banner.classList.add('hidden'); return; }
-      }
+        updateProgressDisplay();
+      }).catch(e => {
+        if (e.name === 'AbortError') throw e;
+        t.done = true;
+        updateProgressDisplay();
+      })
+    );
+
+    try {
+      await Promise.all(promises);
+    } catch (e) {
+      if (e.name === 'AbortError') { banner.classList.add('hidden'); return; }
     }
 
     banner.classList.remove('loading');
