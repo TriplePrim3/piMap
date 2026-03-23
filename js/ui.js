@@ -1275,6 +1275,25 @@ const UI = (() => {
     detail.textContent = 'Trying T9, Compact, and Alpha-26...';
     mascotSay(`<div class="bubble-title">Hang on...</div>Searching for "<b>${word}</b>" across all encodings...`, 0);
 
+    let suggestedMultiPart = false;
+    const slowTimer = setTimeout(() => {
+      suggestedMultiPart = true;
+      mascotSay(`<div class="bubble-title">Taking a while...</div>This is a long search! Try <b>multi-part</b> instead if you don't want to wait.<br><button class="mascot-action-btn" id="slowMultiPartAll">Try Multi-Part</button>`, 0);
+      setTimeout(() => {
+        const btn = document.getElementById('slowMultiPartAll');
+        if (btn) btn.addEventListener('click', () => {
+          PiApi.cancel();
+          const conv = Search.convertQuery(query);
+          const digs = App.getDigits();
+          if (digs) {
+            const breaks = Search.letterBreaks(query, conv.mode);
+            const chunks = Search.findChunked(digs, conv.digitQuery, breaks);
+            if (chunks.length > 1) { hideApiBanner(); showChunkedResults(query, conv, chunks, word); }
+          }
+        });
+      }, 50);
+    }, 4000);
+
     const found = [];
     const notFound = [];
     let apiTotalDigits = 1e12;
@@ -1341,8 +1360,9 @@ const UI = (() => {
     try {
       await Promise.all(promises);
     } catch (e) {
-      if (e.name === 'AbortError') { banner.classList.add('hidden'); return; }
+      if (e.name === 'AbortError') { clearTimeout(slowTimer); banner.classList.add('hidden'); return; }
     }
+    clearTimeout(slowTimer);
 
     banner.classList.remove('loading');
 
@@ -1536,15 +1556,32 @@ const UI = (() => {
     detail.textContent = 'Scanning digits...';
     mascotSay(`<div class="bubble-title">Hang on...</div>Digging deeper for "<b>${label}</b>"...`, 0);
 
+    let suggestedMultiPart = false;
+    const slowTimer = word ? setTimeout(() => {
+      suggestedMultiPart = true;
+      mascotSay(`<div class="bubble-title">Taking a while...</div>This is a long search! Try <b>multi-part</b> instead if you don't want to wait.<br><button class="mascot-action-btn" id="slowMultiPart">Try Multi-Part</button>`, 0);
+      setTimeout(() => {
+        const btn = document.getElementById('slowMultiPart');
+        if (btn) btn.addEventListener('click', () => {
+          PiApi.cancel();
+          const conv = Search.convertQuery(query);
+          const digs = App.getDigits();
+          if (digs) {
+            const breaks = Search.letterBreaks(query, conv.mode);
+            const chunks = Search.findChunked(digs, conv.digitQuery, breaks);
+            if (chunks.length > 1) { hideApiBanner(); showChunkedResults(query, conv, chunks, label); }
+          }
+        });
+      }, 50);
+    }, 4000) : null;
+
     try {
       const result = await PiApi.searchStream(digitStr, pairAligned, (progress) => {
         const searched = _compactDigits(progress.searched);
         const total = _compactDigits(progress.totalDigits);
         detail.textContent = `Searched ${searched} of ${total} digits...`;
-        if (progress.searched >= 1e8 && digitStr.length >= 7 && progress.found === 0) {
-          mascotSay(`<div class="bubble-title">Still looking...</div>Scanned ${searched} digits so far. Sequences over 9 digits are super rare — try multi-part search for better results!`, 0);
-        }
       });
+      clearTimeout(slowTimer);
 
       banner.classList.remove('loading');
 
