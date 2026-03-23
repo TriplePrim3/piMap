@@ -1052,7 +1052,7 @@ const UI = (() => {
         mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
       } else {
         const encLabel = converted.mode === 't9' ? 'T9' : converted.mode === 'compact' ? 'Compact' : 'Alpha-26';
-        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${query}</b>" as ${encLabel} (<b>${converted.digitQuery}</b>) appears <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First at ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
+        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${displayWord}</b>" as ${encLabel} (<b>${converted.digitQuery}</b>) appears <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First at ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
       }
       setTimeout(() => {
         const mineBtn = document.getElementById('makeItMineLocal');
@@ -1176,7 +1176,7 @@ const UI = (() => {
 
     mascotSay(
       `<div class="bubble-title">Found in ${chunks.length} parts!</div>`
-      + `"<b>${word}</b>" is too long to find in one go, but I found it in parts:<br>`
+      + `"<b>${origWord || word}</b>" is too long to find in one go, but I found it in parts:<br>`
       + chunkHtml
       + `<br><button class="mascot-action-btn" id="makeItMineBtn">Wear it</button>`,
       0

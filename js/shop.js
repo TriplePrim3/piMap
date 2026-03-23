@@ -27,6 +27,16 @@ const Shop = (() => {
   ];
   let textColorIdx = 2; // default black (will auto-set based on shirt color)
 
+  // Font presets for shirt text (not the π logo)
+  const FONTS = [
+    { name: 'System',    css: 'system-ui, sans-serif' },
+    { name: 'Serif',     css: 'Georgia, "Times New Roman", serif' },
+    { name: 'Mono',      css: '"Cascadia Code", "Fira Code", Consolas, monospace' },
+    { name: 'Cursive',   css: '"Brush Script MT", "Segoe Script", cursive' },
+    { name: 'Bold',      css: 'Impact, "Arial Black", sans-serif' },
+  ];
+  let fontIdx = 0;
+
   // ── Product configs ──
 
   const PRODUCTS = {
@@ -148,6 +158,7 @@ const Shop = (() => {
     colorIdx = 0;
     selectedSize = 'M';
     designImages = {};
+    fontIdx = 0;
     shopEncoding = Search.getTextEncoding() || 'alpha26';
     _autoTextColor();
 
@@ -768,8 +779,10 @@ const Shop = (() => {
     // Search word underneath — lower
     if (capturedWord) {
       const wordSize = size * 0.048;
+      const fontFamily = FONTS[fontIdx].css;
+      const weight = fontIdx === 4 ? '900' : '600'; // Impact needs heavier weight
       ctx.textAlign = 'center';
-      ctx.font = `600 ${wordSize}px system-ui`;
+      ctx.font = `${weight} ${wordSize}px ${fontFamily}`;
       ctx.letterSpacing = `${size * 0.004}px`;
       ctx.fillStyle = tc;
       ctx.globalAlpha = 0.85;
@@ -1128,6 +1141,26 @@ const Shop = (() => {
           _reRenderDesigns();
         });
         textPicker.appendChild(btn);
+      });
+    }
+
+    // Font picker (t-shirt only, when text is visible)
+    const fontPicker = document.getElementById('fontPicker');
+    const fontRow = fontPicker?.closest('.shop-option-row');
+    if (fontPicker) {
+      const showFont = cfg.hasBack && TEXT_COLORS[textColorIdx].hex;
+      if (fontRow) fontRow.classList.toggle('hidden', !showFont);
+      fontPicker.innerHTML = '';
+      FONTS.forEach((f, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'shop-pill' + (i === fontIdx ? ' active' : '');
+        btn.textContent = f.name;
+        btn.style.fontFamily = f.css;
+        btn.addEventListener('click', () => {
+          fontIdx = i;
+          _reRenderDesigns();
+        });
+        fontPicker.appendChild(btn);
       });
     }
 
