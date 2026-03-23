@@ -774,15 +774,112 @@ const server = http.createServer((req, res) => {
   serveStatic(req, res);
 });
 
-// Boot
-console.log('piMap server starting...');
-console.log(`Persist dir: ${PERSIST_DIR}`);
-console.log('Loading pi digit chunks...');
-loadChunkMeta();
+// ─── Auto-download pi chunks if missing (runs once on first Railway deploy) ───
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\npiMap server running at http://localhost:${PORT}`);
-  console.log(`Search API: http://localhost:${PORT}/api/pisearch?q=14159`);
-  console.log(`Status API: http://localhost:${PORT}/api/pistatus`);
-  console.log(`Orders API: http://localhost:${PORT}/api/admin/orders`);
-});
+function autoDownloadChunks() {
+  return new Promise((resolve, reject) => {
+    const MIT_URL = 'https://stuff.mit.edu/afs/sipb/contrib/pi/pi-billion.txt';
+    const CHUNK_SIZE = 1_000_000;
+    const OVERLAP = 50;
+
+    if (!fs.existsSync(CHUNKS_DIR)) fs.mkdirSync(CHUNKS_DIR, { recursive: true });
+
+    console.log(`Downloading 1 billion digits from MIT...`);
+    console.log(`Chunking directly to: ${CHUNKS_DIR}`);
+
+    const get = (reqUrl) => {
+      const mod = reqUrl.startsWith('https') ? https : http;
+      mod.get(reqUrl, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          get(res.headers.location); return;
+        }
+        if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); return; }
+
+        const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+        let downloaded = 0;
+        const digitBuf = [];
+        let globalDigitPos = 0;
+        let chunkIdx = 0;
+        let chunkStart = 0;
+
+        res.on('data', (raw) => {
+          downloaded += raw.length;
+          const text = raw.toString('ascii');
+          for (let i = 0; i < text.length; i++) {
+            const c = text.charCodeAt(i);
+            if (c >= 48 && c <= 57) {
+              digitBuf.push(text[i]);
+              globalDigitPos++;
+              if (digitBuf.length === CHUNK_SIZE) {
+                const name = `chunk_${String(chunkIdx).padStart(6, '0')}.txt`;
+                fs.writeFileSync(path.join(CHUNKS_DIR, name), digitBuf.join(''));
+                chunkIdx++;
+                const keep = digitBuf.splice(digitBuf.length - OVERLAP);
+                digitBuf.length = 0;
+                digitBuf.push(...keep);
+                chunkStart = globalDigitPos - OVERLAP;
+              }
+            }
+          }
+          if (totalBytes > 0) {
+            const pct = ((downloaded / totalBytes) * 100).toFixed(1);
+            console.log(`  Download: ${(downloaded / 1e6).toFixed(0)}MB / ${(totalBytes / 1e6).toFixed(0)}MB (${pct}%) — ${chunkIdx} chunks written`);
+          }
+        });
+
+        res.on('end', () => {
+          if (digitBuf.length > 0) {
+            const name = `chunk_${String(chunkIdx).padStart(6, '0')}.txt`;
+            fs.writeFileSync(path.join(CHUNKS_DIR, name), digitBuf.join(''));
+            chunkIdx++;
+          }
+          const meta = {
+            totalDigits: globalDigitPos,
+            chunkSize: CHUNK_SIZE,
+            overlap: OVERLAP,
+            chunkCount: chunkIdx,
+            createdAt: new Date().toISOString(),
+          };
+          fs.writeFileSync(path.join(CHUNKS_DIR, 'meta.json'), JSON.stringify(meta, null, 2));
+          console.log(`  Done: ${chunkIdx} chunks, ${globalDigitPos.toLocaleString()} total digits`);
+          resolve(meta);
+        });
+
+        res.on('error', reject);
+      }).on('error', reject);
+    };
+
+    get(MIT_URL);
+  });
+}
+
+// Boot
+async function boot() {
+  console.log('piMap server starting...');
+  console.log(`Persist dir: ${PERSIST_DIR}`);
+  console.log(`Chunks dir: ${CHUNKS_DIR}`);
+  console.log('Loading pi digit chunks...');
+
+  const hasChunks = loadChunkMeta();
+
+  // Auto-download if no chunks and we're on Railway (PERSIST_DIR is set)
+  if (!hasChunks && process.env.PERSIST_DIR) {
+    console.log('\nNo chunks found on volume — starting auto-download...');
+    try {
+      await autoDownloadChunks();
+      loadChunkMeta();
+    } catch (err) {
+      console.error('Auto-download failed:', err.message);
+      console.error('Server will start with pi.txt fallback');
+    }
+  }
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`\npiMap server running at http://localhost:${PORT}`);
+    console.log(`Search API: http://localhost:${PORT}/api/pisearch?q=14159`);
+    console.log(`Status API: http://localhost:${PORT}/api/pistatus`);
+    console.log(`Orders API: http://localhost:${PORT}/api/admin/orders`);
+  });
+}
+
+boot();
