@@ -1588,17 +1588,29 @@ const UI = (() => {
     const track = pinEl.parentElement;
     track.querySelectorAll('.scale-pin-multi').forEach(el => el.remove());
 
-    // Add a pin for each found encoding result
+    // Collect all pins, detect overlap, and stagger labels
+    const allPins = [];
     for (const f of found) {
-      const pct = _logScale(f.pos, totalDigits) * 100;
-      const color = ENC_COLORS[f.mode] || '#ff6b9d';
-      _addScalePin(track, pct, color, f.label, _compactNum(f.pos));
+      allPins.push({ pct: _logScale(f.pos, totalDigits) * 100, color: ENC_COLORS[f.mode] || '#ff6b9d', label: f.label, posLabel: _compactNum(f.pos) });
+    }
+    for (const nf of notFound) {
+      allPins.push({ pct: 97, color: ENC_COLORS[nf.mode] || '#e84393', label: nf.label, posLabel: '>' + _displayTotalCompact(nf.totalDigits) });
     }
 
-    // Add pins for not-found encodings — pinned at the far right edge
-    for (const nf of notFound) {
-      const color = ENC_COLORS[nf.mode] || '#e84393';
-      _addScalePin(track, 97, color, nf.label, '>' + _displayTotalCompact(nf.totalDigits));
+    // Sort by position so staggering is consistent
+    allPins.sort((a, b) => a.pct - b.pct);
+
+    // Detect clusters and assign stagger offsets
+    for (let i = 0; i < allPins.length; i++) {
+      let tier = 0;
+      for (let j = 0; j < i; j++) {
+        if (Math.abs(allPins[i].pct - allPins[j].pct) < 8) tier++;
+      }
+      allPins[i].tier = tier;
+    }
+
+    for (const p of allPins) {
+      _addScalePin(track, p.pct, p.color, p.label, p.posLabel, p.tier);
     }
 
     // Render tick marks + log scale indicator
@@ -1626,11 +1638,13 @@ const UI = (() => {
     }
   }
 
-  function _addScalePin(track, pct, color, label, posLabel) {
+  function _addScalePin(track, pct, color, label, posLabel, tier) {
+    tier = tier || 0;
+    const topOffset = -4 + (tier * -22);
     const pin = document.createElement('div');
     pin.className = 'scale-pin-multi';
-    pin.style.cssText = `position:absolute;top:-4px;left:${pct}%;width:3px;height:26px;`
-      + `background:${color};border-radius:2px;box-shadow:0 0 8px ${color}80;z-index:2;`;
+    pin.style.cssText = `position:absolute;top:${topOffset}px;left:${pct}%;width:3px;height:${26 + (tier * 22)}px;`
+      + `background:${color};border-radius:2px;box-shadow:0 0 8px ${color}80;z-index:${2 + tier};`;
     const dot = document.createElement('div');
     dot.style.cssText = `position:absolute;top:-4px;left:50%;transform:translateX(-50%);`
       + `width:10px;height:10px;background:${color};border-radius:50%;box-shadow:0 0 6px ${color}80;`;
@@ -1638,12 +1652,12 @@ const UI = (() => {
     // Position number above the pin
     if (posLabel) {
       const posEl = document.createElement('div');
-      posEl.style.cssText = `position:absolute;top:-22px;left:50%;transform:translateX(-50%);`
+      posEl.style.cssText = `position:absolute;top:-18px;left:50%;transform:translateX(-50%);`
         + `font-size:10px;font-weight:700;white-space:nowrap;color:${color};font-family:var(--font-mono);`;
       posEl.textContent = posLabel;
       pin.appendChild(posEl);
     }
-    // Encoding name below the pin
+    // Encoding name below the bar
     const lbl = document.createElement('div');
     lbl.className = 'scale-pin-label';
     lbl.style.cssText = `position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);`
