@@ -1038,6 +1038,31 @@ html, body {
   font-weight: 600;
 }
 
+.scale-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.scale-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.scale-legend-item b {
+  color: var(--text);
+}
+.scale-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .api-context-strip {
   display: flex;
   align-items: center;

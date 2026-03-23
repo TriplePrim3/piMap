@@ -1572,9 +1572,11 @@ const UI = (() => {
     const pinEl = document.getElementById('scalePin');
     const totalLabel = document.getElementById('scaleTotalLabel');
 
-    // Clean up multi-pins, restore single pin
+    // Clean up multi-pins and legend, restore single pin
     const track = pinEl.parentElement;
     track.querySelectorAll('.scale-pin-multi').forEach(el => el.remove());
+    const oldLegend = track.closest('.api-scale-bar')?.querySelector('.scale-legend');
+    if (oldLegend) oldLegend.remove();
     pinEl.style.display = '';
 
     const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
@@ -1628,33 +1630,26 @@ const UI = (() => {
       allPins.push({ pct: 97, color: ENC_COLORS[nf.mode] || '#e84393', label: nf.label, posLabel: '>' + _displayTotalCompact(nf.totalDigits) });
     }
 
-    // Sort by position so staggering is consistent
-    allPins.sort((a, b) => a.pct - b.pct);
-
-    // Detect clusters and assign stagger offsets
-    for (let i = 0; i < allPins.length; i++) {
-      let tier = 0;
-      for (let j = 0; j < i; j++) {
-        if (Math.abs(allPins[i].pct - allPins[j].pct) < 8) tier++;
-      }
-      allPins[i].tier = tier;
-    }
-
     for (const p of allPins) {
-      _addScalePin(track, p.pct, p.color, p.label, p.posLabel, p.tier);
+      _addScalePin(track, p.pct, p.color);
     }
 
-    // Render tick marks + log scale indicator
     _renderScaleTicks(totalDigits);
-    // Add log scale label if not already present
-    if (!track.querySelector('.log-scale-label')) {
-      const logLabel = document.createElement('div');
-      logLabel.className = 'log-scale-label';
-      logLabel.style.cssText = `position:absolute;top:50%;right:4px;transform:translateY(-50%);`
-        + `font-size:8px;letter-spacing:0.5px;opacity:0.35;font-family:var(--font-mono);color:var(--text);text-transform:uppercase;`;
-      logLabel.textContent = 'log scale';
-      track.appendChild(logLabel);
+
+    // Color legend below scale bar
+    const scaleBar = track.closest('.api-scale-bar');
+    let legend = scaleBar.querySelector('.scale-legend');
+    if (!legend) {
+      legend = document.createElement('div');
+      legend.className = 'scale-legend';
+      scaleBar.appendChild(legend);
     }
+    legend.innerHTML = allPins.map(p =>
+      `<span class="scale-legend-item">`
+      + `<span class="scale-legend-dot" style="background:${p.color}"></span>`
+      + `${p.label}: <b>${p.posLabel}</b>`
+      + `</span>`
+    ).join('');
 
     // Show context strips for all found encodings
     if (found.length > 0) {
@@ -1669,32 +1664,15 @@ const UI = (() => {
     }
   }
 
-  function _addScalePin(track, pct, color, label, posLabel, tier) {
-    tier = tier || 0;
-    const topOffset = -4 + (tier * -22);
+  function _addScalePin(track, pct, color) {
     const pin = document.createElement('div');
     pin.className = 'scale-pin-multi';
-    pin.style.cssText = `position:absolute;top:${topOffset}px;left:${pct}%;width:3px;height:${26 + (tier * 22)}px;`
-      + `background:${color};border-radius:2px;box-shadow:0 0 8px ${color}80;z-index:${2 + tier};`;
+    pin.style.cssText = `position:absolute;top:-2px;left:${pct}%;width:3px;height:22px;`
+      + `background:${color};border-radius:2px;box-shadow:0 0 8px ${color}80;z-index:2;`;
     const dot = document.createElement('div');
     dot.style.cssText = `position:absolute;top:-4px;left:50%;transform:translateX(-50%);`
-      + `width:10px;height:10px;background:${color};border-radius:50%;box-shadow:0 0 6px ${color}80;`;
+      + `width:9px;height:9px;background:${color};border-radius:50%;box-shadow:0 0 6px ${color}80;`;
     pin.appendChild(dot);
-    // Position number above the pin
-    if (posLabel) {
-      const posEl = document.createElement('div');
-      posEl.style.cssText = `position:absolute;top:-18px;left:50%;transform:translateX(-50%);`
-        + `font-size:10px;font-weight:700;white-space:nowrap;color:${color};font-family:var(--font-mono);`;
-      posEl.textContent = posLabel;
-      pin.appendChild(posEl);
-    }
-    // Encoding name below the bar
-    const lbl = document.createElement('div');
-    lbl.className = 'scale-pin-label';
-    lbl.style.cssText = `position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);`
-      + `font-size:9px;font-weight:700;white-space:nowrap;color:${color};font-family:var(--font-mono);`;
-    lbl.textContent = label;
-    pin.appendChild(lbl);
     track.appendChild(pin);
   }
 
