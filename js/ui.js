@@ -1248,18 +1248,6 @@ const UI = (() => {
       const conv = Search.convertWithMode(query, mode);
       if (!conv.digitQuery || conv.digitQuery.length < 1) continue;
 
-      // Skip full billion-digit scan for sequences 12+ digits — virtually impossible to find
-      if (conv.digitQuery.length >= 12) {
-        notFound.push({
-          mode,
-          label: modeLabels[mode],
-          digitStr: conv.digitQuery,
-          totalDigits: apiTotalDigits,
-          skipped: true,
-        });
-        continue;
-      }
-
       try {
         detail.textContent = `Searching ${modeLabels[mode]} (${conv.digitQuery.length} digits)...`;
         const result = await PiApi.searchStream(conv.digitQuery, false, (progress) => {
@@ -1321,11 +1309,8 @@ const UI = (() => {
       }
       for (const nf of notFound) {
         const color = ENC_COLORS[nf.mode] || '#ccc';
-        const reason = nf.skipped
-          ? `${nf.digitStr.length} digits — too long to find`
-          : `beyond ${_displayTotalCompact(nf.totalDigits)} digits`;
         detailHtml += `<div style="margin:2px 0;opacity:0.5">`
-          + `<span style="color:${color}">&#9679;</span> ${nf.label}: ${reason}</div>`;
+          + `<span style="color:${color}">&#9679;</span> ${nf.label}: beyond ${_displayTotalCompact(nf.totalDigits)} digits</div>`;
       }
       detail.innerHTML = detailHtml;
 
