@@ -1661,7 +1661,7 @@ const Shop = (() => {
       checkoutBtn.addEventListener('click', checkout);
     }
 
-    const SHOW_DOWNLOAD = false; // toggle to true to enable download button
+    const SHOW_DOWNLOAD = true; // download print-ready files to inspect before ordering
     const dlBtn = document.getElementById('shopDownloadDesign');
     if (dlBtn) {
       dlBtn.style.display = SHOW_DOWNLOAD ? 'block' : 'none';
@@ -1685,6 +1685,62 @@ const Shop = (() => {
         flipped = !flipped;
         flipBtn.classList.toggle('flipped', flipped);
         _renderPreview();
+      });
+    }
+
+    // Printful mockup preview
+    const pfPreviewBtn = document.getElementById('shopPrintfulPreview');
+    if (pfPreviewBtn) {
+      pfPreviewBtn.addEventListener('click', async () => {
+        const resultDiv = document.getElementById('printfulMockupResult');
+        if (!resultDiv) return;
+
+        pfPreviewBtn.disabled = true;
+        pfPreviewBtn.textContent = 'Generating preview...';
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">Sending to Printful... this takes ~10 seconds</p>';
+
+        try {
+          // First upload the current front design so Printful can access it
+          const ps = PRINT_SIZES[product] || { w: PRINT_SIZE, h: PRINT_SIZE };
+          const frontKey = product === 'mug' ? 'polygon-lines' : _getFrontDesignKey();
+          const hires = _renderDesign(frontKey, Math.min(ps.w, ps.h), ps.w, ps.h);
+
+          // Upload design to server
+          const uploadRes = await fetch('/api/upload-design', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: hires, side: 'mockup-preview' }),
+          });
+          const uploadData = await uploadRes.json();
+          if (!uploadData.url) throw new Error('Upload failed');
+
+          // Request mockup from Printful
+          const col = _getColor();
+          const mockupRes = await fetch('/api/mockup-preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              product,
+              color: col.name,
+              designUrl: uploadData.url,
+            }),
+          });
+          const mockupData = await mockupRes.json();
+
+          if (mockupData.mockups && mockupData.mockups.length > 0) {
+            resultDiv.innerHTML = mockupData.mockups.map(m =>
+              `<img src="${m.mockup_url}" style="max-width:100%;border-radius:12px;margin:4px 0;" />`
+            ).join('');
+          } else {
+            resultDiv.innerHTML = '<p style="color:#ff6b6b;">No mockups returned. ' + (mockupData.error || '') + '</p>';
+          }
+        } catch (err) {
+          resultDiv.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
+        }
+
+        pfPreviewBtn.disabled = false;
+        pfPreviewBtn.textContent = 'Preview from Printful';
       });
     }
 

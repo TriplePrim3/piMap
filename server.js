@@ -713,6 +713,70 @@ async function fulfillOrder(order) {
   return errors;
 }
 
+// ─── Printful Mockup Generator ───
+
+async function handleMockupPreview(req, res) {
+  try {
+    const buf = await readBody(req);
+    const { product, color, designUrl } = JSON.parse(buf.toString());
+
+    const productMap = PRINTFUL_PRODUCTS[product];
+    if (!productMap) return jsonResponse(res, 400, { error: 'Unknown product' });
+
+    // Build variant IDs list for the selected color
+    const variantIds = [];
+    for (const [key, id] of Object.entries(productMap.variants)) {
+      if (key.startsWith(color + '-')) variantIds.push(id);
+    }
+    if (variantIds.length === 0) return jsonResponse(res, 400, { error: 'Unknown variant' });
+
+    // Use the site URL for the design file
+    const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
+
+    // Build mockup task — front placement with the design
+    const taskBody = {
+      variant_ids: [variantIds[0]],
+      files: [{
+        placement: productMap.placements.front === 'embroidery_front' ? 'embroidery_front' : 'front',
+        image_url: siteUrl + designUrl,
+        position: { area_width: 1800, area_height: 2400, width: 1800, height: 2400, top: 0, left: 0 },
+      }],
+    };
+
+    // Step 1: Create mockup task
+    const createResult = await printfulRequest('POST', `/mockup-generator/create-task/${productMap.productId}`, taskBody);
+    if (createResult.code !== 200 || !createResult.result?.task_key) {
+      console.error('Mockup create failed:', createResult);
+      return jsonResponse(res, 500, { error: 'Mockup generation failed', detail: createResult });
+    }
+
+    const taskKey = createResult.result.task_key;
+
+    // Step 2: Poll for result (up to 30 seconds)
+    let mockups = null;
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const status = await printfulRequest('GET', `/mockup-generator/task?task_key=${taskKey}`);
+      if (status.result?.status === 'completed') {
+        mockups = status.result.mockups;
+        break;
+      }
+      if (status.result?.status === 'failed') {
+        console.error('Mockup task failed:', status);
+        return jsonResponse(res, 500, { error: 'Mockup generation failed' });
+      }
+    }
+
+    if (!mockups) return jsonResponse(res, 504, { error: 'Mockup generation timed out' });
+
+    // Return the mockup image URLs
+    jsonResponse(res, 200, { mockups });
+  } catch (err) {
+    console.error('Mockup preview error:', err.message);
+    jsonResponse(res, 500, { error: 'Mockup preview failed' });
+  }
+}
+
 // ─── Stripe Webhook → Fulfill Order ───
 
 async function handleStripeWebhook(req, res) {
@@ -867,6 +931,10 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === 'POST' && parsed.pathname === '/api/stripe-webhook') {
     handleStripeWebhook(req, res);
+    return;
+  }
+  if (req.method === 'POST' && parsed.pathname === '/api/mockup-preview') {
+    handleMockupPreview(req, res);
     return;
   }
 
