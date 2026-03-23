@@ -1629,9 +1629,11 @@ const UI = (() => {
     for (const f of found) {
       allPins.push({ pct: _logScale(f.pos, scaleMax) * 100, color: ENC_COLORS[f.mode] || '#ff6b9d', label: f.label, posLabel: _compactNum(f.pos) });
     }
-    for (const nf of notFound) {
-      // Place not-found pins beyond the searched range on the extended scale
-      const beyondPos = apiTotal * 5; // somewhere past the searched range
+    for (let ni = 0; ni < notFound.length; ni++) {
+      const nf = notFound[ni];
+      // Spread not-found pins across the beyond-searched zone so they don't stack
+      const spread = notFound.length > 1 ? (ni / (notFound.length - 1)) : 0.5;
+      const beyondPos = apiTotal * (2 + spread * 6); // range from 2x to 8x apiTotal
       allPins.push({ pct: _logScale(beyondPos, scaleMax) * 100, color: ENC_COLORS[nf.mode] || '#e84393', label: nf.label, posLabel: '>' + _displayTotalCompact(nf.totalDigits), notFound: true });
     }
 
