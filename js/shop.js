@@ -1,5 +1,12 @@
 const Shop = (() => {
-  const PRINT_SIZE = 3000;
+  const PRINT_SIZE = 3000; // default fallback
+  // Printful recommended print dimensions (px at 300 DPI)
+  const PRINT_SIZES = {
+    tshirt:  { w: 4500, h: 5400 },  // 15×18 inches
+    cap:     { w: 2400, h: 2400 },  // embroidery area ~4×4 inches (high res)
+    mug:     { w: 2475, h: 1050 },  // 11oz mug print area per side
+    sticker: { w: 1800, h: 1800 },  // 3×3 inches at 300 DPI (with bleed)
+  };
   const PREVIEW_SIZE = 500;
   const FONT = '"Cascadia Code", "Fira Code", Consolas, monospace';
 
@@ -226,19 +233,34 @@ const Shop = (() => {
 
   // ─── Design Renderers ───
 
-  function _renderDesign(type, size) {
+  function _renderDesign(type, size, printW, printH) {
+    // If printW/printH given, use non-square canvas with design centered
+    const w = printW || size;
+    const h = printH || size;
     const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, size, size);
+    ctx.clearRect(0, 0, w, h);
 
-    if (type === 'polygon') _renderPolygon(ctx, size);
-    else if (type === 'polygon-lines') _renderPolygon(ctx, size, true);
-    else if (type === 'heatmap') _renderHeatmap(ctx, size);
-    else if (type === 'pimark') _renderPiMark(ctx, size);
+    // Design renders into a square of min(w,h), centered on canvas
+    const designSize = Math.min(w, h);
+    const offX = (w - designSize) / 2;
+    const offY = (h - designSize) / 2;
+    if (offX || offY) {
+      ctx.save();
+      ctx.translate(offX, offY);
+    }
 
-    _drawPrintText(ctx, size, type);
+    if (type === 'polygon') _renderPolygon(ctx, designSize);
+    else if (type === 'polygon-lines') _renderPolygon(ctx, designSize, true);
+    else if (type === 'heatmap') _renderHeatmap(ctx, designSize);
+    else if (type === 'pimark') _renderPiMark(ctx, designSize);
+
+    _drawPrintText(ctx, designSize, type);
+
+    if (offX || offY) ctx.restore();
+
     // Always use PNG to preserve transparency for t-shirt printing
     return canvas.toDataURL('image/png');
   }
@@ -1343,9 +1365,10 @@ const Shop = (() => {
     const col = _getColor();
     if (typeof UI !== 'undefined' && UI.unlock) UI.unlock('shopaholic');
 
-    // Render high-res print files for this item
-    const frontHires = _renderDesign(_getFrontDesignKey(), PRINT_SIZE);
-    const backHires = cfg.hasBack ? _renderDesign(_getBackDesignKey(), PRINT_SIZE) : null;
+    // Render high-res print files at Printful's recommended dimensions
+    const ps = PRINT_SIZES[product] || { w: PRINT_SIZE, h: PRINT_SIZE };
+    const frontHires = _renderDesign(_getFrontDesignKey(), Math.min(ps.w, ps.h), ps.w, ps.h);
+    const backHires = cfg.hasBack ? _renderDesign(_getBackDesignKey(), Math.min(ps.w, ps.h), ps.w, ps.h) : null;
 
     // Capture the mockup preview (design on shirt) for Stripe checkout image
     const frameFront = document.getElementById('frameFront');
@@ -1644,12 +1667,13 @@ const Shop = (() => {
       dlBtn.style.display = SHOW_DOWNLOAD ? 'block' : 'none';
       dlBtn.addEventListener('click', () => {
         const word = capturedWord || 'design';
+        const ps = PRINT_SIZES[product] || { w: PRINT_SIZE, h: PRINT_SIZE };
         const designs = ['pimark', 'polygon', 'heatmap'];
         for (const key of designs) {
-          const hires = _renderDesign(key, PRINT_SIZE);
+          const hires = _renderDesign(key, Math.min(ps.w, ps.h), ps.w, ps.h);
           const a = document.createElement('a');
           a.href = hires;
-          a.download = `pimap-${key}-${word}-3000px.png`;
+          a.download = `pimap-${key}-${word}-${ps.w}x${ps.h}.png`;
           a.click();
         }
       });

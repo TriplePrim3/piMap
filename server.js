@@ -96,7 +96,7 @@ const PRINTFUL_PRODUCTS = {
       'White-11oz': 1320,
       'Black-11oz': 4830,
     },
-    placements: { front: 'default' },
+    placements: { front: 'front', back: 'back' },
   },
   sticker: {
     productId: 358, // Kiss-Cut Stickers
