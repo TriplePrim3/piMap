@@ -120,48 +120,8 @@ const PRODUCT_PRICES = {
 // Printful fulfillment: 2-5 days. Delivery on top of that.
 // Rates use shirt pricing (slightly higher than caps).
 // Stripe allows max 5 shipping_options, so we consolidate into 5 tiers.
-const SHIPPING_RATES = [
-  {
-    id: 'ship_us', name: 'US Standard',
-    amount: 495, additional: 220,     // Printful: $4.75 tee / $4.49 cap → charge $4.95 + $2.20
-    delivery: '3-8 business days',
-    countries: ['US'],
-  },
-  {
-    id: 'ship_eu', name: 'Europe & UK',
-    amount: 499, additional: 150,     // Printful: $4.59-$4.79 + $1.45-$1.50
-    delivery: '7-20 business days',
-    countries: [
-      'GB','AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR',
-      'HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK',
-      'SI','ES','SE',
-    ],
-  },
-  {
-    id: 'ship_ca_aunz', name: 'Canada / Australia / NZ',
-    amount: 829, additional: 195,     // Printful: $7.69-$8.29 + $1.40-$1.95
-    delivery: '7-20 business days',
-    countries: ['CA','AU','NZ'],
-  },
-  {
-    id: 'ship_asia_latam', name: 'Japan / Brazil / Asia',
-    amount: 475, additional: 250,     // Printful: $4.39-$4.75 + $1.50-$2.50
-    delivery: '7-20 business days',
-    countries: ['JP','BR','KR','SG','MY','TH','PH','ID','TW','HK','IN'],
-  },
-  {
-    id: 'ship_world', name: 'Rest of World',
-    amount: 1199, additional: 600,    // Printful: $9.99-$11.99 + $1.10-$6.00
-    delivery: '7-20 business days',
-    countries: [
-      'CH','NO','IS','LI',           // EFTA
-      'MX','CL','CO','AR','PE',      // Latin America
-      'IL','AE','SA','TR',           // Middle East
-      'ZA','NG','EG',               // Africa
-      'UA','RS','BA','ME','MK','AL','MD','GE','KZ', // Eastern Europe / Central Asia
-    ],
-  },
-];
+// Flat shipping rate — $4.95 first item + $2.20 each additional
+const SHIPPING_FLAT = { amount: 495, additional: 220, delivery: '5-12 business days' };
 
 const MIME = {
   '.html': 'text/html',
@@ -630,24 +590,9 @@ async function handleCheckout(req, res) {
       };
     });
 
-    // Build Stripe shipping options — first item + additional items
+    // Flat shipping — $4.95 first item + $2.20 each additional
     const itemCount = items.length;
-    const shippingOptions = SHIPPING_RATES.map(r => {
-      const total = r.amount + (itemCount > 1 ? r.additional * (itemCount - 1) : 0);
-      return {
-        shipping_rate_data: {
-          type: 'fixed_amount',
-          fixed_amount: { amount: total, currency: 'usd' },
-          display_name: r.name,
-          delivery_estimate: {
-            minimum: { unit: 'business_day', value: parseInt(r.delivery) },
-            maximum: { unit: 'business_day', value: parseInt(r.delivery.split('-')[1]) },
-          },
-        },
-      };
-    });
-
-    const allCountries = [...new Set(SHIPPING_RATES.flatMap(r => r.countries))];
+    const shippingTotal = SHIPPING_FLAT.amount + (itemCount > 1 ? SHIPPING_FLAT.additional * (itemCount - 1) : 0);
 
     const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
@@ -655,9 +600,22 @@ async function handleCheckout(req, res) {
       mode: 'payment',
       customer_creation: 'always',
       shipping_address_collection: {
-        allowed_countries: allCountries,
+        allowed_countries: ['US','CA','GB','AU','NZ','JP','BR','KR','SG','MY','TH','PH','ID','TW','HK','IN',
+          'AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT',
+          'NL','PL','PT','RO','SK','SI','ES','SE','CH','NO','IS','MX','CL','CO','AR','PE','IL','AE','SA','TR',
+          'ZA','NG','EG','UA','RS','BA','ME','MK','AL','MD','GE','KZ'],
       },
-      shipping_options: shippingOptions,
+      shipping_options: [{
+        shipping_rate_data: {
+          type: 'fixed_amount',
+          fixed_amount: { amount: shippingTotal, currency: 'usd' },
+          display_name: 'Standard Shipping',
+          delivery_estimate: {
+            minimum: { unit: 'business_day', value: 5 },
+            maximum: { unit: 'business_day', value: 12 },
+          },
+        },
+      }],
       metadata: { order_id: orderId },
       success_url: `${siteUrl}?checkout=success`,
       cancel_url: `${siteUrl}?checkout=cancel`,
