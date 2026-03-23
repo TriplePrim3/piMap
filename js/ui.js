@@ -6,6 +6,36 @@ const UI = (() => {
   const spiralLinesEnabled = true;
   const ENC_COLORS = { t9: '#ff6b9d', compact: '#4ecdc4', alpha26: '#7c6ff7' };
 
+  // ─── Share ───
+
+  function _shareText(query, pos) {
+    const label = query.replace(/[^a-zA-Z0-9 ]/g, '').trim();
+    return `I found "${label}" at digit #${pos.toLocaleString()} in π!\n\nFind your place in pi: https://placeinpi.com`;
+  }
+
+  function _shareBtn(id) {
+    return `<button class="mascot-action-btn mascot-share-btn" id="${id}">Share</button>`;
+  }
+
+  function _wireShareBtn(id, query, pos) {
+    setTimeout(() => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const text = _shareText(query, pos);
+        unlock('spreader');
+        if (navigator.share) {
+          navigator.share({ title: 'My Place in π', text }).catch(() => {});
+        } else {
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = 'Share'; }, 2000);
+          });
+        }
+      });
+    }, 50);
+  }
+
   // Famous patterns in π (position is the digit index after "3.")
   const FAMOUS_PATTERNS = [
     { name: 'Feynman Point', pattern: '999999', pos: 761, icon: '🎯', desc: 'Six consecutive 9s', section: 'Famous Sequences',
@@ -358,6 +388,7 @@ const UI = (() => {
     { id: 'multi_part', icon: '🧩', name: 'Scattered Across π', desc: 'Found your word in multiple parts of π' },
     { id: 'shopaholic', icon: '🛍️', name: 'Shopaholic', desc: 'Added something to the cart' },
     { id: 'pi_owner', icon: '👕', name: 'Pi Owner', desc: 'Bought your place in π' },
+    { id: 'spreader', icon: '📣', name: 'π Evangelist', desc: 'Shared your place in π with the world' },
   ];
 
   let unlockedSet = new Set(JSON.parse(localStorage.getItem('pimap_achievements') || '[]'));
@@ -1016,7 +1047,7 @@ const UI = (() => {
       navigateToMatch(results[0], digitPatternLen);
       const pos = results[0];
       const count = results.length;
-      const makeBtn = `<br><button class="mascot-action-btn" id="makeItMineLocal">Wear it</button>`;
+      const makeBtn = `<br><button class="mascot-action-btn" id="makeItMineLocal">Wear it</button> ${_shareBtn('shareLocal')}`;
       if (converted.mode === 'digits') {
         mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
       } else {
@@ -1031,6 +1062,7 @@ const UI = (() => {
           });
         }
       }, 50);
+      _wireShareBtn('shareLocal', query, pos);
     } else {
       badge.classList.add('hidden');
       nav.classList.add('hidden');
@@ -1385,9 +1417,9 @@ const UI = (() => {
         }
       }
 
-      // "Wear it" for single result
+      // "Wear it" + "Share" for single result
       if (best) {
-        mascotHtml += `<br><button class="mascot-action-btn" id="makeItMineApi" style="margin-left:4px">Wear it</button>`;
+        mascotHtml += `<br><button class="mascot-action-btn" id="makeItMineApi">Wear it</button> ${_shareBtn('shareMulti')}`;
       }
 
       mascotSay(mascotHtml, 0);
@@ -1397,6 +1429,7 @@ const UI = (() => {
       // Wire up buttons
       const _bestPos = best ? best.pos : -1;
       const _word = word;
+      if (best) _wireShareBtn('shareMulti', word, best.pos);
       setTimeout(() => {
         const mineBtn = document.getElementById('makeItMineApi');
         if (mineBtn) {
@@ -1524,7 +1557,8 @@ const UI = (() => {
         icon.textContent = '\u{1F3AF}';
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`
           + `<span class="api-position">digit #${posFormatted}</span>`;
-        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${label}</b>" is ${_posWords(pos)}! ${_posReaction(pos)}`, 8000);
+        mascotSay(`<div class="bubble-title">Found it!</div>"<b>${label}</b>" is ${_posWords(pos)}! ${_posReaction(pos)}<br>${_shareBtn('shareApi')}`, 0);
+        _wireShareBtn('shareApi', label, pos);
         if (pos > 1e9) unlock('far_out');
         if (pos > 1e6) unlock('thats_deep');
 
@@ -1615,7 +1649,7 @@ const UI = (() => {
     // Scale bar — local range
     const localFrac = _logScale(localDigits, scaleMax) * 100;
     localEl.style.width = Math.max(0.5, localFrac) + '%';
-    totalLabel.textContent = hasNotFound ? _displayTotalCompact(scaleMax) + '?' : _displayTotalCompact(apiTotal);
+    totalLabel.textContent = _displayTotalCompact(scaleMax);
 
     // Hide the default single pin
     pinEl.style.display = 'none';

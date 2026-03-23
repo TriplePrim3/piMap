@@ -1216,19 +1216,27 @@ html, body {
 .mascot-action-btn {
   display: inline-block;
   margin-top: 6px;
-  padding: 4px 14px;
+  padding: 8px 18px;
+  min-width: 80px;
   border: none;
   border-radius: 12px;
   background: var(--accent);
   color: #fff;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  text-align: center;
   transition: background 0.2s, transform 0.1s;
 }
 .mascot-action-btn:hover {
   background: #ff6b9d;
   transform: scale(1.05);
+}
+.mascot-share-btn {
+  background: #4ecdc4;
+}
+.mascot-share-btn:hover {
+  background: #45b7aa;
 }
 
 /* === Shop Modal === */
