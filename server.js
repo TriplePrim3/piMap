@@ -123,14 +123,14 @@ const PRODUCT_PRICES = {
 const SHIPPING_RATES = [
   {
     id: 'ship_us', name: 'US Standard',
-    amount: 499, additional: 249,     // Printful: $4.75 + $2.20
-    delivery: '5-9 business days',
+    amount: 495, additional: 220,     // Printful: $4.75 tee / $4.49 cap → charge $4.95 + $2.20
+    delivery: '3-8 business days',
     countries: ['US'],
   },
   {
     id: 'ship_eu', name: 'Europe & UK',
-    amount: 549, additional: 199,     // Printful: $4.59-$4.79 + $1.45-$1.50
-    delivery: '7-25 business days',
+    amount: 499, additional: 150,     // Printful: $4.59-$4.79 + $1.45-$1.50
+    delivery: '7-20 business days',
     countries: [
       'GB','AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR',
       'HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK',
@@ -139,20 +139,20 @@ const SHIPPING_RATES = [
   },
   {
     id: 'ship_ca_aunz', name: 'Canada / Australia / NZ',
-    amount: 849, additional: 249,     // Printful: $7.69-$8.29 + $1.40-$1.95
-    delivery: '7-25 business days',
+    amount: 829, additional: 195,     // Printful: $7.69-$8.29 + $1.40-$1.95
+    delivery: '7-20 business days',
     countries: ['CA','AU','NZ'],
   },
   {
     id: 'ship_asia_latam', name: 'Japan / Brazil / Asia',
-    amount: 549, additional: 299,     // Printful: $4.49-$4.75 + $2.00-$2.50
-    delivery: '7-25 business days',
+    amount: 475, additional: 250,     // Printful: $4.39-$4.75 + $1.50-$2.50
+    delivery: '7-20 business days',
     countries: ['JP','BR','KR','SG','MY','TH','PH','ID','TW','HK','IN'],
   },
   {
     id: 'ship_world', name: 'Rest of World',
-    amount: 1249, additional: 649,    // Printful: $9.99-$11.99 + $1.10-$6.00
-    delivery: '7-25 business days',
+    amount: 1199, additional: 600,    // Printful: $9.99-$11.99 + $1.10-$6.00
+    delivery: '7-20 business days',
     countries: [
       'CH','NO','IS','LI',           // EFTA
       'MX','CL','CO','AR','PE',      // Latin America
