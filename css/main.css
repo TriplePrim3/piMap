@@ -2274,6 +2274,7 @@ html, body {
     transform: none;
     width: auto;
     bottom: 60px;
+    z-index: 30;
   }
   .api-banner .api-banner-content {
     padding: 8px 10px;
