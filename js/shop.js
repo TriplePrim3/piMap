@@ -1092,9 +1092,10 @@ const Shop = (() => {
           if (designDataUrl) {
             const dImg = new Image();
             dImg.onload = () => {
-              // Print zone on mug — centered circle area
+              // Print zone on mug
               const px = ox + w * 0.22, py = oy + h * 0.18;
               const pw = w * 0.48, ph = h * 0.58;
+
               if (col.dark) {
                 ctx.globalCompositeOperation = 'screen';
                 ctx.globalAlpha = 0.85;
@@ -1102,7 +1103,31 @@ const Shop = (() => {
                 ctx.globalCompositeOperation = 'multiply';
                 ctx.globalAlpha = 0.95;
               }
-              ctx.drawImage(dImg, px, py, pw, ph);
+
+              // Cylindrical warp — draw in vertical slices that follow barrel curve
+              const slices = 40;
+              const curve = 0.15; // how much barrel distortion
+              for (let i = 0; i < slices; i++) {
+                const t = i / slices;         // 0..1 across the width
+                const tNext = (i + 1) / slices;
+                const mid = 0.5;
+                // Barrel curve: edges compress, center expands
+                const yOff = curve * Math.pow((t - mid) * 2, 2) * ph;
+                const yOffNext = curve * Math.pow((tNext - mid) * 2, 2) * ph;
+                const sliceH = ph - yOff;
+                const sliceHNext = ph - yOffNext;
+
+                const sx = t * dImg.width;
+                const sw = dImg.width / slices;
+                const dx = px + t * pw;
+                const dw = pw / slices + 1; // +1 to avoid gaps
+
+                ctx.drawImage(dImg,
+                  sx, 0, sw, dImg.height,
+                  dx, py + yOff / 2, dw, sliceH
+                );
+              }
+
               ctx.globalCompositeOperation = 'source-over';
               ctx.globalAlpha = 1;
               canvas.className = 'mockup-canvas';
