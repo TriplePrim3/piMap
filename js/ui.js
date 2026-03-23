@@ -1606,13 +1606,16 @@ const UI = (() => {
 
     const apiTotal = (found.length > 0 ? found[0].totalDigits : notFound[0]?.totalDigits) || 1e12;
     const localDigits = App.getDigits() ? App.getDigits().length : 1e6;
-    // Extend scale when api total is too close to local (< 5x), so pins aren't crammed
-    const totalDigits = apiTotal < localDigits * 5 ? localDigits * 10 : apiTotal;
+    // Extend scale beyond searched range when there are not-found results
+    const hasNotFound = notFound.length > 0;
+    let scaleMax = apiTotal;
+    if (hasNotFound) scaleMax = apiTotal * 10; // e.g. searched 1B → scale goes to 10B
+    if (scaleMax < localDigits * 5) scaleMax = localDigits * 10;
 
     // Scale bar — local range
-    const localFrac = _logScale(localDigits, totalDigits) * 100;
+    const localFrac = _logScale(localDigits, scaleMax) * 100;
     localEl.style.width = Math.max(0.5, localFrac) + '%';
-    totalLabel.textContent = _displayTotalCompact(apiTotal);
+    totalLabel.textContent = hasNotFound ? _displayTotalCompact(scaleMax) + '?' : _displayTotalCompact(apiTotal);
 
     // Hide the default single pin
     pinEl.style.display = 'none';
@@ -1621,20 +1624,37 @@ const UI = (() => {
     const track = pinEl.parentElement;
     track.querySelectorAll('.scale-pin-multi').forEach(el => el.remove());
 
-    // Collect all pins, detect overlap, and stagger labels
+    // Collect all pins
     const allPins = [];
     for (const f of found) {
-      allPins.push({ pct: _logScale(f.pos, totalDigits) * 100, color: ENC_COLORS[f.mode] || '#ff6b9d', label: f.label, posLabel: _compactNum(f.pos) });
+      allPins.push({ pct: _logScale(f.pos, scaleMax) * 100, color: ENC_COLORS[f.mode] || '#ff6b9d', label: f.label, posLabel: _compactNum(f.pos) });
     }
     for (const nf of notFound) {
-      allPins.push({ pct: 97, color: ENC_COLORS[nf.mode] || '#e84393', label: nf.label, posLabel: '>' + _displayTotalCompact(nf.totalDigits) });
+      // Place not-found pins beyond the searched range on the extended scale
+      const beyondPos = apiTotal * 5; // somewhere past the searched range
+      allPins.push({ pct: _logScale(beyondPos, scaleMax) * 100, color: ENC_COLORS[nf.mode] || '#e84393', label: nf.label, posLabel: '>' + _displayTotalCompact(nf.totalDigits), notFound: true });
     }
 
     for (const p of allPins) {
-      _addScalePin(track, p.pct, p.color);
+      _addScalePin(track, p.pct, p.color, p.notFound);
     }
 
-    _renderScaleTicks(totalDigits);
+    // Add a marker showing the searched boundary
+    if (hasNotFound) {
+      const searchedPct = _logScale(apiTotal, scaleMax) * 100;
+      const marker = document.createElement('div');
+      marker.className = 'scale-pin-multi';
+      marker.style.cssText = `position:absolute;top:0;left:${searchedPct}%;width:1px;height:18px;`
+        + `background:var(--text-dim);opacity:0.4;z-index:1;`;
+      const lbl = document.createElement('div');
+      lbl.style.cssText = `position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);`
+        + `font-size:8px;white-space:nowrap;color:var(--text-dim);opacity:0.6;font-family:var(--font-mono);`;
+      lbl.textContent = _displayTotalCompact(apiTotal) + ' searched';
+      marker.appendChild(lbl);
+      track.appendChild(marker);
+    }
+
+    _renderScaleTicks(scaleMax);
 
     // Color legend below scale bar
     const scaleBar = track.closest('.api-scale-bar');
@@ -1664,14 +1684,17 @@ const UI = (() => {
     }
   }
 
-  function _addScalePin(track, pct, color) {
+  function _addScalePin(track, pct, color, isNotFound) {
     const pin = document.createElement('div');
     pin.className = 'scale-pin-multi';
+    const opacity = isNotFound ? '0.5' : '1';
     pin.style.cssText = `position:absolute;top:-2px;left:${pct}%;width:3px;height:22px;`
-      + `background:${color};border-radius:2px;box-shadow:0 0 8px ${color}80;z-index:2;`;
+      + `background:${color};border-radius:2px;box-shadow:0 0 8px ${color}80;z-index:2;opacity:${opacity};`;
     const dot = document.createElement('div');
+    const dotSize = isNotFound ? 7 : 9;
     dot.style.cssText = `position:absolute;top:-4px;left:50%;transform:translateX(-50%);`
-      + `width:9px;height:9px;background:${color};border-radius:50%;box-shadow:0 0 6px ${color}80;`;
+      + `width:${dotSize}px;height:${dotSize}px;background:${isNotFound ? 'transparent' : color};`
+      + `border:2px solid ${color};border-radius:50%;box-shadow:0 0 6px ${color}80;`;
     pin.appendChild(dot);
     track.appendChild(pin);
   }
