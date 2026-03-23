@@ -854,32 +854,29 @@ function autoDownloadChunks() {
 }
 
 // Boot
-async function boot() {
-  console.log('piMap server starting...');
-  console.log(`Persist dir: ${PERSIST_DIR}`);
-  console.log(`Chunks dir: ${CHUNKS_DIR}`);
-  console.log('Loading pi digit chunks...');
+console.log('piMap server starting...');
+console.log(`Persist dir: ${PERSIST_DIR}`);
+console.log(`Chunks dir: ${CHUNKS_DIR}`);
+console.log('Loading pi digit chunks...');
 
-  const hasChunks = loadChunkMeta();
+const hasChunks = loadChunkMeta();
 
-  // Auto-download if no chunks and we're on Railway (PERSIST_DIR is set)
-  if (!hasChunks && process.env.PERSIST_DIR) {
-    console.log('\nNo chunks found on volume — starting auto-download...');
-    try {
-      await autoDownloadChunks();
-      loadChunkMeta();
-    } catch (err) {
-      console.error('Auto-download failed:', err.message);
-      console.error('Server will start with pi.txt fallback');
-    }
-  }
+// Start server immediately so the site is responsive
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`\npiMap server running at http://localhost:${PORT}`);
+  console.log(`Search API: http://localhost:${PORT}/api/pisearch?q=14159`);
+  console.log(`Status API: http://localhost:${PORT}/api/pistatus`);
+  console.log(`Orders API: http://localhost:${PORT}/api/admin/orders`);
+});
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\npiMap server running at http://localhost:${PORT}`);
-    console.log(`Search API: http://localhost:${PORT}/api/pisearch?q=14159`);
-    console.log(`Status API: http://localhost:${PORT}/api/pistatus`);
-    console.log(`Orders API: http://localhost:${PORT}/api/admin/orders`);
+// Auto-download in background if no chunks and we're on Railway
+if (!hasChunks && process.env.PERSIST_DIR) {
+  console.log('\nNo chunks found on volume — downloading in background...');
+  autoDownloadChunks().then(() => {
+    console.log('Download complete — loading chunks...');
+    loadChunkMeta();
+    console.log('Billion-digit search is now live!');
+  }).catch(err => {
+    console.error('Auto-download failed:', err.message);
   });
 }
-
-boot();
