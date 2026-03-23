@@ -1173,7 +1173,7 @@ const Shop = (() => {
     const mockupCanvas = frameFront && frameFront.querySelector('canvas');
     const mockupImg = mockupCanvas ? mockupCanvas.toDataURL('image/jpeg', 0.7) : null;
 
-    cart.push({
+    const cartItem = {
       product,
       productLabel: cfg.label,
       word: capturedWord,
@@ -1187,8 +1187,35 @@ const Shop = (() => {
       frontHires,
       backHires,
       mockupImg,
+      // Will be filled by background upload
+      _uploadReady: null,
+    };
+
+    // Start uploading designs immediately in background
+    const orderId = `order_${Date.now()}_${cart.length}`;
+    const designs = { front: frontHires };
+    if (backHires) designs.back = backHires;
+    if (mockupImg) designs.mockup = mockupImg;
+
+    cartItem._uploadReady = fetch('/api/upload-design', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, designs }),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error('Design upload failed');
+      const data = await res.json();
+      cartItem._designUrls = { front: data.urls.front, ...(data.urls.back && { back: data.urls.back }) };
+      cartItem._mockupUrl = data.urls.mockup || null;
+      // Free memory — hi-res data no longer needed
+      cartItem.frontHires = null;
+      cartItem.backHires = null;
+      cartItem.mockupImg = null;
+    }).catch(err => {
+      console.warn('Background upload failed, will retry at checkout:', err);
+      cartItem._designUrls = null;
     });
 
+    cart.push(cartItem);
     _renderCart();
   }
 
@@ -1251,33 +1278,36 @@ const Shop = (() => {
     }
 
     try {
-      // 1. Upload all designs in parallel (batch front+back+mockup per item)
-      const uploadPromises = cart.map((item, i) => {
-        const orderId = `order_${Date.now()}_${i}`;
+      // 1. Wait for background uploads that started at add-to-cart time
+      await Promise.all(cart.map(item => item._uploadReady));
+
+      // Retry any that failed during background upload
+      for (const item of cart) {
+        if (item._designUrls) continue;
+        const orderId = `order_${Date.now()}_retry`;
         const designs = { front: item.frontHires };
         if (item.backHires) designs.back = item.backHires;
         if (item.mockupImg) designs.mockup = item.mockupImg;
-
-        return fetch('/api/upload-design', {
+        const res = await fetch('/api/upload-design', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId, designs }),
-        }).then(async (res) => {
-          if (!res.ok) throw new Error('Design upload failed');
-          const data = await res.json();
-          return {
-            product: item.product,
-            productLabel: item.productLabel,
-            word: item.word,
-            size: item.size,
-            colorName: item.colorName,
-            designUrls: { front: data.urls.front, ...(data.urls.back && { back: data.urls.back }) },
-            mockupUrl: data.urls.mockup || null,
-          };
         });
-      });
+        if (!res.ok) throw new Error('Design upload failed');
+        const data = await res.json();
+        item._designUrls = { front: data.urls.front, ...(data.urls.back && { back: data.urls.back }) };
+        item._mockupUrl = data.urls.mockup || null;
+      }
 
-      const items = await Promise.all(uploadPromises);
+      const items = cart.map(item => ({
+        product: item.product,
+        productLabel: item.productLabel,
+        word: item.word,
+        size: item.size,
+        colorName: item.colorName,
+        designUrls: item._designUrls,
+        mockupUrl: item._mockupUrl,
+      }));
 
       // 2. Create Stripe checkout session
       const checkoutRes = await fetch('/api/checkout', {
