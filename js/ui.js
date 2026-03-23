@@ -1273,7 +1273,7 @@ const UI = (() => {
             mode,
             label: modeLabels[mode],
             digitStr: conv.digitQuery,
-            totalDigits: result.totalDigits,
+            totalDigits: result.totalDigits || apiTotalDigits,
           });
         }
       } catch (e) {

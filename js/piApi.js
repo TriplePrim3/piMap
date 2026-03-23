@@ -67,7 +67,12 @@ const PiApi = (() => {
       }
     }
 
-    return finalResult || { found: false, results: [], count: 0, totalDigits: 0, elapsed: 0 };
+    if (!finalResult) {
+      // SSE parsing may have missed the result — check status for totalDigits
+      const status = serverStatus || await checkStatus();
+      return { found: false, results: [], count: 0, totalDigits: status?.totalDigits || 0, elapsed: 0 };
+    }
+    return finalResult;
   }
 
   function getStatus() {
