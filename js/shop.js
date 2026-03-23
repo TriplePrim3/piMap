@@ -149,7 +149,7 @@ const Shop = (() => {
       const radio = document.querySelector('input[name="layout"][value="spiral"]');
       if (radio) radio.checked = true;
     }
-    capturedWord = (word || '').toUpperCase().trim();
+    capturedWord = (word || '').trim();
     capturedChunks = chunks;
     capturedSinglePos = singlePos;
     backDesign = 'polygon';
@@ -776,17 +776,43 @@ const Shop = (() => {
     ctx.font = `700 ${logoSize * 1.8}px system-ui`;
     ctx.fillText('π', startX + glassR * 2 + logoSize * 0.2, y);
 
-    // Search word underneath — lower
+    // Search word underneath — lower, with word-wrap for long text
     if (capturedWord) {
       const wordSize = size * 0.048;
       const fontFamily = FONTS[fontIdx].css;
-      const weight = fontIdx === 4 ? '900' : '600'; // Impact needs heavier weight
+      const weight = fontIdx === 4 ? '900' : '600';
       ctx.textAlign = 'center';
       ctx.font = `${weight} ${wordSize}px ${fontFamily}`;
       ctx.letterSpacing = `${size * 0.004}px`;
       ctx.fillStyle = tc;
       ctx.globalAlpha = 0.85;
-      ctx.fillText(capturedWord, cx, y + size * 0.09);
+
+      const maxW = size * 0.85;
+      const textW = ctx.measureText(capturedWord).width;
+      if (textW > maxW) {
+        // Word-wrap: split on spaces first, else mid-word
+        const words = capturedWord.split(/(\s+)/);
+        const lines = [];
+        let cur = '';
+        for (const w of words) {
+          const test = cur + w;
+          if (ctx.measureText(test).width > maxW && cur.length > 0) {
+            lines.push(cur);
+            cur = w.trimStart();
+          } else {
+            cur = test;
+          }
+        }
+        if (cur) lines.push(cur);
+
+        const lineH = wordSize * 1.25;
+        const startY = y + size * 0.09 - ((lines.length - 1) * lineH) / 2;
+        for (let li = 0; li < lines.length; li++) {
+          ctx.fillText(lines[li], cx, startY + li * lineH);
+        }
+      } else {
+        ctx.fillText(capturedWord, cx, y + size * 0.09);
+      }
       ctx.letterSpacing = '0px';
     }
 

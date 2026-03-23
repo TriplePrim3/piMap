@@ -1271,9 +1271,9 @@ const UI = (() => {
     banner.classList.add('loading');
     ctxPanel.classList.add('hidden');
     icon.textContent = '';
-    title.textContent = `Searching all encodings for "${word}" in π...`;
+    title.textContent = `Searching all encodings for "${_displayWord}" in π...`;
     detail.textContent = 'Trying T9, Compact, and Alpha-26...';
-    mascotSay(`<div class="bubble-title">Hang on...</div>Searching for "<b>${word}</b>" across all encodings...`, 0);
+    mascotSay(`<div class="bubble-title">Hang on...</div>Searching for "<b>${_displayWord}</b>" across all encodings...`, 0);
 
     let suggestedMultiPart = false;
     const slowTimer = setTimeout(() => {
@@ -1288,7 +1288,7 @@ const UI = (() => {
           if (digs) {
             const breaks = Search.letterBreaks(query, conv.mode);
             const chunks = Search.findChunked(digs, conv.digitQuery, breaks);
-            if (chunks.length > 1) { hideApiBanner(); showChunkedResults(query, conv, chunks, word); }
+            if (chunks.length > 1) { hideApiBanner(); showChunkedResults(query, conv, chunks, _displayWord); }
           }
         });
       }, 50);
@@ -1373,11 +1373,11 @@ const UI = (() => {
 
       if (best) {
         icon.textContent = '\u{1F3AF}';
-        title.innerHTML = `Found "<b>${word}</b>" in π`
+        title.innerHTML = `Found "<b>${_displayWord}</b>" in π`
           + `<span class="api-position">digit #${best.pos.toLocaleString()}</span>`;
       } else {
         icon.textContent = '\u{1F50D}';
-        title.innerHTML = `"<b>${word}</b>" is beyond ${_displayTotalCompact(apiTotalDigits)} digits in all encodings`;
+        title.innerHTML = `"<b>${_displayWord}</b>" is beyond ${_displayTotalCompact(apiTotalDigits)} digits in all encodings`;
       }
 
       // Show all encoding results (found + not found) with matching colors
@@ -1399,7 +1399,7 @@ const UI = (() => {
 
       // Mascot announces — human-friendly
       const bestReaction = best ? _posReaction(best.pos) : '';
-      let mascotHtml = `<div class="bubble-title">${best ? `Found "${word}"!` : `"${word}" is way out there!`}</div>`;
+      let mascotHtml = `<div class="bubble-title">${best ? `Found "${_displayWord}"!` : `"${_displayWord}" is way out there!`}</div>`;
       if (best) mascotHtml += `${bestReaction}<br><br>`;
       for (const f of found) {
         mascotHtml += `<span style="color:${ENC_COLORS[f.mode]}"><b>${f.label}</b></span>: ${_posWords(f.pos)}<br>`;
@@ -1443,13 +1443,12 @@ const UI = (() => {
       }
 
       mascotSay(mascotHtml, 0);
-      showApiContextPanelMulti(found, notFound, word);
-      if (best) Minimap.setApiMarker(best.pos, word);
+      showApiContextPanelMulti(found, notFound, _displayWord);
+      if (best) Minimap.setApiMarker(best.pos, _displayWord);
 
       // Wire up buttons
       const _bestPos = best ? best.pos : -1;
-      const _word = word;
-      if (best) _wireShareBtn('shareMulti', word, best.pos);
+      if (best) _wireShareBtn('shareMulti', _displayWord, best.pos);
       setTimeout(() => {
         const mineBtn = document.getElementById('makeItMineApi');
         if (mineBtn) {
