@@ -1257,11 +1257,20 @@ const Shop = (() => {
     cart.forEach((item, i) => {
       const row = document.createElement('div');
       row.className = 'shop-cart-item';
+      const uploadMsgs = [
+        'Baking your slice of \u03C0...',
+        'Sending your digits to the press...',
+        'Wrapping your place in \u03C0...',
+        'Stitching \u03C0xels together...',
+        'Beaming your design to the universe...',
+        'Rolling your \u03C0 into a shirt...',
+      ];
+      const uploadMsg = uploadMsgs[i % uploadMsgs.length];
       const statusHtml = item._uploaded
-        ? '<span class="cart-item-status ready">Ready</span>'
+        ? '<span class="cart-item-status ready">Ready to print</span>'
         : item._uploadFailed
-          ? '<span class="cart-item-status failed">Upload failed</span>'
-          : '<span class="cart-item-status uploading"><span class="cart-spinner"></span>Uploading design...</span>';
+          ? '<span class="cart-item-status failed">Upload failed — will retry at checkout</span>'
+          : `<span class="cart-item-status uploading"><span class="cart-spinner"></span>${uploadMsg}</span>`;
       row.innerHTML = `
         <div class="cart-item-thumb" style="background:${item.colorSwatch};${item.colorSwatch === '#ffffff' ? 'border:1px solid var(--border)' : ''}">
           <img src="${item.frontImg}" class="cart-item-img" alt="Front">
