@@ -1142,8 +1142,13 @@ const Shop = (() => {
       _compositeFrame(frameFront, cfg.frontCrop, cfg.frontPrint, designImages[capDesign]);
     }
 
-    // Pi vicinity strip — show what digits fill the π
-    _renderVicinityStrip();
+    // Pi vicinity strip — show what digits fill the π (not for sticker)
+    if (product === 'sticker' || product === 'mug') {
+      const strip = document.getElementById('piVicinityStrip');
+      if (strip) strip.classList.add('hidden');
+    } else {
+      _renderVicinityStrip();
+    }
 
     // Back design picker (t-shirt only)
     const picker = document.getElementById('backDesignPicker');
