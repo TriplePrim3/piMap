@@ -215,7 +215,7 @@ function loadChunkMeta() {
     chunkMeta = { totalDigits, chunkSize: raw.length, overlap: 0, chunkCount: 1 };
     chunkFiles = [{ path: PI_TXT, index: 0, preloaded: raw }];
     console.log(`  Using pi.txt as single chunk: ${totalDigits.toLocaleString()} digits`);
-    return true;
+    return 'fallback';
   }
 
   console.log('  No pi data found. Run: node scripts/download-pi.js');
@@ -869,8 +869,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Orders API: http://localhost:${PORT}/api/admin/orders`);
 });
 
-// Auto-download in background if no chunks and we're on Railway
-if (!hasChunks && process.env.PERSIST_DIR) {
+// Auto-download in background if no real chunks and we're on Railway
+if (hasChunks !== true && process.env.PERSIST_DIR) {
   console.log('\nNo chunks found on volume — downloading in background...');
   autoDownloadChunks().then(() => {
     console.log('Download complete — loading chunks...');
