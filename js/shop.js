@@ -847,12 +847,12 @@ const Shop = (() => {
         if (cur) lines.push(cur);
 
         const lineH = wordSize * 1.25;
-        const startY = y + size * 0.12 - ((lines.length - 1) * lineH) / 2;
+        const startY = y + size * 0.16 - ((lines.length - 1) * lineH) / 2;
         for (let li = 0; li < lines.length; li++) {
           ctx.fillText(lines[li], cx, startY + li * lineH);
         }
       } else {
-        ctx.fillText(capturedWord, cx, y + size * 0.09);
+        ctx.fillText(capturedWord, cx, y + size * 0.13);
       }
       ctx.letterSpacing = '0px';
     }
