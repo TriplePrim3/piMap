@@ -764,7 +764,7 @@ const Shop = (() => {
   function _drawPrintText(ctx, size, type) {
     // Only show text on spiral-based designs, and only if text color is set
     if (type === 'pimark') return;
-    if (product === 'cap') return;
+    if (product !== 'tshirt') return;
     const tc = TEXT_COLORS[textColorIdx].hex;
     if (!tc) return;
     const cx = size / 2;
@@ -1061,7 +1061,40 @@ const Shop = (() => {
     }
 
     // Front frame
-    if (cfg.hasBack) {
+    if (product === 'sticker' || product === 'mug') {
+      // Sticker/mug: render design directly (no mockup overlay)
+      labelLeft.textContent = product === 'sticker' ? 'STICKER' : 'MUG';
+      const designKey = 'polygon'; // stickers always use polygon
+      const dataUrl = designImages[designKey];
+      if (dataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const sz = product === 'sticker' ? 300 : 320;
+          canvas.width = sz;
+          canvas.height = sz;
+          const ctx = canvas.getContext('2d');
+          // White background for mug, rounded for sticker
+          if (product === 'sticker') {
+            ctx.beginPath();
+            const r = sz * 0.08;
+            ctx.moveTo(r, 0); ctx.lineTo(sz - r, 0); ctx.quadraticCurveTo(sz, 0, sz, r);
+            ctx.lineTo(sz, sz - r); ctx.quadraticCurveTo(sz, sz, sz - r, sz);
+            ctx.lineTo(r, sz); ctx.quadraticCurveTo(0, sz, 0, sz - r);
+            ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.closePath(); ctx.clip();
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, sz, sz);
+          const pad = sz * 0.05;
+          ctx.drawImage(img, pad, pad, sz - pad * 2, sz - pad * 2);
+          canvas.className = 'mockup-canvas';
+          frameFront.innerHTML = '';
+          frameFront.appendChild(canvas);
+        };
+        img.src = dataUrl;
+      }
+    } else if (cfg.hasBack) {
       // T-shirt: front + back
       const frontDesign = flipped ? backDesign : 'pimark';
       const backDesignKey = flipped ? 'pimark' : backDesign;
@@ -1136,10 +1169,10 @@ const Shop = (() => {
       }
     }
 
-    // Cap design picker
+    // Cap design picker (cap only, not sticker/mug)
     const capPicker = document.getElementById('capDesignGroup');
     if (capPicker) {
-      if (!cfg.hasBack) {
+      if (!cfg.hasBack && product === 'cap') {
         capPicker.classList.remove('hidden');
         const capRow = document.getElementById('capDesignPicker');
         if (capRow) {
@@ -1157,9 +1190,11 @@ const Shop = (() => {
       }
     }
 
-    // Color picker
+    // Color picker (hide for single-color products)
     const colorPicker = document.getElementById('shirtColorPicker');
+    const colorRow = colorPicker?.closest('.shop-option-row');
     if (colorPicker) {
+      if (colorRow) colorRow.classList.toggle('hidden', cfg.colors.length <= 1);
       colorPicker.innerHTML = '';
       cfg.colors.forEach((c, i) => {
         const btn = document.createElement('button');
@@ -1180,8 +1215,8 @@ const Shop = (() => {
     const textPicker = document.getElementById('textColorPicker');
     const textRow = textPicker?.closest('.shop-option-row');
     if (textPicker) {
-      if (!cfg.hasBack) { if (textRow) textRow.classList.add('hidden'); }
-      else { if (textRow) textRow.classList.remove('hidden'); }
+      const showText = product === 'tshirt';
+      if (textRow) textRow.classList.toggle('hidden', !showText);
       textPicker.innerHTML = '';
       TEXT_COLORS.forEach((c, i) => {
         const btn = document.createElement('button');
@@ -1210,7 +1245,7 @@ const Shop = (() => {
     const fontPicker = document.getElementById('fontPicker');
     const fontRow = fontPicker?.closest('.shop-option-row');
     if (fontPicker) {
-      const showFont = cfg.hasBack && TEXT_COLORS[textColorIdx].hex;
+      const showFont = product === 'tshirt' && TEXT_COLORS[textColorIdx].hex;
       if (fontRow) fontRow.classList.toggle('hidden', !showFont);
       fontPicker.innerHTML = '';
       FONTS.forEach((f, i) => {
