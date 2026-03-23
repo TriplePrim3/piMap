@@ -1686,6 +1686,27 @@ html, body {
 }
 .cart-item-remove:hover { color: #ff4444; }
 
+.cart-item-status {
+  font-size: 9px;
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cart-item-status.uploading { color: #7c6ff7; }
+.cart-item-status.ready { color: #34d399; }
+.cart-item-status.failed { color: #ff6b6b; }
+
+.cart-spinner {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid rgba(124, 111, 247, 0.3);
+  border-top-color: #7c6ff7;
+  border-radius: 50%;
+  animation: cart-spin 0.6s linear infinite;
+}
+@keyframes cart-spin { to { transform: rotate(360deg); } }
+
 .shop-checkout-btn {
   width: 100%;
 }

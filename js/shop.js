@@ -1197,6 +1197,9 @@ const Shop = (() => {
     if (backHires) designs.back = backHires;
     if (mockupImg) designs.mockup = mockupImg;
 
+    cartItem._uploaded = false;
+    cartItem._uploadFailed = false;
+
     cartItem._uploadReady = fetch('/api/upload-design', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1206,13 +1209,17 @@ const Shop = (() => {
       const data = await res.json();
       cartItem._designUrls = { front: data.urls.front, ...(data.urls.back && { back: data.urls.back }) };
       cartItem._mockupUrl = data.urls.mockup || null;
+      cartItem._uploaded = true;
       // Free memory — hi-res data no longer needed
       cartItem.frontHires = null;
       cartItem.backHires = null;
       cartItem.mockupImg = null;
+      _renderCart();
     }).catch(err => {
       console.warn('Background upload failed, will retry at checkout:', err);
       cartItem._designUrls = null;
+      cartItem._uploadFailed = true;
+      _renderCart();
     });
 
     cart.push(cartItem);
@@ -1250,6 +1257,11 @@ const Shop = (() => {
     cart.forEach((item, i) => {
       const row = document.createElement('div');
       row.className = 'shop-cart-item';
+      const statusHtml = item._uploaded
+        ? '<span class="cart-item-status ready">Ready</span>'
+        : item._uploadFailed
+          ? '<span class="cart-item-status failed">Upload failed</span>'
+          : '<span class="cart-item-status uploading"><span class="cart-spinner"></span>Uploading design...</span>';
       row.innerHTML = `
         <div class="cart-item-thumb" style="background:${item.colorSwatch};${item.colorSwatch === '#ffffff' ? 'border:1px solid var(--border)' : ''}">
           <img src="${item.frontImg}" class="cart-item-img" alt="Front">
@@ -1257,6 +1269,7 @@ const Shop = (() => {
         <div class="cart-item-info">
           <div class="cart-item-word">${item.word}</div>
           <div class="cart-item-detail">${item.productLabel} · ${item.colorName} · ${item.size}</div>
+          ${statusHtml}
         </div>
         <div class="cart-item-price">$${PRICE.toFixed(2)}</div>
         <button class="cart-item-remove" data-idx="${i}">&times;</button>
