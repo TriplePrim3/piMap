@@ -1266,7 +1266,7 @@ const Shop = (() => {
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
           cartItem._uploadPct = Math.round((e.loaded / e.total) * 100);
-          _renderCart();
+          _updateCartStatus();
         }
       });
       xhr.addEventListener('load', () => {
@@ -1295,6 +1295,33 @@ const Shop = (() => {
 
     cart.push(cartItem);
     _renderCart();
+  }
+
+  // Lightweight update — only patches status text without rebuilding DOM (keeps spinner alive)
+  function _updateCartStatus() {
+    const itemsEl = document.getElementById('cartItems');
+    if (!itemsEl) return;
+    cart.forEach((item, i) => {
+      const row = itemsEl.children[i];
+      if (!row) return;
+      const statusEl = row.querySelector('.cart-item-status');
+      if (!statusEl) return;
+      if (item._uploaded) {
+        if (!statusEl.classList.contains('ready')) {
+          statusEl.className = 'cart-item-status ready';
+          statusEl.textContent = 'Ready to print';
+        }
+      } else if (item._uploadFailed) {
+        if (!statusEl.classList.contains('failed')) {
+          statusEl.className = 'cart-item-status failed';
+          statusEl.textContent = 'Upload failed — will retry at checkout';
+        }
+      } else {
+        // Update percentage text only — leave spinner element alone
+        const pctNode = statusEl.querySelector('.cart-upload-pct');
+        if (pctNode) pctNode.textContent = `${item._uploadPct}%`;
+      }
+    });
   }
 
   function removeFromCart(idx) {
@@ -1341,7 +1368,7 @@ const Shop = (() => {
         ? '<span class="cart-item-status ready">Ready to print</span>'
         : item._uploadFailed
           ? '<span class="cart-item-status failed">Upload failed — will retry at checkout</span>'
-          : `<span class="cart-item-status uploading"><span class="cart-spinner"></span>${uploadMsg} ${item._uploadPct}%</span>`;
+          : `<span class="cart-item-status uploading"><span class="cart-spinner"></span>${uploadMsg} <span class="cart-upload-pct">${item._uploadPct}%</span></span>`;
       row.innerHTML = `
         <div class="cart-item-thumb" style="background:${item.colorSwatch};${item.colorSwatch === '#ffffff' ? 'border:1px solid var(--border)' : ''}">
           <img src="${item.frontImg}" class="cart-item-img" alt="Front">
