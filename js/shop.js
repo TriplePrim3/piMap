@@ -265,7 +265,7 @@ const Shop = (() => {
     const scaleY = (artSize - pad * 2) / contentH;
     const scale = Math.min(scaleX, scaleY);
     const offX = (size - contentW * scale) / 2 - minX * scale;
-    const offY = size * 0.05 + (artSize - contentH * scale) / 2 - minY * scale;
+    const offY = size * 0.02 + (artSize - contentH * scale) / 2 - minY * scale;
 
     return { digits, effLen, cw, ch, scale, offX, offY };
   }
@@ -777,7 +777,7 @@ const Shop = (() => {
     const tc = TEXT_COLORS[textColorIdx].hex;
     if (!tc) return;
     const cx = size / 2;
-    const y = size * 0.82;
+    const y = size * 0.86;
 
     ctx.save();
 
