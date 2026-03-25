@@ -596,7 +596,36 @@ const UI = (() => {
     { achId: 'shopaholic', html: '<div class="bubble-title">🛍️ Wear your digits</div>Found your phrase\'s place in π? Now put it on a shirt. The Shop is right there. You know you want to.' },
   ];
 
+  const PI_FACTS = [
+    'π is the ratio of a circle\'s circumference to its diameter — true for every circle in the universe.',
+    'Ancient Babylonians approximated π as 3.125 nearly 4,000 years ago.',
+    'Archimedes was the first to rigorously estimate π, using 96-sided polygons to pin it between 3.1408 and 3.1429.',
+    'In 1706, William Jones was the first to use the Greek letter π for this constant.',
+    'π is irrational — its decimal expansion never ends and never repeats.',
+    'π is also transcendental, meaning it\'s not the root of any polynomial with rational coefficients.',
+    'The current world record for memorizing π is 70,030 digits, set by Suresh Kumar Sharma in 2015.',
+    'The Feynman Point: six 9s appear in a row starting at position 762. Feynman joked he\'d recite π up to there and say "...and so on."',
+    'NASA uses only 15 digits of π for interplanetary navigation — that\'s enough to be accurate to the width of an atom.',
+    'If you calculate the circumference of the observable universe using 39 digits of π, the error is smaller than a hydrogen atom.',
+    'March 14 (3/14) is Pi Day. Albert Einstein was also born on this date.',
+    'π has been computed to over 105 trillion digits and counting.',
+    'In the Star Trek episode "Wolf in the Fold," Spock defeats an evil entity by commanding the computer to compute π to the last digit.',
+    'The string "999999" at position 762 is called the Feynman Point because physicist Richard Feynman wanted to memorize π to that point.',
+    'A "pilem" is a poem where the number of letters in each word matches successive digits of π. "How I want a drink, alcoholic of course..." = 3.14159265.',
+    'There\'s no known pattern or formula to predict the next digit of π from previous ones.',
+    'Leonhard Euler popularized the use of π in 1737, and it stuck.',
+    'The first 144 digits of π add up to 666. Spooky? Coincidence? You decide.',
+    'In 1897, Indiana almost passed a bill implying π = 3.2. A mathematician happened to be visiting and stopped it.',
+    'Buffon\'s Needle: drop a needle on lined paper enough times, and you can estimate π from how often it crosses a line.',
+    'π appears in the Heisenberg uncertainty principle, Einstein\'s field equations, and Coulomb\'s law — it\'s baked into the fabric of physics.',
+    'The probability that two random integers are coprime is 6/π².',
+    'A circle\'s area is πr². But you already knew that one.',
+    'The digits of π pass every known test for statistical randomness, yet π itself is completely deterministic.',
+  ];
+
   let autoPromptIdx = 0;
+  let piFactIdx = 0;
+  let autoPromptCycle = 0; // counts total ticks; show achievement every 5th
 
   function startAutoPrompts() {
     setInterval(() => {
@@ -606,14 +635,20 @@ const UI = (() => {
       if (_typewriterTimer) return;
       if (bubble && !bubble.classList.contains('hidden')) return;
 
-      // Find next unlocked-achievement prompt
-      const remaining = FEATURE_PROMPTS.filter(p => !unlockedSet.has(p.achId));
-      if (remaining.length === 0) return; // user has done everything!
+      autoPromptCycle++;
 
-      const prompt = remaining[autoPromptIdx % remaining.length];
-      autoPromptIdx++;
-      mascotSay(prompt.html, 8000);
-    }, 10000);
+      // Every 5th message, try an achievement nudge; otherwise show a pi fact
+      const remaining = FEATURE_PROMPTS.filter(p => !unlockedSet.has(p.achId));
+      if (autoPromptCycle % 5 === 0 && remaining.length > 0) {
+        const prompt = remaining[autoPromptIdx % remaining.length];
+        autoPromptIdx++;
+        mascotSay(prompt.html, 8000);
+      } else {
+        const fact = PI_FACTS[piFactIdx % PI_FACTS.length];
+        piFactIdx++;
+        mascotSay(fact, 8000);
+      }
+    }, 15000); // every 15 seconds instead of 10
   }
 
   function setupMobileDrawer() {

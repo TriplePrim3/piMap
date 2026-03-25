@@ -15,8 +15,13 @@ const App = (() => {
     UI.init();
     Minimap.init();
 
-    // Handle resize
+    // Handle resize — recalculate columns so digits don't smush on mobile
     window.addEventListener('resize', () => {
+      const newCols = Math.max(10, Math.floor(window.innerWidth / Layout.getCellW()));
+      if (newCols !== Layout.getCols()) {
+        Layout.setCols(newCols);
+        Minimap.invalidate();
+      }
       Renderer.resize();
       Minimap.resize();
     });
@@ -56,8 +61,8 @@ const App = (() => {
     digits = await DataLoader.load(key);
     currentConstant = key;
 
-    // Set grid columns based on viewport
-    const cols = Math.max(30, Math.floor(window.innerWidth / Layout.getCellW()));
+    // Set grid columns based on viewport (min 10 on narrow screens)
+    const cols = Math.max(10, Math.floor(window.innerWidth / Layout.getCellW()));
     Layout.setCols(cols);
 
     Renderer.setDigits(digits, key);
