@@ -160,8 +160,10 @@ const Shop = (() => {
       capturedChunks = null;
       capturedSinglePos = hits[0];
     } else {
-      // Fall back to chunked search
-      const chunks = Search.findChunked(digits, conv.digitQuery);
+      // Fall back to chunked search (with letter breaks)
+      const letterWord = capturedWord.replace(/[^a-zA-Z]/g, '');
+      const breaks = Search.letterBreaks(letterWord, mode);
+      const chunks = Search.findChunked(digits, conv.digitQuery, breaks);
       if (chunks.length > 1) {
         capturedChunks = chunks;
         capturedSinglePos = -1;
@@ -1614,6 +1616,17 @@ const Shop = (() => {
 
   // ─── In-shop search ───
 
+  function _openShopWithSearch(text) {
+    // Open shop and immediately run the search for the given text
+    captureDesign(text, null, -1);
+    // Once modal is open, trigger the search
+    setTimeout(() => {
+      const input = document.getElementById('shopSearchInput');
+      if (input) input.value = text;
+      _shopSearch();
+    }, 50);
+  }
+
   function _shopSearch() {
     const input = document.getElementById('shopSearchInput');
     const status = document.getElementById('shopSearchStatus');
@@ -1646,8 +1659,10 @@ const Shop = (() => {
       return;
     }
 
-    // Try multi-part
-    const chunks = Search.findChunked(digits, converted.digitQuery);
+    // Try multi-part (with letter breaks so chunks align on letter boundaries)
+    const letterWord = searchWord.replace(/[^a-zA-Z]/g, '');
+    const breaks = hasLetters ? Search.letterBreaks(letterWord, shopEncoding || 'alpha26') : null;
+    const chunks = Search.findChunked(digits, converted.digitQuery, breaks);
     if (chunks.length > 1) {
       status.innerHTML = `Found "<b>${displayWord}</b>" in ${chunks.length} parts (Multi-Part)`;
       captureDesign(displayWord, chunks, -1);
@@ -1772,9 +1787,9 @@ const Shop = (() => {
     const shopBtn = document.getElementById('shopBtn');
     if (shopBtn) {
       shopBtn.addEventListener('click', () => {
-        // Open shop with default state if no design captured yet
         if (!designImages.pimark) {
-          captureDesign('Pi is the best number ever', null, -1);
+          // Open shop with default text and auto-search it
+          _openShopWithSearch('Pi is the best number ever');
         } else {
           showPreview();
         }

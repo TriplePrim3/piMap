@@ -824,7 +824,7 @@ const Renderer = (() => {
     const effectiveLen = getEffectiveLength();
     const cellPxH = ch * zoom;
     const cellPxW = cw * zoom;
-    const renderText = cellPxH >= 8;
+    const renderText = cellPxH >= 5;
     const skipLast = constKey === 'pi' && !isPrinting();
 
     for (let row = startRow; row <= endRow; row++) {
@@ -857,7 +857,7 @@ const Renderer = (() => {
     const ch = Layout.getCellH();
     const cellPxW = cw * zoom;
     const cellPxH = ch * zoom;
-    const renderText = cellPxH >= 8;
+    const renderText = cellPxH >= 5;
     const effectiveLen = getEffectiveLength();
     const skipLast = constKey === 'pi' && !isPrinting();
 

@@ -699,9 +699,11 @@ const UI = (() => {
         case 'const-sqrt3': {
           const key = action.replace('const-', '');
           App.switchConstant(key);
-          document.querySelectorAll('.const-btn').forEach(b => {
+          document.querySelectorAll('.const-btn, .const-drop-item').forEach(b => {
             b.classList.toggle('active', b.dataset.constant === key);
           });
+          const ddBtn = document.getElementById('constDropdownBtn');
+          if (ddBtn) ddBtn.textContent = { pi: 'π', e: 'e', sqrt2: '√2', sqrt3: '√3' }[key] || 'π';
           break;
         }
         case 'settings': {
@@ -2078,15 +2080,30 @@ const UI = (() => {
   }
 
   function setupConstants() {
-    document.querySelectorAll('.const-btn').forEach(btn => {
+    // Dropdown toggle
+    const ddBtn = document.getElementById('constDropdownBtn');
+    const ddMenu = document.getElementById('constDropdownMenu');
+    if (ddBtn && ddMenu) {
+      ddBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        ddMenu.classList.toggle('hidden');
+      });
+      // Close on outside click
+      document.addEventListener('click', () => ddMenu.classList.add('hidden'));
+      ddMenu.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    // Handle dropdown item clicks
+    document.querySelectorAll('.const-drop-item').forEach(btn => {
       btn.addEventListener('click', async () => {
         const key = btn.dataset.constant;
         if (key === currentConstant) return;
 
-        document.querySelector('.const-btn.active').classList.remove('active');
+        document.querySelectorAll('.const-drop-item').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        if (ddBtn) ddBtn.textContent = { pi: 'π', e: 'e', sqrt2: '√2', sqrt3: '√3' }[key] || 'π';
+        if (ddMenu) ddMenu.classList.add('hidden');
         currentConstant = key;
-        // Show famous panel only for pi
         const famousPanel = document.getElementById('famousPanel');
         if (famousPanel) famousPanel.style.display = key === 'pi' ? '' : 'none';
         await App.switchConstant(key);
