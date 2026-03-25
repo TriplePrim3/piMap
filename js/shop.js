@@ -924,12 +924,28 @@ const Shop = (() => {
     let info = '<div class="vic-info">';
     info += '<div class="vic-explain">The front design is this π — made from the actual digits of π, starting with 3.14159… and continuing to your match.</div>';
     if (capturedChunks && capturedChunks.length > 0) {
+      // Map chunks back to original letters
+      const word = capturedWord.replace(/[^a-zA-Z]/g, '');
+      const mode = shopEncoding || 'alpha26';
+      const breaks = Search.letterBreaks(word, mode);
       info += '<div class="vic-parts">';
       for (let i = 0; i < capturedChunks.length; i++) {
         const c = capturedChunks[i];
         const letter = String.fromCharCode(65 + i);
         const partColor = _paletteColor(i, capturedChunks.length);
-        info += `<span class="vic-part">Part ${letter}: digit <b>#${c.pos.toLocaleString()}</b> → <span style="color:${partColor};font-weight:700">${c.digitStr}</span></span>`;
+        // Find which letters this chunk covers by matching digit offsets
+        let letters = '';
+        if (breaks) {
+          const chunkStart = c.offset != null ? c.offset : 0;
+          const chunkEnd = chunkStart + c.digitStr.length;
+          for (let li = 0; li < breaks.length - 1; li++) {
+            if (breaks[li] >= chunkStart && breaks[li + 1] <= chunkEnd) {
+              if (li < word.length) letters += word[li];
+            }
+          }
+        }
+        const letterLabel = letters ? ` "${letters}"` : '';
+        info += `<span class="vic-part">Part ${letter}${letterLabel}: digit <b>#${c.pos.toLocaleString()}</b> → <span style="color:${partColor};font-weight:700">${c.digitStr}</span></span>`;
       }
       info += '</div>';
     } else if (capturedSinglePos >= 0) {
@@ -1706,16 +1722,7 @@ const Shop = (() => {
           const frontKey = product === 'mug' ? 'polygon-lines' : _getFrontDesignKey();
           const hires = _renderDesign(frontKey, Math.min(ps.w, ps.h), ps.w, ps.h);
 
-          // Upload design to server
-          const uploadRes = await fetch('/api/upload-design', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: hires, side: 'mockup-preview' }),
-          });
-          const uploadData = await uploadRes.json();
-          if (!uploadData.url) throw new Error('Upload failed');
-
-          // Request mockup from Printful
+          // Send design directly to Printful via our API
           const col = _getColor();
           const mockupRes = await fetch('/api/mockup-preview', {
             method: 'POST',
@@ -1723,7 +1730,7 @@ const Shop = (() => {
             body: JSON.stringify({
               product,
               color: col.name,
-              designUrl: uploadData.url,
+              designBase64: hires,
             }),
           });
           const mockupData = await mockupRes.json();
@@ -1767,7 +1774,7 @@ const Shop = (() => {
       shopBtn.addEventListener('click', () => {
         // Open shop with default state if no design captured yet
         if (!designImages.pimark) {
-          captureDesign('PI', null, -1);
+          captureDesign('Pi is the best number ever', null, -1);
         } else {
           showPreview();
         }
