@@ -715,10 +715,48 @@ async function fulfillOrder(order) {
 
 // ─── Printful Mockup Generator ───
 
+// Upload binary PNG to Printful via multipart form
+function printfulUploadFile(pngBuffer) {
+  return new Promise((resolve, reject) => {
+    const boundary = '----PFUpload' + Date.now();
+    const filename = 'design-' + Date.now() + '.png';
+
+    const header = Buffer.from(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
+      `Content-Type: image/png\r\n\r\n`
+    );
+    const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
+    const body = Buffer.concat([header, pngBuffer, footer]);
+
+    const opts = {
+      hostname: 'api.printful.com',
+      path: '/files',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.PRINTFUL_API_KEY}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': body.length,
+      },
+    };
+
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); } catch { resolve(data); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 async function handleMockupPreview(req, res) {
   try {
     const buf = await readBody(req);
-    const { product, color, designUrl } = JSON.parse(buf.toString());
+    const { product, color, designBase64 } = JSON.parse(buf.toString());
 
     const productMap = PRINTFUL_PRODUCTS[product];
     if (!productMap) return jsonResponse(res, 400, { error: 'Unknown product' });
@@ -730,29 +768,67 @@ async function handleMockupPreview(req, res) {
     }
     if (variantIds.length === 0) return jsonResponse(res, 400, { error: 'Unknown variant' });
 
-    // Use the site URL for the design file
-    const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
+    // Step 1: Upload PNG to Printful file library via multipart
+    const base64Data = designBase64.replace(/^data:image\/\w+;base64,/, '');
+    const pngBuffer = Buffer.from(base64Data, 'base64');
+    console.log(`Uploading ${(pngBuffer.length / 1024 / 1024).toFixed(1)}MB design to Printful...`);
 
-    // Build mockup task — front placement with the design
+    const uploadResult = await printfulUploadFile(pngBuffer);
+    if (uploadResult.code !== 200 || !uploadResult.result?.id) {
+      console.error('Printful file upload failed:', JSON.stringify(uploadResult).slice(0, 500));
+      return jsonResponse(res, 500, { error: 'File upload to Printful failed', detail: uploadResult.error?.message });
+    }
+
+    const fileId = uploadResult.result.id;
+    console.log('Printful file uploaded, id:', fileId);
+
+    // Step 2: Wait for file to be processed (poll until preview_url is available)
+    let fileUrl = null;
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const fileStatus = await printfulRequest('GET', `/files/${fileId}`);
+      if (fileStatus.result?.status === 'ok' && fileStatus.result?.preview_url) {
+        fileUrl = fileStatus.result.preview_url;
+        break;
+      }
+      if (fileStatus.result?.status === 'failed') {
+        console.error('File processing failed:', JSON.stringify(fileStatus).slice(0, 300));
+        return jsonResponse(res, 500, { error: 'Printful rejected the design file' });
+      }
+    }
+    if (!fileUrl) return jsonResponse(res, 504, { error: 'File processing timed out' });
+    console.log('File processed:', fileUrl);
+
+    // Step 3: Create mockup task
+    const placement = productMap.placements.front === 'embroidery_front' ? 'embroidery_front' : 'front';
+    // Get print file dimensions for this product
+    const printSpecs = await printfulRequest('GET', `/mockup-generator/printfiles/${productMap.productId}`);
+    let areaW = 1800, areaH = 2400;
+    if (printSpecs.result?.printfiles) {
+      const frontFile = printSpecs.result.printfiles[0];
+      if (frontFile) { areaW = frontFile.width; areaH = frontFile.height; }
+    }
+
     const taskBody = {
       variant_ids: [variantIds[0]],
+      format: 'jpg',
       files: [{
-        placement: productMap.placements.front === 'embroidery_front' ? 'embroidery_front' : 'front',
-        image_url: siteUrl + designUrl,
-        position: { area_width: 1800, area_height: 2400, width: 1800, height: 2400, top: 0, left: 0 },
+        placement,
+        image_url: fileUrl,
+        position: { area_width: areaW, area_height: areaH, width: areaW, height: areaH, top: 0, left: 0 },
       }],
     };
 
-    // Step 1: Create mockup task
     const createResult = await printfulRequest('POST', `/mockup-generator/create-task/${productMap.productId}`, taskBody);
     if (createResult.code !== 200 || !createResult.result?.task_key) {
-      console.error('Mockup create failed:', createResult);
-      return jsonResponse(res, 500, { error: 'Mockup generation failed', detail: createResult });
+      console.error('Mockup create failed:', JSON.stringify(createResult).slice(0, 500));
+      return jsonResponse(res, 500, { error: 'Mockup generation failed', detail: createResult.error?.message });
     }
 
     const taskKey = createResult.result.task_key;
+    console.log('Mockup task created:', taskKey);
 
-    // Step 2: Poll for result (up to 30 seconds)
+    // Step 4: Poll for mockup result (up to 30 seconds)
     let mockups = null;
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 2000));
@@ -762,14 +838,13 @@ async function handleMockupPreview(req, res) {
         break;
       }
       if (status.result?.status === 'failed') {
-        console.error('Mockup task failed:', status);
+        console.error('Mockup task failed:', JSON.stringify(status).slice(0, 500));
         return jsonResponse(res, 500, { error: 'Mockup generation failed' });
       }
     }
 
     if (!mockups) return jsonResponse(res, 504, { error: 'Mockup generation timed out' });
 
-    // Return the mockup image URLs
     jsonResponse(res, 200, { mockups });
   } catch (err) {
     console.error('Mockup preview error:', err.message);

@@ -21,12 +21,39 @@ const UI = (() => {
     setTimeout(() => {
       const btn = document.getElementById(id);
       if (!btn) return;
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const text = _shareText(query, pos);
         unlock('spreader');
+
+        // Generate share image
+        let file = null;
+        try {
+          const canvas = Shop.generateShareImage();
+          const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+          if (blob) file = new File([blob], 'my-place-in-pi.png', { type: 'image/png' });
+        } catch (e) { console.warn('Share image generation failed', e); }
+
+        // Try Web Share API with image
+        if (navigator.share && file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ title: 'My Place in π', text, files: [file] });
+            return;
+          } catch (e) { if (e.name !== 'AbortError') console.warn(e); }
+        }
+
+        // Fallback: share text only (mobile) or copy + download (desktop)
         if (navigator.share) {
           navigator.share({ title: 'My Place in π', text }).catch(() => {});
         } else {
+          // Download image
+          if (file) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(file);
+            a.download = 'my-place-in-pi.png';
+            a.click();
+            URL.revokeObjectURL(a.href);
+          }
+          // Copy text
           navigator.clipboard.writeText(text).then(() => {
             btn.textContent = 'Copied!';
             setTimeout(() => { btn.textContent = 'Share'; }, 2000);
@@ -1084,6 +1111,8 @@ const UI = (() => {
       navigateToMatch(results[0], digitPatternLen);
       const pos = results[0];
       const count = results.length;
+      // Capture design immediately so share image works
+      Shop.captureDesign(displayWord || converted.digitQuery, null, pos);
       const makeBtn = `<br><button class="mascot-action-btn" id="makeItMineLocal">Make it mine</button> ${_shareBtn('shareLocal')}`;
       if (converted.mode === 'digits') {
         mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
@@ -1203,6 +1232,10 @@ const UI = (() => {
 
     unlock('multi_part');
 
+    // Capture design immediately so share image works
+    const shareWord = origWord || word;
+    Shop.captureDesign(shareWord, chunks, -1);
+
     const badge = document.getElementById('searchResults');
     const nav = document.getElementById('searchNav');
     const matchIdx = document.getElementById('matchIndex');
@@ -1213,9 +1246,9 @@ const UI = (() => {
 
     mascotSay(
       `<div class="bubble-title">Found in ${chunks.length} parts!</div>`
-      + `"<b>${origWord || word}</b>" is too long to find in one go, but I found it in parts:<br>`
+      + `"<b>${shareWord}</b>" is too long to find in one go, but I found it in parts:<br>`
       + chunkHtml
-      + `<br><button class="mascot-action-btn" id="makeItMineBtn">Make it mine</button>`,
+      + `<br><button class="mascot-action-btn" id="makeItMineBtn">Make it mine</button> ${_shareBtn('shareChunked')}`,
       0
     );
 
@@ -1233,10 +1266,11 @@ const UI = (() => {
       const mineBtn = document.getElementById('makeItMineBtn');
       if (mineBtn) {
         mineBtn.addEventListener('click', () => {
-          Shop.captureDesign(origWord || word, chunks, -1);
+          Shop.captureDesign(shareWord, chunks, -1);
         });
       }
     }, 50);
+    _wireShareBtn('shareChunked', shareWord, chunks[0].pos);
 
     // Override next/prev for chunk navigation
     const nextBtn = document.getElementById('nextMatch');
@@ -1476,6 +1510,8 @@ const UI = (() => {
 
       // "Make it mine" + "Share" for single result
       if (best) {
+        // Capture design so share image works
+        Shop.captureDesign(_displayWord, null, best.pos);
         mascotHtml += `<br><button class="mascot-action-btn" id="makeItMineApi">Make it mine</button> ${_shareBtn('shareMulti')}`;
       }
 
@@ -1626,6 +1662,9 @@ const UI = (() => {
         const pos = first.position;
         const posFormatted = pos.toLocaleString();
         const totalFormatted = _displayTotal(result.totalDigits);
+
+        // Capture design so share image works
+        Shop.captureDesign(label, null, pos);
 
         icon.textContent = '\u{1F3AF}';
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`

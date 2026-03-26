@@ -2214,6 +2214,7 @@ html, body {
   /* Hide desktop elements on mobile */
   .constant-selector,
   .topbar-right,
+  .toolbar-icons,
   .search-container {
     display: none !important;
   }

@@ -1797,5 +1797,79 @@ const Shop = (() => {
     }
   }
 
-  return { init, captureDesign, showPreview, hidePreview };
+  // ─── Share image generation ───
+
+  function generateShareImage() {
+    const size = 1080;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    // Dark background
+    ctx.fillStyle = '#0f0f1a';
+    ctx.fillRect(0, 0, size, size);
+
+    // Render polygon with spiral background
+    const t = _getSpiralTransform(size);
+    if (t) {
+      if (_spiralBgLoaded) {
+        _drawSpiralBg(ctx, t, size);
+      } else {
+        _drawSpiralDots(ctx, t);
+      }
+      if (capturedChunks && capturedChunks.length > 0) {
+        _drawChunkPolygon(ctx, t, size);
+      } else if (capturedSinglePos >= 0 && capturedSinglePos < t.effLen) {
+        _drawSingleLine(ctx, t, size);
+      }
+    }
+
+    // Branding bar at bottom
+    const barY = size * 0.88;
+    const barH = size - barY;
+    const grad = ctx.createLinearGradient(0, barY, 0, size);
+    grad.addColorStop(0, 'rgba(15,15,26,0)');
+    grad.addColorStop(0.3, 'rgba(15,15,26,0.85)');
+    grad.addColorStop(1, 'rgba(15,15,26,0.95)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, barY, size, barH);
+
+    // Search word
+    if (capturedWord) {
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `700 ${size * 0.045}px system-ui, sans-serif`;
+      ctx.globalAlpha = 0.95;
+      const label = `"${capturedWord}"`;
+      ctx.fillText(label, size / 2, size * 0.91, size * 0.9);
+
+      // Position text
+      let posText = '';
+      if (capturedChunks && capturedChunks.length > 0) {
+        posText = `Found in ${capturedChunks.length} parts across π`;
+      } else if (capturedSinglePos >= 0) {
+        posText = `digit #${capturedSinglePos.toLocaleString()} in π`;
+      }
+      if (posText) {
+        ctx.font = `400 ${size * 0.028}px system-ui, sans-serif`;
+        ctx.globalAlpha = 0.7;
+        ctx.fillText(posText, size / 2, size * 0.95);
+      }
+    }
+
+    // "placeinpi.com" branding
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.font = `600 ${size * 0.022}px system-ui, sans-serif`;
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('placeinpi.com', size - 24, size - 16);
+
+    ctx.globalAlpha = 1;
+    return canvas;
+  }
+
+  return { init, captureDesign, showPreview, hidePreview, generateShareImage };
 })();
