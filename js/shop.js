@@ -246,24 +246,20 @@ const Shop = (() => {
 
     const ms = PRINT_SIZES.mug;
     const halfW = Math.floor(targetW / 2);
+    const scale = halfW / ms.w;
 
-    // Left half: polygon
-    const polyData = _renderDesign('polygon', Math.min(ms.w, ms.h), ms.w, ms.h);
-    const polyImg = new Image();
-    polyImg.src = polyData;
-    const polyScale = halfW / ms.w;
-    ctx.drawImage(polyImg, 0, (targetH - ms.h * polyScale) / 2, halfW, ms.h * polyScale);
+    // Left half: polygon — draw from canvas directly (no async Image load)
+    const polyCanvas = _renderDesignCanvas('polygon', Math.min(ms.w, ms.h), ms.w, ms.h);
+    ctx.drawImage(polyCanvas, 0, (targetH - ms.h * scale) / 2, halfW, ms.h * scale);
 
     // Right half: pimark
-    const piData = _renderDesign('pimark', Math.min(ms.w, ms.h), ms.w, ms.h);
-    const piImg = new Image();
-    piImg.src = piData;
-    ctx.drawImage(piImg, halfW, (targetH - ms.h * polyScale) / 2, halfW, ms.h * polyScale);
+    const piCanvas = _renderDesignCanvas('pimark', Math.min(ms.w, ms.h), ms.w, ms.h);
+    ctx.drawImage(piCanvas, halfW, (targetH - ms.h * scale) / 2, halfW, ms.h * scale);
 
     return canvas.toDataURL('image/png');
   }
 
-  function _renderDesign(type, size, printW, printH) {
+  function _renderDesignCanvas(type, size, printW, printH) {
     // If printW/printH given, use non-square canvas with design centered
     const w = printW || size;
     const h = printH || size;
@@ -292,8 +288,11 @@ const Shop = (() => {
 
     if (offX || offY) ctx.restore();
 
-    // Always use PNG to preserve transparency for t-shirt printing
-    return canvas.toDataURL('image/png');
+    return canvas;
+  }
+
+  function _renderDesign(type, size, printW, printH) {
+    return _renderDesignCanvas(type, size, printW, printH).toDataURL('image/png');
   }
 
   function _getSpiralTransform(size) {
