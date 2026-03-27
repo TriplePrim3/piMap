@@ -987,6 +987,8 @@ async function runMockupJob(jobId, designUrls) {
           // Extract view from URL (e.g., "front", "back", "handle-on-left")
           const viewMatch = mockUrl.match(/-(front|back|left|right|handle-on-left|handle-on-right|left-front|right-front|front-view)[^/]*\.jpg/);
           const view = viewMatch ? viewMatch[1] : 'main';
+          // Skip side views for t-shirts (only keep front and back)
+          if (m.product === 'tshirt' && view !== 'front' && view !== 'back') continue;
           const fileName = `${job.word}_${m.key}_${view}.jpg`;
           try {
             const imgBuf = await downloadFile(mockUrl);

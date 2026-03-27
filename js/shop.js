@@ -311,13 +311,13 @@ const Shop = (() => {
 
     const contentW = maxX - minX;
     const contentH = maxY - minY;
-    const artSize = size * 0.75;
-    const pad = 40;
+    const artSize = size * 0.88;
+    const pad = 20;
     const scaleX = (artSize - pad * 2) / contentW;
     const scaleY = (artSize - pad * 2) / contentH;
     const scale = Math.min(scaleX, scaleY);
     const offX = (size - contentW * scale) / 2 - minX * scale;
-    const offY = size * 0.02 + (artSize - contentH * scale) / 2 - minY * scale;
+    const offY = size * 0.10 + (artSize - contentH * scale) / 2 - minY * scale;
 
     return { digits, effLen, cw, ch, scale, offX, offY };
   }
@@ -759,7 +759,7 @@ const Shop = (() => {
     if (seq.length === 0) return;
 
     // Compute cell size to fit π grid centered in the canvas
-    const artSize = size * 0.8;
+    const artSize = size * 0.92;
     const cellW = artSize / PI_COLS;
     const cellH = artSize / PI_ROWS;
     const fontSize = Math.min(cellW, cellH) * 0.85;
@@ -1720,25 +1720,9 @@ const Shop = (() => {
       checkoutBtn.addEventListener('click', checkout);
     }
 
-    const SHOW_DOWNLOAD = true; // download print-ready files to inspect before ordering
+    // Download button removed — admin mockup generator replaces it
     const dlBtn = document.getElementById('shopDownloadDesign');
-    if (dlBtn) {
-      dlBtn.style.display = SHOW_DOWNLOAD ? 'block' : 'none';
-      dlBtn.addEventListener('click', () => {
-        const word = capturedWord || 'design';
-        const designs = ['pimark', 'polygon', 'polygon-lines'];
-        // Generate print files for all product sizes
-        for (const [prod, ps] of Object.entries(PRINT_SIZES)) {
-          for (const key of designs) {
-            const hires = _renderDesign(key, Math.min(ps.w, ps.h), ps.w, ps.h);
-            const a = document.createElement('a');
-            a.href = hires;
-            a.download = `pimap-${prod}-${key}-${word}-${ps.w}x${ps.h}.png`;
-            a.click();
-          }
-        }
-      });
-    }
+    if (dlBtn) dlBtn.style.display = 'none';
 
     const flipBtn = document.getElementById('shopFlip');
     if (flipBtn) {
