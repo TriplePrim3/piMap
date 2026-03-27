@@ -1698,14 +1698,16 @@ const Shop = (() => {
       dlBtn.style.display = SHOW_DOWNLOAD ? 'block' : 'none';
       dlBtn.addEventListener('click', () => {
         const word = capturedWord || 'design';
-        const ps = PRINT_SIZES[product] || { w: PRINT_SIZE, h: PRINT_SIZE };
-        const designs = ['pimark', 'polygon', 'heatmap'];
-        for (const key of designs) {
-          const hires = _renderDesign(key, Math.min(ps.w, ps.h), ps.w, ps.h);
-          const a = document.createElement('a');
-          a.href = hires;
-          a.download = `pimap-${key}-${word}-${ps.w}x${ps.h}.png`;
-          a.click();
+        const designs = ['pimark', 'polygon'];
+        // Generate print files for all product sizes
+        for (const [prod, ps] of Object.entries(PRINT_SIZES)) {
+          for (const key of designs) {
+            const hires = _renderDesign(key, Math.min(ps.w, ps.h), ps.w, ps.h);
+            const a = document.createElement('a');
+            a.href = hires;
+            a.download = `pimap-${prod}-${key}-${word}-${ps.w}x${ps.h}.png`;
+            a.click();
+          }
         }
       });
     }
