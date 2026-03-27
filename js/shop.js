@@ -274,9 +274,10 @@ const Shop = (() => {
     ctx.clearRect(0, 0, w, h);
 
     // Design renders into a square of min(w,h), centered on canvas
+    // For tall canvases (like t-shirt 4500x5400), shift design down to center on shirt
     const designSize = Math.min(w, h);
     const offX = (w - designSize) / 2;
-    const offY = (h - designSize) / 2;
+    const offY = h > w ? (h - designSize) * 0.38 : (h - designSize) / 2;
     if (offX || offY) {
       ctx.save();
       ctx.translate(offX, offY);
@@ -317,7 +318,7 @@ const Shop = (() => {
     const scaleY = (artSize - pad * 2) / contentH;
     const scale = Math.min(scaleX, scaleY);
     const offX = (size - contentW * scale) / 2 - minX * scale;
-    const offY = size * 0.10 + (artSize - contentH * scale) / 2 - minY * scale;
+    const offY = size * 0.02 + (artSize - contentH * scale) / 2 - minY * scale;
 
     return { digits, effLen, cw, ch, scale, offX, offY };
   }
