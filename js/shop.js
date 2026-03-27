@@ -277,7 +277,7 @@ const Shop = (() => {
     // For tall canvases (like t-shirt 4500x5400), shift design down to center on shirt
     const designSize = Math.min(w, h);
     const offX = (w - designSize) / 2;
-    const offY = h > w ? (h - designSize) * 0.38 : (h - designSize) / 2;
+    const offY = h > w ? (h - designSize) * 0.7 : (h - designSize) / 2;
     if (offX || offY) {
       ctx.save();
       ctx.translate(offX, offY);
@@ -760,7 +760,7 @@ const Shop = (() => {
     if (seq.length === 0) return;
 
     // Compute cell size to fit π grid centered in the canvas
-    const artSize = size * 0.92;
+    const artSize = size * 0.97;
     const cellW = artSize / PI_COLS;
     const cellH = artSize / PI_ROWS;
     const fontSize = Math.min(cellW, cellH) * 0.85;
