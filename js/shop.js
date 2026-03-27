@@ -1741,36 +1741,40 @@ const Shop = (() => {
       // Validate admin key before showing the section
       fetch('/api/admin/orders?status=none', { headers: { 'Authorization': 'Bearer ' + adminKey } })
         .then(r => { if (r.ok) mockupSection.classList.remove('hidden'); });
-      const genBtn = document.getElementById('shopGenerateMockups');
       const progressDiv = document.getElementById('mockupGenProgress');
       const resultsDiv = document.getElementById('mockupGenResults');
       const viewBtn = document.getElementById('shopViewMockups');
       const clearBtn = document.getElementById('shopClearMockups');
       const adminHeaders = { 'Authorization': 'Bearer ' + adminKey };
 
-      genBtn.addEventListener('click', async () => {
-        if (!capturedWord) { genBtn.textContent = 'Search a word first!'; return; }
-        genBtn.disabled = true;
-        genBtn.textContent = 'Rendering designs...';
-        progressDiv.style.display = 'block';
-        resultsDiv.innerHTML = '';
-
-        try {
-          // Render all needed designs
-          const designFiles = {};
+      // Per-product design renderers
+      const productDesigns = {
+        tshirt: () => {
           const ts = PRINT_SIZES.tshirt;
-          const ms = PRINT_SIZES.mug;
-          const cs = PRINT_SIZES.cap;
-
-          const renders = {
+          return {
             pimark: _renderDesign('pimark', Math.min(ts.w, ts.h), ts.w, ts.h),
             polygon: _renderDesign('polygon', Math.min(ts.w, ts.h), ts.w, ts.h),
-            'mug-wrap': _renderMugWrap(),
-            'cap-pimark': _renderDesign('pimark', Math.min(cs.w, cs.h), cs.w, cs.h),
           };
+        },
+        mug: () => ({ 'mug-wrap': _renderMugWrap() }),
+        cap: () => {
+          const cs = PRINT_SIZES.cap;
+          return { 'cap-pimark': _renderDesign('pimark', Math.min(cs.w, cs.h), cs.w, cs.h) };
+        },
+      };
 
-          // Upload each design as binary
-          progressDiv.textContent = 'Uploading designs to server...';
+      async function generateForProduct(productKey, btn) {
+        if (!capturedWord) { btn.textContent = 'Search first!'; setTimeout(() => { btn.textContent = btn.dataset.label; }, 2000); return; }
+        btn.disabled = true;
+        const origText = btn.textContent;
+        btn.textContent = 'Rendering...';
+        progressDiv.style.display = 'block';
+
+        try {
+          const renders = productDesigns[productKey]();
+          const designFiles = {};
+
+          progressDiv.textContent = `Uploading ${productKey} designs...`;
           for (const [key, dataUrl] of Object.entries(renders)) {
             const blob = await (await fetch(dataUrl)).blob();
             const name = 'mockup_' + Date.now() + '_' + key + '.png';
@@ -1781,32 +1785,29 @@ const Shop = (() => {
             designFiles[key] = result.url;
           }
 
-          // Kick off mockup generation
-          progressDiv.textContent = 'Starting Printful mockup generation...';
+          progressDiv.textContent = `Generating ${productKey} mockups...`;
           const startRes = await fetch('/api/generate-mockups', {
             method: 'POST',
             headers: { ...adminHeaders, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ word: capturedWord, designFiles }),
+            body: JSON.stringify({ word: capturedWord, designFiles, products: [productKey] }),
           });
           const startData = await startRes.json().catch(() => ({}));
           if (!startRes.ok) throw new Error(startData.error || 'Server returned ' + startRes.status);
           const jobId = startData.jobId;
           if (!jobId) throw new Error('No jobId returned');
 
-          // Poll for progress
           const poll = setInterval(async () => {
             try {
               const st = await (await fetch('/api/mockup-status?jobId=' + jobId)).json();
               progressDiv.textContent = st.progress || st.status;
-              // Show completed images progressively
-              resultsDiv.innerHTML = (st.completed || [])
-                .filter(c => c.url)
+              const imgs = (st.completed || []).filter(c => c.url)
                 .map(c => `<a href="${c.url}" target="_blank" style="display:inline-block;"><img src="${c.url}" style="width:120px;height:auto;border-radius:6px;border:1px solid var(--border);" title="${c.label} (${c.view})" /></a>`)
                 .join('');
+              if (imgs) resultsDiv.innerHTML = imgs;
               if (st.status === 'completed' || st.status === 'failed') {
                 clearInterval(poll);
-                genBtn.disabled = false;
-                genBtn.textContent = st.status === 'completed' ? 'Done! Generate Again?' : 'Failed — Retry?';
+                btn.disabled = false;
+                btn.textContent = origText;
                 if (st.error) progressDiv.textContent = 'Error: ' + st.error;
                 clearBtn.style.display = 'block';
               }
@@ -1814,9 +1815,14 @@ const Shop = (() => {
           }, 5000);
         } catch (err) {
           progressDiv.textContent = 'Error: ' + err.message;
-          genBtn.disabled = false;
-          genBtn.textContent = 'Generate Printful Mockups';
+          btn.disabled = false;
+          btn.textContent = origText;
         }
+      }
+
+      mockupSection.querySelectorAll('.mockup-gen-btn').forEach(btn => {
+        btn.dataset.label = btn.textContent;
+        btn.addEventListener('click', () => generateForProduct(btn.dataset.product, btn));
       });
 
       viewBtn.addEventListener('click', async () => {

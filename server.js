@@ -917,9 +917,10 @@ async function runMockupJob(jobId, designUrls) {
   }
 
   // Process each mockup variant
-  for (let i = 0; i < MOCKUP_MATRIX.length; i++) {
-    const m = MOCKUP_MATRIX[i];
-    job.progress = `${i + 1}/${MOCKUP_MATRIX.length}: ${m.label}`;
+  const matrix = job.matrix || MOCKUP_MATRIX;
+  for (let i = 0; i < matrix.length; i++) {
+    const m = matrix[i];
+    job.progress = `${i + 1}/${matrix.length}: ${m.label}`;
     console.log(`[mockup ${jobId}] ${job.progress}`);
 
     try {
@@ -1001,7 +1002,7 @@ async function runMockupJob(jobId, designUrls) {
       }
 
       // Delay between products to avoid rate limits
-      if (i < MOCKUP_MATRIX.length - 1) {
+      if (i < matrix.length - 1) {
         console.log('  Waiting 20s for rate limit...');
         await new Promise(r => setTimeout(r, 20000));
       }
@@ -1012,21 +1013,26 @@ async function runMockupJob(jobId, designUrls) {
   }
 
   job.status = 'completed';
-  job.progress = `${MOCKUP_MATRIX.length}/${MOCKUP_MATRIX.length}: Done`;
+  job.progress = `${matrix.length}/${matrix.length}: Done`;
   console.log(`[mockup ${jobId}] All done! ${job.completed.length} images saved.`);
 }
 
 async function handleGenerateMockups(req, res) {
   try {
     const buf = await readBody(req);
-    const { word, designFiles } = JSON.parse(buf.toString());
+    const { word, designFiles, products } = JSON.parse(buf.toString());
     if (!word || !designFiles) return jsonResponse(res, 400, { error: 'Missing word or designFiles' });
+
+    // Filter matrix by requested products (e.g. ['tshirt'], ['mug'], ['cap'])
+    const matrix = products && products.length > 0
+      ? MOCKUP_MATRIX.filter(m => products.includes(m.product))
+      : MOCKUP_MATRIX;
 
     const jobId = 'mj_' + Date.now();
     const sanitizedWord = word.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30).trim().replace(/ /g, '_').toLowerCase();
     mockupJobs.set(jobId, {
-      status: 'running', word: sanitizedWord, progress: '0/' + MOCKUP_MATRIX.length,
-      completed: [], error: null, startedAt: Date.now(),
+      status: 'running', word: sanitizedWord, progress: '0/' + matrix.length,
+      completed: [], error: null, startedAt: Date.now(), matrix,
     });
 
     jsonResponse(res, 200, { jobId });

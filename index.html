@@ -323,7 +323,11 @@
 
       <!-- Admin: mockup generator (hidden unless ?admin=KEY) -->
       <div id="mockupGenSection" class="hidden" style="margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:8px;">
-        <button id="shopGenerateMockups" class="shop-btn" style="width:100%;background:#4ECDC4;color:#000;font-weight:600;">Generate Printful Mockups</button>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button class="shop-btn mockup-gen-btn" data-product="tshirt" style="flex:1;background:#4ECDC4;color:#000;font-weight:600;font-size:12px;padding:8px 4px;">T-Shirt</button>
+          <button class="shop-btn mockup-gen-btn" data-product="mug" style="flex:1;background:#45B7D1;color:#000;font-weight:600;font-size:12px;padding:8px 4px;">Mug</button>
+          <button class="shop-btn mockup-gen-btn" data-product="cap" style="flex:1;background:#FFEAA7;color:#000;font-weight:600;font-size:12px;padding:8px 4px;">Cap</button>
+        </div>
         <div id="mockupGenProgress" style="display:none;margin-top:8px;font-size:13px;color:var(--text-dim);"></div>
         <div id="mockupGenResults" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;"></div>
         <button id="shopViewMockups" class="shop-btn" style="width:100%;margin-top:6px;background:transparent;border:1px solid var(--border);color:var(--text-dim);font-size:12px;">View Saved Mockups</button>
