@@ -1000,6 +1000,20 @@ const server = http.createServer((req, res) => {
     handleUploadDesign(req, res);
     return;
   }
+  // Binary file upload: PUT /api/upload-file?name=foo.png
+  if (req.method === 'PUT' && parsed.pathname === '/api/upload-file') {
+    const name = parsed.query.name;
+    if (!name || /[\/\\]/.test(name)) return jsonResponse(res, 400, { error: 'Bad name' });
+    if (!fs.existsSync(DESIGNS_DIR)) fs.mkdirSync(DESIGNS_DIR, { recursive: true });
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', () => {
+      const buf = Buffer.concat(chunks);
+      fs.writeFileSync(path.join(DESIGNS_DIR, name), buf);
+      jsonResponse(res, 200, { url: `/designs/${name}`, size: buf.length });
+    });
+    return;
+  }
   if (req.method === 'POST' && parsed.pathname === '/api/checkout') {
     handleCheckout(req, res);
     return;
