@@ -1698,7 +1698,7 @@ const Shop = (() => {
       dlBtn.style.display = SHOW_DOWNLOAD ? 'block' : 'none';
       dlBtn.addEventListener('click', () => {
         const word = capturedWord || 'design';
-        const designs = ['pimark', 'polygon'];
+        const designs = ['pimark', 'polygon', 'polygon-lines'];
         // Generate print files for all product sizes
         for (const [prod, ps] of Object.entries(PRINT_SIZES)) {
           for (const key of designs) {
