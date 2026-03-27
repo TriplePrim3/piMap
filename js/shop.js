@@ -1753,7 +1753,9 @@ const Shop = (() => {
     const adminKey = new URLSearchParams(window.location.search).get('admin');
     const mockupSection = document.getElementById('mockupGenSection');
     if (mockupSection && adminKey) {
-      mockupSection.classList.remove('hidden');
+      // Validate admin key before showing the section
+      fetch('/api/admin/orders?status=none', { headers: { 'Authorization': 'Bearer ' + adminKey } })
+        .then(r => { if (r.ok) mockupSection.classList.remove('hidden'); });
       const genBtn = document.getElementById('shopGenerateMockups');
       const progressDiv = document.getElementById('mockupGenProgress');
       const resultsDiv = document.getElementById('mockupGenResults');
@@ -1801,7 +1803,9 @@ const Shop = (() => {
             headers: { ...adminHeaders, 'Content-Type': 'application/json' },
             body: JSON.stringify({ word: capturedWord, designFiles }),
           });
-          const { jobId } = await startRes.json();
+          const startData = await startRes.json().catch(() => ({}));
+          if (!startRes.ok) throw new Error(startData.error || 'Server returned ' + startRes.status);
+          const jobId = startData.jobId;
           if (!jobId) throw new Error('No jobId returned');
 
           // Poll for progress
