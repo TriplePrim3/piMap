@@ -88,7 +88,7 @@ const PRINTFUL_PRODUCTS = {
       'White-One Size': 22669,
       'Black-One Size': 22663,
     },
-    placements: { front: 'embroidery_front' },
+    placements: { front: 'embroidery_front_large' },
   },
   mug: {
     productId: 19, // Glossy Mug 11oz
@@ -96,7 +96,7 @@ const PRINTFUL_PRODUCTS = {
       'White-11oz': 1320,
       'Black-11oz': 4830,
     },
-    placements: { front: 'front', back: 'back' },
+    placements: { front: 'default' },
   },
   sticker: {
     productId: 358, // Kiss-Cut Stickers
@@ -800,7 +800,7 @@ async function handleMockupPreview(req, res) {
     console.log('File processed:', fileUrl);
 
     // Step 3: Create mockup task
-    const placement = productMap.placements.front === 'embroidery_front' ? 'embroidery_front' : 'front';
+    const placement = productMap.placements.front;
     // Get print file dimensions for this product
     const printSpecs = await printfulRequest('GET', `/mockup-generator/printfiles/${productMap.productId}`);
     let areaW = 1800, areaH = 2400;
