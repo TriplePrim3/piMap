@@ -27,10 +27,11 @@ const PI_TXT = path.join(__dirname, 'data', 'pi.txt');
 const PERSIST_DIR = process.env.PERSIST_DIR || path.join(__dirname, 'persist');
 const DESIGNS_DIR = path.join(PERSIST_DIR, 'designs');
 const ORDERS_DIR = path.join(PERSIST_DIR, 'orders');
+const MOCKUPS_DIR = path.join(PERSIST_DIR, 'mockups');
 
 // Ensure dirs exist — retry briefly in case volume mount is still attaching
 function ensureDirs() {
-  for (const dir of [DESIGNS_DIR, ORDERS_DIR]) {
+  for (const dir of [DESIGNS_DIR, ORDERS_DIR, MOCKUPS_DIR]) {
     try {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     } catch (err) {
@@ -852,6 +853,224 @@ async function handleMockupPreview(req, res) {
   }
 }
 
+// ─── Mockup Generator (admin) ───
+
+function downloadFile(fileUrl) {
+  return new Promise((resolve, reject) => {
+    const get = fileUrl.startsWith('https') ? https.get : http.get;
+    get(fileUrl, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return downloadFile(res.headers.location).then(resolve, reject);
+      }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+// In-memory job state (lost on restart, which is fine for admin tool)
+const mockupJobs = new Map();
+
+// The 6 mockup variants we generate
+const MOCKUP_MATRIX = [
+  { key: 'tshirt_white_normal',  product: 'tshirt', color: 'White', variant: 'M', front: 'pimark', back: 'polygon', label: 'T-Shirt White' },
+  { key: 'tshirt_white_flipped', product: 'tshirt', color: 'White', variant: 'M', front: 'polygon', back: 'pimark', label: 'T-Shirt White (flipped)' },
+  { key: 'tshirt_black_normal',  product: 'tshirt', color: 'Black', variant: 'M', front: 'pimark', back: 'polygon', label: 'T-Shirt Black' },
+  { key: 'tshirt_black_flipped', product: 'tshirt', color: 'Black', variant: 'M', front: 'polygon', back: 'pimark', label: 'T-Shirt Black (flipped)' },
+  { key: 'mug_white',  product: 'mug', color: 'White', variant: '11oz', front: 'mug-wrap', label: 'Mug White' },
+  { key: 'mug_black',  product: 'mug', color: 'Black', variant: '11oz', front: 'mug-wrap', label: 'Mug Black' },
+  { key: 'cap_white',  product: 'cap', color: 'White', variant: 'One Size', front: 'cap-pimark', label: 'Cap White' },
+  { key: 'cap_black',  product: 'cap', color: 'Black', variant: 'One Size', front: 'cap-pimark', label: 'Cap Black' },
+];
+
+async function runMockupJob(jobId, designUrls) {
+  const job = mockupJobs.get(jobId);
+  const siteUrl = process.env.SITE_URL || `http://localhost:${PORT}`;
+
+  // Upload all unique design files to Printful first
+  const printfulUrls = {};
+  for (const [key, localPath] of Object.entries(designUrls)) {
+    try {
+      const publicUrl = siteUrl + localPath;
+      console.log(`[mockup ${jobId}] Uploading ${key}: ${publicUrl}`);
+      const uploadRes = await printfulRequest('POST', '/files', { url: publicUrl });
+      if (uploadRes.code !== 200) throw new Error(uploadRes.error?.message || 'Upload failed');
+      // Poll for processing
+      for (let i = 0; i < 30; i++) {
+        await new Promise(r => setTimeout(r, 2000));
+        const st = await printfulRequest('GET', `/files/${uploadRes.result.id}`);
+        if (st.result?.status === 'ok' && st.result?.preview_url) {
+          printfulUrls[key] = st.result.preview_url;
+          break;
+        }
+        if (st.result?.status === 'failed') throw new Error('File rejected by Printful');
+      }
+      if (!printfulUrls[key]) throw new Error('File processing timed out');
+    } catch (err) {
+      console.error(`[mockup ${jobId}] Upload ${key} failed:`, err.message);
+      job.error = `Upload failed for ${key}: ${err.message}`;
+      job.status = 'failed';
+      return;
+    }
+  }
+
+  // Process each mockup variant
+  for (let i = 0; i < MOCKUP_MATRIX.length; i++) {
+    const m = MOCKUP_MATRIX[i];
+    job.progress = `${i + 1}/${MOCKUP_MATRIX.length}: ${m.label}`;
+    console.log(`[mockup ${jobId}] ${job.progress}`);
+
+    try {
+      const pm = PRINTFUL_PRODUCTS[m.product];
+      const variantKey = `${m.color}-${m.variant}`;
+      const variantId = pm.variants[variantKey];
+      if (!variantId) { console.warn(`  No variant ${variantKey}`); continue; }
+
+      // Build placement files
+      const files = [];
+      if (m.product === 'tshirt') {
+        files.push({
+          placement: 'front',
+          image_url: printfulUrls[m.front],
+          position: { area_width: 4500, area_height: 5400, width: 4500, height: 5400, top: 0, left: 0 },
+        });
+        files.push({
+          placement: 'back',
+          image_url: printfulUrls[m.back],
+          position: { area_width: 4500, area_height: 5400, width: 4500, height: 5400, top: 0, left: 0 },
+        });
+      } else if (m.product === 'mug') {
+        files.push({
+          placement: 'default',
+          image_url: printfulUrls[m.front],
+          position: { area_width: 2700, area_height: 1050, width: 2700, height: 1050, top: 0, left: 0 },
+        });
+      } else if (m.product === 'cap') {
+        files.push({
+          placement: 'embroidery_front_large',
+          image_url: printfulUrls[m.front],
+          position: { area_width: 1650, area_height: 600, width: 1650, height: 600, top: 0, left: 0 },
+        });
+      }
+
+      // Create mockup task
+      const taskRes = await printfulRequest('POST', `/mockup-generator/create-task/${pm.productId}`, {
+        variant_ids: [variantId], format: 'jpg', files,
+      });
+
+      if (taskRes.code === 429 || taskRes.error?.message?.includes('too many requests')) {
+        console.log(`  Rate limited, waiting 60s...`);
+        await new Promise(r => setTimeout(r, 60000));
+        i--; // retry this one
+        continue;
+      }
+      if (taskRes.code !== 200) throw new Error(taskRes.error?.message || 'Create task failed');
+
+      // Poll for result
+      let mockups = null;
+      for (let p = 0; p < 30; p++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const st = await printfulRequest('GET', `/mockup-generator/task?task_key=${taskRes.result.task_key}`);
+        if (st.result?.status === 'completed') { mockups = st.result.mockups; break; }
+        if (st.result?.status === 'failed') throw new Error('Mockup generation failed');
+      }
+      if (!mockups) throw new Error('Mockup polling timed out');
+
+      // Download and save each mockup image
+      for (const mock of mockups) {
+        const urls = [mock.mockup_url];
+        if (mock.extra) mock.extra.forEach(e => { const u = typeof e === 'string' ? e : e.url; if (u) urls.push(u); });
+        for (const mockUrl of urls) {
+          if (!mockUrl) continue;
+          // Extract view from URL (e.g., "front", "back", "handle-on-left")
+          const viewMatch = mockUrl.match(/-(front|back|left|right|handle-on-left|handle-on-right|left-front|right-front|front-view)[^/]*\.jpg/);
+          const view = viewMatch ? viewMatch[1] : 'main';
+          const fileName = `${job.word}_${m.key}_${view}.jpg`;
+          try {
+            const imgBuf = await downloadFile(mockUrl);
+            fs.writeFileSync(path.join(MOCKUPS_DIR, fileName), imgBuf);
+            job.completed.push({ key: m.key, view, url: `/mockups/${fileName}`, label: m.label });
+          } catch (dlErr) {
+            console.error(`  Download failed for ${view}:`, dlErr.message);
+          }
+        }
+      }
+
+      // Delay between products to avoid rate limits
+      if (i < MOCKUP_MATRIX.length - 1) {
+        console.log('  Waiting 20s for rate limit...');
+        await new Promise(r => setTimeout(r, 20000));
+      }
+    } catch (err) {
+      console.error(`  ${m.label} failed:`, err.message);
+      job.completed.push({ key: m.key, view: 'error', error: err.message, label: m.label });
+    }
+  }
+
+  job.status = 'completed';
+  job.progress = `${MOCKUP_MATRIX.length}/${MOCKUP_MATRIX.length}: Done`;
+  console.log(`[mockup ${jobId}] All done! ${job.completed.length} images saved.`);
+}
+
+async function handleGenerateMockups(req, res) {
+  try {
+    const buf = await readBody(req);
+    const { word, designFiles } = JSON.parse(buf.toString());
+    if (!word || !designFiles) return jsonResponse(res, 400, { error: 'Missing word or designFiles' });
+
+    const jobId = 'mj_' + Date.now();
+    const sanitizedWord = word.replace(/[^a-zA-Z0-9 ]/g, '').substring(0, 30).trim().replace(/ /g, '_').toLowerCase();
+    mockupJobs.set(jobId, {
+      status: 'running', word: sanitizedWord, progress: '0/' + MOCKUP_MATRIX.length,
+      completed: [], error: null, startedAt: Date.now(),
+    });
+
+    jsonResponse(res, 200, { jobId });
+
+    // Run async (don't await — client will poll)
+    runMockupJob(jobId, designFiles).catch(err => {
+      const job = mockupJobs.get(jobId);
+      if (job) { job.status = 'failed'; job.error = err.message; }
+    });
+  } catch (err) {
+    jsonResponse(res, 500, { error: err.message });
+  }
+}
+
+function handleMockupStatus(query, res) {
+  const job = mockupJobs.get(query.jobId);
+  if (!job) return jsonResponse(res, 404, { error: 'Job not found' });
+  jsonResponse(res, 200, {
+    status: job.status, progress: job.progress,
+    completed: job.completed, error: job.error,
+  });
+}
+
+function handleMockupList(res) {
+  if (!fs.existsSync(MOCKUPS_DIR)) return jsonResponse(res, 200, { mockups: {} });
+  const files = fs.readdirSync(MOCKUPS_DIR).filter(f => f.endsWith('.jpg') || f.endsWith('.png'));
+  const grouped = {};
+  for (const f of files) {
+    const word = f.split('_')[0] || 'unknown';
+    if (!grouped[word]) grouped[word] = [];
+    grouped[word].push({ filename: f, url: `/mockups/${f}` });
+  }
+  jsonResponse(res, 200, { mockups: grouped });
+}
+
+function handleClearMockups(query, res) {
+  if (!fs.existsSync(MOCKUPS_DIR)) return jsonResponse(res, 200, { deleted: 0 });
+  const files = fs.readdirSync(MOCKUPS_DIR);
+  let deleted = 0;
+  for (const f of files) {
+    if (query.word && !f.startsWith(query.word + '_')) continue;
+    try { fs.unlinkSync(path.join(MOCKUPS_DIR, f)); deleted++; } catch {}
+  }
+  jsonResponse(res, 200, { deleted });
+}
+
 // ─── Stripe Webhook → Fulfill Order ───
 
 async function handleStripeWebhook(req, res) {
@@ -1032,6 +1251,37 @@ const server = http.createServer((req, res) => {
     if (!checkAdmin(req, res)) return;
     if (req.method === 'GET') return handleAdminOrders(parsed.query, res);
     if (req.method === 'POST') return handleAdminRetry(req, res);
+  }
+  if (req.method === 'POST' && parsed.pathname === '/api/generate-mockups') {
+    if (!checkAdmin(req, res)) return;
+    handleGenerateMockups(req, res);
+    return;
+  }
+  if (req.method === 'GET' && parsed.pathname === '/api/mockup-status') {
+    handleMockupStatus(parsed.query, res);
+    return;
+  }
+  if (req.method === 'GET' && parsed.pathname === '/api/mockup-list') {
+    handleMockupList(res);
+    return;
+  }
+  if (req.method === 'DELETE' && parsed.pathname === '/api/clear-mockups') {
+    if (!checkAdmin(req, res)) return;
+    handleClearMockups(parsed.query, res);
+    return;
+  }
+
+  // ── Serve mockup images from persistent dir ──
+  if (parsed.pathname.startsWith('/mockups/')) {
+    const fileName = path.basename(parsed.pathname);
+    const filePath = path.join(MOCKUPS_DIR, fileName);
+    if (fs.existsSync(filePath)) {
+      const ext = path.extname(fileName);
+      const mime = ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+      res.writeHead(200, { 'Content-Type': mime, 'Cache-Control': 'public, max-age=86400' });
+      res.end(fs.readFileSync(filePath));
+      return;
+    }
   }
 
   // ── Serve uploaded designs from persistent dir ──

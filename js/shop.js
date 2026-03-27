@@ -235,6 +235,34 @@ const Shop = (() => {
 
   // ─── Design Renderers ───
 
+  // Combined mug wrap: polygon on left half, pimark on right half (2700x1050 for Printful)
+  function _renderMugWrap() {
+    const targetW = 2700, targetH = 1050;
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, targetW, targetH);
+
+    const ms = PRINT_SIZES.mug;
+    const halfW = Math.floor(targetW / 2);
+
+    // Left half: polygon
+    const polyData = _renderDesign('polygon', Math.min(ms.w, ms.h), ms.w, ms.h);
+    const polyImg = new Image();
+    polyImg.src = polyData;
+    const polyScale = halfW / ms.w;
+    ctx.drawImage(polyImg, 0, (targetH - ms.h * polyScale) / 2, halfW, ms.h * polyScale);
+
+    // Right half: pimark
+    const piData = _renderDesign('pimark', Math.min(ms.w, ms.h), ms.w, ms.h);
+    const piImg = new Image();
+    piImg.src = piData;
+    ctx.drawImage(piImg, halfW, (targetH - ms.h * polyScale) / 2, halfW, ms.h * polyScale);
+
+    return canvas.toDataURL('image/png');
+  }
+
   function _renderDesign(type, size, printW, printH) {
     // If printW/printH given, use non-square canvas with design centered
     const w = printW || size;
@@ -1721,50 +1749,116 @@ const Shop = (() => {
       });
     }
 
-    // Printful mockup preview
-    const pfPreviewBtn = document.getElementById('shopPrintfulPreview');
-    if (pfPreviewBtn) {
-      pfPreviewBtn.addEventListener('click', async () => {
-        const resultDiv = document.getElementById('printfulMockupResult');
-        if (!resultDiv) return;
+    // ── Admin mockup generator ──
+    const adminKey = new URLSearchParams(window.location.search).get('admin');
+    const mockupSection = document.getElementById('mockupGenSection');
+    if (mockupSection && adminKey) {
+      mockupSection.classList.remove('hidden');
+      const genBtn = document.getElementById('shopGenerateMockups');
+      const progressDiv = document.getElementById('mockupGenProgress');
+      const resultsDiv = document.getElementById('mockupGenResults');
+      const viewBtn = document.getElementById('shopViewMockups');
+      const clearBtn = document.getElementById('shopClearMockups');
+      const adminHeaders = { 'Authorization': 'Bearer ' + adminKey };
 
-        pfPreviewBtn.disabled = true;
-        pfPreviewBtn.textContent = 'Generating preview...';
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">Sending to Printful... this takes ~10 seconds</p>';
+      genBtn.addEventListener('click', async () => {
+        if (!capturedWord) { genBtn.textContent = 'Search a word first!'; return; }
+        genBtn.disabled = true;
+        genBtn.textContent = 'Rendering designs...';
+        progressDiv.style.display = 'block';
+        resultsDiv.innerHTML = '';
 
         try {
-          // First upload the current front design so Printful can access it
-          const ps = PRINT_SIZES[product] || { w: PRINT_SIZE, h: PRINT_SIZE };
-          const frontKey = product === 'mug' ? 'polygon-lines' : _getFrontDesignKey();
-          const hires = _renderDesign(frontKey, Math.min(ps.w, ps.h), ps.w, ps.h);
+          // Render all needed designs
+          const designFiles = {};
+          const ts = PRINT_SIZES.tshirt;
+          const ms = PRINT_SIZES.mug;
+          const cs = PRINT_SIZES.cap;
 
-          // Send design directly to Printful via our API
-          const col = _getColor();
-          const mockupRes = await fetch('/api/mockup-preview', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              product,
-              color: col.name,
-              designBase64: hires,
-            }),
-          });
-          const mockupData = await mockupRes.json();
+          const renders = {
+            pimark: _renderDesign('pimark', Math.min(ts.w, ts.h), ts.w, ts.h),
+            polygon: _renderDesign('polygon', Math.min(ts.w, ts.h), ts.w, ts.h),
+            'mug-wrap': _renderMugWrap(),
+            'cap-pimark': _renderDesign('pimark', Math.min(cs.w, cs.h), cs.w, cs.h),
+          };
 
-          if (mockupData.mockups && mockupData.mockups.length > 0) {
-            resultDiv.innerHTML = mockupData.mockups.map(m =>
-              `<img src="${m.mockup_url}" style="max-width:100%;border-radius:12px;margin:4px 0;" />`
-            ).join('');
-          } else {
-            resultDiv.innerHTML = '<p style="color:#ff6b6b;">No mockups returned. ' + (mockupData.error || '') + '</p>';
+          // Upload each design as binary
+          progressDiv.textContent = 'Uploading designs to server...';
+          for (const [key, dataUrl] of Object.entries(renders)) {
+            const blob = await (await fetch(dataUrl)).blob();
+            const name = 'mockup_' + Date.now() + '_' + key + '.png';
+            const resp = await fetch('/api/upload-file?name=' + encodeURIComponent(name), {
+              method: 'PUT', body: blob, headers: { 'Content-Type': 'image/png' },
+            });
+            const result = await resp.json();
+            designFiles[key] = result.url;
           }
-        } catch (err) {
-          resultDiv.innerHTML = `<p style="color:#ff6b6b;">Error: ${err.message}</p>`;
-        }
 
-        pfPreviewBtn.disabled = false;
-        pfPreviewBtn.textContent = 'Preview from Printful';
+          // Kick off mockup generation
+          progressDiv.textContent = 'Starting Printful mockup generation...';
+          const startRes = await fetch('/api/generate-mockups', {
+            method: 'POST',
+            headers: { ...adminHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word: capturedWord, designFiles }),
+          });
+          const { jobId } = await startRes.json();
+          if (!jobId) throw new Error('No jobId returned');
+
+          // Poll for progress
+          const poll = setInterval(async () => {
+            try {
+              const st = await (await fetch('/api/mockup-status?jobId=' + jobId)).json();
+              progressDiv.textContent = st.progress || st.status;
+              // Show completed images progressively
+              resultsDiv.innerHTML = (st.completed || [])
+                .filter(c => c.url)
+                .map(c => `<a href="${c.url}" target="_blank" style="display:inline-block;"><img src="${c.url}" style="width:120px;height:auto;border-radius:6px;border:1px solid var(--border);" title="${c.label} (${c.view})" /></a>`)
+                .join('');
+              if (st.status === 'completed' || st.status === 'failed') {
+                clearInterval(poll);
+                genBtn.disabled = false;
+                genBtn.textContent = st.status === 'completed' ? 'Done! Generate Again?' : 'Failed — Retry?';
+                if (st.error) progressDiv.textContent = 'Error: ' + st.error;
+                clearBtn.style.display = 'block';
+              }
+            } catch (e) { progressDiv.textContent = 'Poll error: ' + e.message; }
+          }, 5000);
+        } catch (err) {
+          progressDiv.textContent = 'Error: ' + err.message;
+          genBtn.disabled = false;
+          genBtn.textContent = 'Generate Printful Mockups';
+        }
+      });
+
+      viewBtn.addEventListener('click', async () => {
+        try {
+          const res = await (await fetch('/api/mockup-list')).json();
+          resultsDiv.innerHTML = '';
+          for (const [word, files] of Object.entries(res.mockups || {})) {
+            const header = document.createElement('div');
+            header.style.cssText = 'width:100%;font-size:13px;font-weight:600;margin:8px 0 4px;color:var(--text);';
+            header.textContent = word;
+            resultsDiv.appendChild(header);
+            for (const f of files) {
+              const a = document.createElement('a');
+              a.href = f.url; a.target = '_blank';
+              a.innerHTML = `<img src="${f.url}" style="width:120px;height:auto;border-radius:6px;border:1px solid var(--border);" title="${f.filename}" />`;
+              resultsDiv.appendChild(a);
+            }
+          }
+          if (Object.keys(res.mockups || {}).length === 0) resultsDiv.innerHTML = '<span style="color:var(--text-dim);font-size:13px;">No saved mockups.</span>';
+          clearBtn.style.display = Object.keys(res.mockups || {}).length > 0 ? 'block' : 'none';
+        } catch (e) { resultsDiv.innerHTML = '<span style="color:#ff6b6b;">Error: ' + e.message + '</span>'; }
+      });
+
+      clearBtn.addEventListener('click', async () => {
+        if (!confirm('Delete all saved mockups?')) return;
+        try {
+          const res = await fetch('/api/clear-mockups', { method: 'DELETE', headers: adminHeaders });
+          const data = await res.json();
+          resultsDiv.innerHTML = `<span style="color:var(--text-dim);font-size:13px;">Deleted ${data.deleted} files.</span>`;
+          clearBtn.style.display = 'none';
+        } catch (e) { resultsDiv.innerHTML = '<span style="color:#ff6b6b;">Error: ' + e.message + '</span>'; }
       });
     }
 
