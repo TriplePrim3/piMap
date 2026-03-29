@@ -311,7 +311,7 @@ const Shop = (() => {
 
     const contentW = maxX - minX;
     const contentH = maxY - minY;
-    const artSize = size * 0.88;
+    const artSize = size * 0.82;
     const pad = 20;
     const scaleX = (artSize - pad * 2) / contentW;
     const scaleY = (artSize - pad * 2) / contentH;
