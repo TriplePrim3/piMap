@@ -187,7 +187,7 @@ const Shop = (() => {
     setTimeout(renderNext, 0);
   }
 
-  function captureDesign(word, chunks, singlePos) {
+  function captureDesign(word, chunks, singlePos, openModal) {
     // Shop only supports spiral layout — switch if needed
     if (Layout.getType() !== 'spiral') {
       Layout.setType('spiral');
@@ -213,8 +213,8 @@ const Shop = (() => {
     const input = document.getElementById('shopSearchInput');
     if (input) input.value = capturedWord;
 
-    // Show modal and preview immediately (mockups render without designs)
-    showPreview();
+    // Only open shop modal when explicitly requested (e.g. "Make it mine" button)
+    if (openModal !== false) showPreview();
 
     // Render designs in background, yielding between each to keep UI responsive
     const designs = ['polygon', 'polygon-lines', 'pimark', 'heatmap'];
@@ -227,7 +227,7 @@ const Shop = (() => {
       } catch (e) {
         console.error(`Shop: failed to render ${d}`, e);
       }
-      _renderPreview();
+      if (openModal !== false) _renderPreview();
       if (i < designs.length) setTimeout(renderNext, 0);
     }
     setTimeout(renderNext, 0);

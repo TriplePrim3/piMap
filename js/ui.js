@@ -1111,8 +1111,8 @@ const UI = (() => {
       navigateToMatch(results[0], digitPatternLen);
       const pos = results[0];
       const count = results.length;
-      // Capture design immediately so share image works
-      Shop.captureDesign(displayWord || converted.digitQuery, null, pos);
+      // Capture design for share image, but don't open shop
+      Shop.captureDesign(displayWord || converted.digitQuery, null, pos, false);
       const makeBtn = `<br><button class="mascot-action-btn" id="makeItMineLocal">Make it mine</button> ${_shareBtn('shareLocal')}`;
       if (converted.mode === 'digits') {
         mascotSay(`<div class="bubble-title">Got it!</div>"<b>${converted.digitQuery}</b>" shows up <b>${count.toLocaleString()}</b> time${count > 1 ? 's' : ''}! First one is ${_posWords(pos)}. ${_posReaction(pos)}${makeBtn}`, 0);
@@ -1232,9 +1232,9 @@ const UI = (() => {
 
     unlock('multi_part');
 
-    // Capture design immediately so share image works
+    // Capture design for share image, but don't open shop
     const shareWord = origWord || word;
-    Shop.captureDesign(shareWord, chunks, -1);
+    Shop.captureDesign(shareWord, chunks, -1, false);
 
     const badge = document.getElementById('searchResults');
     const nav = document.getElementById('searchNav');
@@ -1510,8 +1510,8 @@ const UI = (() => {
 
       // "Make it mine" + "Share" for single result
       if (best) {
-        // Capture design so share image works
-        Shop.captureDesign(_displayWord, null, best.pos);
+        // Capture design for share image, but don't open shop
+        Shop.captureDesign(_displayWord, null, best.pos, false);
         mascotHtml += `<br><button class="mascot-action-btn" id="makeItMineApi">Make it mine</button> ${_shareBtn('shareMulti')}`;
       }
 
@@ -1663,8 +1663,8 @@ const UI = (() => {
         const posFormatted = pos.toLocaleString();
         const totalFormatted = _displayTotal(result.totalDigits);
 
-        // Capture design so share image works
-        Shop.captureDesign(label, null, pos);
+        // Capture design for share image, but don't open shop
+        Shop.captureDesign(label, null, pos, false);
 
         icon.textContent = '\u{1F3AF}';
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`
