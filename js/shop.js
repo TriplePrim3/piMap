@@ -5,7 +5,6 @@ const Shop = (() => {
     tshirt:  { w: 4500, h: 5400 },  // 15×18 inches
     cap:     { w: 2400, h: 2400 },  // embroidery area ~4×4 inches (high res)
     mug:     { w: 2475, h: 1050 },  // 11oz mug print area per side
-    sticker: { w: 1800, h: 1800 },  // 3×3 inches at 300 DPI (with bleed)
   };
   const PREVIEW_SIZE = 500;
   const FONT = '"Cascadia Code", "Fira Code", Consolas, monospace';
@@ -50,7 +49,6 @@ const Shop = (() => {
     tshirt: { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
     cap:    { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
     mug:    { mult: 10, cents: Math.round(10 * PI * 100), label: '10π' },
-    sticker:{ mult: 3,  cents: Math.round(3 * PI * 100),  label: '3π' },
   };
   function _price(productKey) { return PRICES[productKey] || PRICES.tshirt; }
   function _priceDollars(productKey) { return (_price(productKey).cents / 100).toFixed(2); }
@@ -103,17 +101,6 @@ const Shop = (() => {
       backPrint: null,
       hasBack: true,
       isMug: true,
-    },
-    sticker: {
-      label: 'Sticker',
-      colors: [
-        { name: 'White', swatch: '#ffffff', src: 'mockups/sticker-white.jpg', dark: false },
-      ],
-      frontCrop: { x: 0.05, y: 0.05, w: 0.90, h: 0.90 },
-      backCrop: null,
-      frontPrint: { x: 0.10, y: 0.10, w: 0.80, h: 0.80 },
-      backPrint: null,
-      hasBack: false,
     },
   };
 
@@ -1137,7 +1124,7 @@ const Shop = (() => {
         btn.addEventListener('click', () => {
           product = key;
           colorIdx = 0;
-          selectedSize = key === 'tshirt' ? 'M' : key === 'mug' ? '11oz' : key === 'sticker' ? '3×3' : 'One Size';
+          selectedSize = key === 'tshirt' ? 'M' : key === 'mug' ? '11oz' : 'One Size';
           _reRenderDesigns();
         });
         productPicker.appendChild(btn);
@@ -1175,34 +1162,6 @@ const Shop = (() => {
       if (backSrc) {
         _compositeFrame(frameBack, cfg.backCrop, null, null, col, backSrc);
       }
-    } else if (product === 'sticker') {
-      // Sticker: render polygon design directly
-      labelLeft.textContent = 'STICKER';
-      const dataUrl = designImages['polygon'];
-      if (dataUrl) {
-        const img = new Image();
-        img.onload = () => {
-          const sz = 300;
-          const canvas = document.createElement('canvas');
-          canvas.width = sz; canvas.height = sz;
-          const ctx = canvas.getContext('2d');
-          ctx.beginPath();
-          const r = sz * 0.08;
-          ctx.moveTo(r, 0); ctx.lineTo(sz - r, 0); ctx.quadraticCurveTo(sz, 0, sz, r);
-          ctx.lineTo(sz, sz - r); ctx.quadraticCurveTo(sz, sz, sz - r, sz);
-          ctx.lineTo(r, sz); ctx.quadraticCurveTo(0, sz, 0, sz - r);
-          ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
-          ctx.closePath(); ctx.clip();
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, sz, sz);
-          const pad = sz * 0.05;
-          ctx.drawImage(img, pad, pad, sz - pad * 2, sz - pad * 2);
-          canvas.className = 'mockup-canvas';
-          frameFront.innerHTML = '';
-          frameFront.appendChild(canvas);
-        };
-        img.src = dataUrl;
-      }
     } else if (cfg.hasBack) {
       // T-shirt: front + back
       const frontDesign = flipped ? backDesign : 'pimark';
@@ -1218,13 +1177,7 @@ const Shop = (() => {
       _compositeFrame(frameFront, cfg.frontCrop, cfg.frontPrint, designImages[capDesign]);
     }
 
-    // Pi vicinity strip — show what digits fill the π (not for sticker)
-    if (product === 'sticker') {
-      const strip = document.getElementById('piVicinityStrip');
-      if (strip) strip.classList.add('hidden');
-    } else {
-      _renderVicinityStrip();
-    }
+    _renderVicinityStrip();
 
     // Back design picker (t-shirt only, not mug)
     const picker = document.getElementById('backDesignPicker');
@@ -1283,7 +1236,7 @@ const Shop = (() => {
       }
     }
 
-    // Cap design picker (cap only, not sticker/mug)
+    // Cap design picker (cap only, not mug)
     const capPicker = document.getElementById('capDesignGroup');
     if (capPicker) {
       if (!cfg.hasBack && product === 'cap') {
@@ -1380,7 +1333,6 @@ const Shop = (() => {
     if (sizePicker) {
       const sizes = product === 'tshirt' ? ['XS','S','M','L','XL','XXL']
         : product === 'mug' ? ['11oz']
-        : product === 'sticker' ? ['3×3']
         : ['One Size'];
       sizePicker.innerHTML = '';
       sizes.forEach(s => {

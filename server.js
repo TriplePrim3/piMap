@@ -99,13 +99,6 @@ const PRINTFUL_PRODUCTS = {
     },
     placements: { front: 'default' },
   },
-  sticker: {
-    productId: 358, // Kiss-Cut Stickers
-    variants: {
-      'White-3×3': 10163,
-    },
-    placements: { front: 'default' },
-  },
 };
 
 // Pricing: multiples of π
@@ -114,7 +107,6 @@ const PRODUCT_PRICES = {
   tshirt:  Math.round(10 * PI * 100), // 10π = $31.42
   cap:     Math.round(10 * PI * 100), // 10π = $31.42
   mug:     Math.round(10 * PI * 100), // 10π = $31.42
-  sticker: Math.round(3 * PI * 100),  //  3π = $9.42
 };
 
 // Shipping rate tiers (cents) — based on Printful rates + small handling buffer
@@ -571,8 +563,8 @@ async function handleCheckout(req, res) {
     };
     saveOrder(order);
 
-    // Tax codes: apparel (tshirt/cap), home accessories (mug), paper goods (sticker)
-    const TAX_CODES = { tshirt: 'txcd_30011000', cap: 'txcd_30011000', mug: 'txcd_35010000', sticker: 'txcd_38000000' };
+    // Tax codes: apparel (tshirt/cap), home accessories (mug)
+    const TAX_CODES = { tshirt: 'txcd_30011000', cap: 'txcd_30011000', mug: 'txcd_35010000' };
 
     const lineItems = items.map(item => {
       const productData = {

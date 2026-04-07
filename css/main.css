@@ -481,19 +481,46 @@ html, body {
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--text);
-  padding: 12px 24px;
+  padding: 12px 32px 12px 24px;
   background: var(--bg-surface);
   border: 1.5px solid var(--accent);
   border-radius: 12px;
   box-shadow: 0 4px 20px var(--accent-glow), 0 2px 8px rgba(0,0,0,0.3);
   backdrop-filter: blur(12px);
-  white-space: nowrap;
   max-width: 80vw;
   overflow: hidden;
-  text-overflow: ellipsis;
   animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  pointer-events: none;
   user-select: none;
+}
+
+.conv-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  pointer-events: auto;
+  padding: 0;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 50%;
+}
+.conv-close:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.1);
+}
+
+.search-conversion .conv-label,
+.search-conversion .conv-mapping,
+.search-conversion .conv-result {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .search-conversion .conv-label {
@@ -559,7 +586,6 @@ html, body {
 .famous-panel {
   position: relative;
   pointer-events: auto;
-  z-index: 9;
 }
 .famous-panel .famous-list {
   position: absolute;
@@ -1252,6 +1278,121 @@ html, body {
   color: var(--accent);
   margin-bottom: 4px;
 }
+
+.bubble-minimize, .bubble-maximize {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: rgba(255,255,255,0.1);
+  color: var(--text-dim);
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s;
+}
+.bubble-minimize:hover, .bubble-maximize:hover {
+  background: rgba(255,255,255,0.2);
+  color: var(--text);
+}
+
+.mascot-bubble.minimized {
+  min-width: auto;
+  max-width: none;
+  padding: 0;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mascot-bubble.minimized .bubble-maximize {
+  position: static;
+  width: 100%;
+  height: 100%;
+  background: none;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  border-radius: 50%;
+}
+
+/* Rarity display */
+.rarity-display {
+  position: fixed;
+  top: 60px;
+  right: 24px;
+  z-index: 8;
+  width: 240px;
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rarity-block {
+  position: relative;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  backdrop-filter: blur(12px);
+}
+.rarity-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 50%;
+}
+.rarity-close:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.1);
+}
+.rarity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.rarity-title { font-size: 11px; font-weight: 700; color: var(--text); letter-spacing: 0.3px; }
+.rarity-digits { font-size: 10px; color: var(--text-dim); }
+.rarity-odds { display: flex; flex-direction: column; gap: 3px; }
+.rarity-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.rarity-label { width: 30px; color: var(--text-dim); font-weight: 600; flex-shrink: 0; white-space: nowrap; }
+.rarity-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+[data-theme="light"] .rarity-bar-track { background: rgba(0,0,0,0.08); }
+.rarity-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.rarity-prob { width: 72px; text-align: right; color: var(--text); font-weight: 700; font-size: 11px; flex-shrink: 0; }
+.rarity-inline { display: block; margin-top: 4px; font-size: 11px; opacity: 0.85; }
 
 .mascot-action-btn {
   display: inline-block;
@@ -2262,7 +2403,7 @@ html, body {
 
   /* Encoding conversion: vertical strip on left edge */
   .search-conversion {
-    top: 100px !important;
+    top: 120px !important;
     bottom: auto !important;
     max-height: 45vh;
     left: 0 !important;
@@ -2298,6 +2439,44 @@ html, body {
   }
   .search-conversion .conv-result {
     display: none;
+  }
+  .search-conversion .conv-close {
+    position: static;
+    display: block;
+    width: 100%;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+
+  /* Probability modal: right side, parallel with encoding on left */
+  .rarity-display {
+    position: fixed;
+    top: 120px !important;
+    bottom: auto;
+    left: auto !important;
+    right: 0 !important;
+    width: auto;
+    max-width: 180px;
+    z-index: 8;
+    border-radius: 8px 0 0 8px;
+    opacity: 0.9;
+  }
+  .rarity-display .rarity-block {
+    padding: 8px 10px;
+    border-radius: 0 8px 8px 0;
+    font-size: 10px;
+  }
+  .rarity-display .rarity-title { font-size: 9px; }
+  .rarity-display .rarity-digits { font-size: 8px; }
+  .rarity-display .rarity-label { font-size: 9px; min-width: 28px; }
+  .rarity-display .rarity-prob { font-size: 9px; }
+  .rarity-display .rarity-close {
+    top: 2px;
+    right: 4px;
+    width: 14px;
+    height: 14px;
+    font-size: 11px;
+    line-height: 14px;
   }
 
   /* Minimap: hide on mobile portrait */

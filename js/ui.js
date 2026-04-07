@@ -159,12 +159,15 @@ const UI = (() => {
 
   let _typewriterTimer = null;
   let _bubbleSticky = false; // when true, bubble can't be dismissed by clicking
+  let _bubbleMinimized = false;
+  let _bubbleFullHTML = '';
 
   function mascotSay(html, duration, sticky) {
     if (_bubbleSticky) return; // don't replace a sticky bubble
     _bubbleSticky = !!sticky;
+    _bubbleMinimized = false;
     const bubble = document.getElementById('mascotBubble');
-    bubble.classList.remove('hidden');
+    bubble.classList.remove('hidden', 'minimized');
 
     // Kill any in-progress typewriter
     if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
@@ -174,7 +177,12 @@ const UI = (() => {
     // Parse HTML into nodes, then reveal text character by character
     // We render the full HTML invisibly first to preserve structure,
     // then reveal characters one at a time
-    bubble.innerHTML = html;
+    const minBtn = '<button class="bubble-minimize" title="Minimize">—</button>';
+    bubble.innerHTML = minBtn + html;
+    _bubbleFullHTML = bubble.innerHTML;
+    // Wire minimize button
+    const btn = bubble.querySelector('.bubble-minimize');
+    if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); _toggleBubbleMinimize(); });
     const fullHTML = bubble.innerHTML;
 
     // Collect all text nodes and their content
@@ -220,6 +228,24 @@ const UI = (() => {
         charIdx = 0;
       }
     }, speed);
+  }
+
+  function _toggleBubbleMinimize() {
+    const bubble = document.getElementById('mascotBubble');
+    _bubbleMinimized = !_bubbleMinimized;
+    if (_bubbleMinimized) {
+      // Kill typewriter if running
+      if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
+      clearTimeout(mascotTimer);
+      bubble.classList.add('minimized');
+      bubble.innerHTML = '<button class="bubble-maximize" title="Show message">π</button>';
+      bubble.querySelector('.bubble-maximize').addEventListener('click', (e) => { e.stopPropagation(); _toggleBubbleMinimize(); });
+    } else {
+      bubble.classList.remove('minimized');
+      bubble.innerHTML = _bubbleFullHTML;
+      const btn = bubble.querySelector('.bubble-minimize');
+      if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); _toggleBubbleMinimize(); });
+    }
   }
 
   function mascotHide() {
@@ -875,6 +901,7 @@ const UI = (() => {
       if (e.key === 'Escape') {
         input.value = '';
         Search.clear();
+        hideRarity();
         Renderer.setSearchHighlights(null, 0);
         Renderer.clearBirthdayMarker();
         Minimap.clearSpiralLines();
@@ -964,7 +991,8 @@ const UI = (() => {
       }
     }
 
-    return `<span class="conv-label">${modeLabels[mode] || mode} encoding</span>`
+    return `<button class="conv-close" title="Hide">&times;</button>`
+      + `<span class="conv-label">${modeLabels[mode] || mode} encoding</span>`
       + `<span class="conv-mapping">${parts.join('  ')}</span>`
       + `<span class="conv-result"><span class="conv-arrow" style="margin-left:12px">→</span> `
       + `<span style="color:${color};font-size:20px;font-weight:800">${converted.digitQuery}</span>`
@@ -999,6 +1027,19 @@ const UI = (() => {
     Minimap.setSpiralLines(lines.length > 0 ? lines : null);
   }
 
+  function showRarity(digitLen, encoding) {
+    const el = document.getElementById('rarityDisplay');
+    if (!el) return;
+    if (digitLen <= 0) { hideRarity(); return; }
+    el.innerHTML = Rarity.buildHTML(digitLen, encoding);
+    el.classList.remove('hidden');
+  }
+
+  function hideRarity() {
+    const el = document.getElementById('rarityDisplay');
+    if (el) { el.classList.add('hidden'); el.innerHTML = ''; }
+  }
+
   function doSearch() {
     const input = document.getElementById('searchInput');
     const nav = document.getElementById('searchNav');
@@ -1016,6 +1057,7 @@ const UI = (() => {
 
     if (!query) {
       Search.clear();
+      hideRarity();
       Renderer.setSearchHighlights(null, 0);
       Renderer.clearChunkConnectors();
       Minimap.clearMarkers();
@@ -1079,9 +1121,14 @@ const UI = (() => {
       trackEncoding(converted.mode);
       convEl.innerHTML = buildConversionHTML(query, converted);
       convEl.classList.remove('hidden');
+      const closeBtn = convEl.querySelector('.conv-close');
+      if (closeBtn) closeBtn.addEventListener('click', () => convEl.classList.add('hidden'));
     } else {
       convEl.classList.add('hidden');
     }
+
+    // Always show rarity for the current search
+    showRarity(digitPatternLen, converted.mode);
 
     // Run all 3 encodings for minimap when query has letters
     if (hasLetters) {
@@ -1244,6 +1291,7 @@ const UI = (() => {
     nav.classList.remove('hidden');
     matchIdx.textContent = `1/${chunks.length}`;
 
+    showRarity(converted.digitQuery.length, converted.mode);
     mascotSay(
       `<div class="bubble-title">Found in ${chunks.length} parts!</div>`
       + `"<b>${shareWord}</b>" is too long to find in one go, but I found it in parts:<br>`
@@ -1508,6 +1556,13 @@ const UI = (() => {
         }
       }
 
+      // Show rarity using the user's selected encoding, not the shortest match
+      const selectedEnc = Search.getTextEncoding();
+      const selectedResult = found.find(f => f.mode === selectedEnc) || best;
+      if (selectedResult) {
+        showRarity(selectedResult.digitStr.length, selectedResult.mode);
+      }
+
       // "Make it mine" + "Share" for single result
       if (best) {
         // Capture design for share image, but don't open shop
@@ -1518,6 +1573,10 @@ const UI = (() => {
       mascotSay(mascotHtml, 0);
       showApiContextPanelMulti(found, notFound, _displayWord);
       if (best) Minimap.setApiMarker(best.pos, _displayWord);
+      // Re-ensure rarity is visible after context panel renders
+      const _selEnc = Search.getTextEncoding();
+      const _selRes = found.find(f => f.mode === _selEnc) || best;
+      if (_selRes) setTimeout(() => showRarity(_selRes.digitStr.length, _selRes.mode), 50);
 
       // Wire up buttons
       const _bestPos = best ? best.pos : -1;
@@ -1669,6 +1728,7 @@ const UI = (() => {
         icon.textContent = '\u{1F3AF}';
         title.innerHTML = `Found "<b>${label}</b>" in \u03C0`
           + `<span class="api-position">digit #${posFormatted}</span>`;
+        showRarity(digitStr.length);
         mascotSay(`<div class="bubble-title">Found it!</div>"<b>${label}</b>" is ${_posWords(pos)}! ${_posReaction(pos)}<br>${_shareBtn('shareApi')}`, 0);
         _wireShareBtn('shareApi', label, pos);
         if (pos > 1e9) unlock('far_out');
@@ -1684,12 +1744,15 @@ const UI = (() => {
 
         showApiContextPanel(pos, digitStr.length, digitStr, label, result.totalDigits);
         Minimap.setApiMarker(pos, label);
+        // Re-ensure rarity is visible after context panel renders
+        setTimeout(() => showRarity(digitStr.length, converted.mode), 50);
       } else {
         const totalFormatted = _displayTotal(result.totalDigits || 0);
         icon.textContent = '\u{1F50D}';
         title.textContent = `"${label}" not found in ${totalFormatted} digits of \u03C0`;
         detail.textContent = `Searched all ${totalFormatted} digits in ${result.elapsed}ms.`;
         let apiNotFoundMsg = `"<b>${label}</b>" is hiding beyond ${totalFormatted} digits!`;
+        showRarity(digitStr.length);
         if (word) {
           apiNotFoundMsg += `<br><i style="opacity:0.7">Try enabling <b>multi-part search</b> to find each part separately!</i>`;
         }
@@ -2550,6 +2613,19 @@ const UI = (() => {
       const item = e.target.closest('.famous-item');
       if (!item) return;
 
+      // Clear previous search results
+      Search.clear();
+      Renderer.setSearchHighlights(null, 0);
+      Renderer.clearChunkConnectors();
+      Minimap.clearMarkers();
+      Minimap.clearChunkLines();
+      hideApiBanner();
+      document.getElementById('searchConversion').classList.add('hidden');
+      const nav = document.getElementById('searchNav');
+      nav.classList.add('hidden');
+      const badge = document.getElementById('searchResults');
+      badge.classList.add('hidden');
+
       const pattern = item.dataset.pattern;
       const pos = parseInt(item.dataset.pos, 10);
 
@@ -2563,6 +2639,7 @@ const UI = (() => {
         } else {
           fact = famousEntry.facts[Math.floor(Math.random() * famousEntry.facts.length)];
         }
+        showRarity(pattern.length);
         mascotSay(`<div class="bubble-title">${famousEntry.name}</div>${fact}`, 10000);
       }
       if (pattern === '999999') unlock('feynman');
